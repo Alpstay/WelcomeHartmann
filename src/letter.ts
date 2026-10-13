@@ -39,6 +39,9 @@ export function normalizeGuestName(first: string | null, last: string | null): s
   return full;
 }
 
+/** Esattamente 4 cifre. */
+export const isPin = (v: string | null | undefined): boolean => typeof v === "string" && /^\d{4}$/.test(v.trim());
+
 const fmtDate = (iso: string): string => {
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
@@ -95,6 +98,7 @@ export function buildLetter(input: LetterInput, settings: HotelSettings = HOTEL)
     qrCaption: TEXTS[input.lang].qr,
     qrCaptionEnglish: input.lang === "en" ? null : TEXTS.en.qr,
     note: input.note?.trim() || null,
+    pin: isPin(input.pin) ? input.pin!.trim() : null,
     noteLabel: input.lang === "en" ? TEXTS.en.noteLabel : `${TEXTS[input.lang].noteLabel} · ${TEXTS.en.noteLabel}`,
     hotelName: settings.hotelName,
     place: settings.place,

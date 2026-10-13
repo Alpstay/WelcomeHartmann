@@ -437,6 +437,7 @@ function toItems(rows, lookup) {
       langNote: choice.note,
       name: guest?.name || booker?.name || "",
       note: "",
+      pin: "",
       lang: choice.lang,
       selected: true
     };

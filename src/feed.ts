@@ -133,6 +133,7 @@ export const fromFeedItem = (f: FeedItem, index: number): ArrivalItem => ({
   langSource: f.langSource,
   name: f.name,
   note: "",
+  pin: "",
   lang: f.lang,
   selected: true,
 });

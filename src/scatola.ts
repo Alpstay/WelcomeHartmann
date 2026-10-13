@@ -202,6 +202,7 @@ export function toItems(rows: readonly ArrivalRow[], lookup: GuestLookup | null)
         langNote: choice.note,
         name: guest?.name || booker?.name || "",
         note: "",
+        pin: "",
         lang: choice.lang,
         selected: true,
       };

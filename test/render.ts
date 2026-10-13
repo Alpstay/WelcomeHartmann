@@ -23,7 +23,7 @@ const samples: LetterInput[] = [
 
 
 const LONG_NOTE = "Tanti auguri di buon compleanno! In camera trovate una bottiglia di prosecco offerta dalla casa. Lo skipass che avete prenotato è pronto alla reception: potete ritirarlo domattina dalle 8:00. Per la cena vi abbiamo riservato un tavolo alle 19:30.".slice(0, 240);
-const withNotes: LetterInput[] = samples.map((s) => ({ ...s, note: LONG_NOTE }));
+const withNotes: LetterInput[] = samples.map((s, i) => ({ ...s, note: LONG_NOTE, pin: i % 2 === 0 ? "4827" : null }));
 
 console.log(normalizeGuestName("kang un suk", "kang un suk"), "|", normalizeGuestName("MERRY GRACE", "O'NEIL-SMITH"), "|", normalizeGuestName("Anna", "van der Berg"));
 console.log(normalizeLang("de-AT"), normalizeLang("th"), normalizeLang(null));
@@ -35,7 +35,7 @@ for (const [fam, styles] of Object.entries(PDF_FONTS)) {
   for (const [style, file] of Object.entries(styles as Record<string, string>)) fonts[fam][style] = Buffer.from(vfs[file], "base64");
 }
 const printer = new PdfPrinter(fonts);
-const doc = printer.createPdfKitDocument(buildDocDefinition([...samples, ...withNotes].map((s) => buildLetter(s)), ASSETS));
+const doc = printer.createPdfKitDocument(buildDocDefinition([...samples.map((s, i) => ({ ...s, pin: i % 3 === 0 ? null : "0519" })), ...withNotes].map((s) => buildLetter(s)), ASSETS));
 const chunks: Buffer[] = [];
 doc.on("data", (c: Buffer) => chunks.push(c));
 doc.on("end", () => { writeFileSync("out/prova.pdf", Buffer.concat(chunks)); console.log("PDF ok", Buffer.concat(chunks).length); });

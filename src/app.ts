@@ -4,7 +4,7 @@ import { ASSETS } from "./assets.generated";
 import { FEED_FILE, decryptJson, feedAad, fromFeedItem, isFeedEnvelope } from "./feed";
 import type { FeedEnvelope, FeedPayload } from "./feed";
 import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
-import { buildLetter, nightsBetween } from "./letter";
+import { buildLetter, isPin, nightsBetween } from "./letter";
 import { PDF_FONTS, buildDocDefinition, pdfVfs } from "./pdf";
 import { SERVER, fetchArrivals, fetchGuestInfo, freshnessTime, isMcpError, toItems } from "./scatola";
 import { LANG_ORDER, TEXTS } from "./texts";
@@ -105,6 +105,8 @@ const state: AppState = {
 };
 
 const LOGO_URL = `data:image/png;base64,${ASSETS.logoPng}`;
+/** Le lettere si stampano in bianco e nero: anche l'anteprima usa il logo nero. */
+const LOGO_BW_URL = `data:image/png;base64,${ASSETS.logoBwPng}`;
 
 // ——— modifiche della reception (nome, lingua, nota) ———
 // Restano su questo dispositivo, così non si perdono quando si aggiornano i dati.
@@ -115,6 +117,7 @@ const EDITS_DAYS = 14;
 
 interface ItemEdit {
   name?: string;
+  pin?: string;
   lang?: LangCode;
   note?: string;
   at: number;
@@ -154,6 +157,7 @@ function applyEdits(items: ArrivalItem[]): ArrivalItem[] {
       i.langSource = "manuale";
     }
     if (typeof e.note === "string") i.note = e.note.slice(0, NOTE_MAX);
+    if (typeof e.pin === "string") i.pin = e.pin.replace(/\D/g, "").slice(0, 4);
   }
   return items;
 }
@@ -453,6 +457,8 @@ function chipsFor(item: ArrivalItem): Chip[] {
   else if (item.langSource === "prenotazione") chips.push({ text: "Lingua dalla prenotazione", tone: "neutral" });
   else if (item.langSource === "manuale") chips.push({ text: "Lingua scelta a mano", tone: "info" });
   if (item.langNote && item.langSource !== "manuale") chips.push({ text: item.langNote, tone: "info" });
+  if (item.pin.length > 0 && !isPin(item.pin)) chips.push({ text: "PIN incompleto: servono 4 cifre", tone: "error" });
+  else if (!isPin(item.pin)) chips.push({ text: "Senza PIN: caselle da scrivere a mano", tone: "warn" });
   if (item.note.trim()) chips.push({ text: "Con nota", tone: "info" });
   return chips;
 }
@@ -541,7 +547,27 @@ function rowFor(item: ArrivalItem): HTMLLIElement {
     h("div", { class: "c-sel" }, check),
     h("div", { class: "c-room" }, roomCell(item)),
     h("div", { class: "c-who" }, name, h("p", { class: "meta" }, metaFor(item)), chips, noteBox),
-    h("div", { class: "c-lang" }, langSelect(item), remove),
+    h(
+      "div",
+      { class: "c-lang" },
+      langSelect(item),
+      h(
+        "label",
+        { class: "pin-field", for: `pin-${item.key}` },
+        "PIN",
+        h("input", {
+          class: "pin",
+          id: `pin-${item.key}`,
+          value: item.pin,
+          inputmode: "numeric",
+          autocomplete: "off",
+          maxlength: 4,
+          placeholder: "––––",
+          "aria-label": "PIN a 4 cifre per il post-it",
+        }),
+      ),
+      remove,
+    ),
   );
   return li;
 }
@@ -644,6 +670,26 @@ function blockEl(b: LetterModel["primary"]): HTMLElement {
   );
 }
 
+/** Post-it dell'anteprima: stessa forma del PDF (angolo piegato), caselle vuote se manca il PIN. */
+function postItEl(m: LetterModel): HTMLElement {
+  const box = h("div", { class: "l-postit", "aria-label": m.pin ? `PIN ${m.pin}` : "PIN da scrivere a mano" });
+  box.innerHTML =
+    '<svg viewBox="0 0 104 90" aria-hidden="true"><polygon points="0.5,0.5 103.5,0.5 103.5,75 89,89.5 0.5,89.5" fill="#fff" stroke="#000" stroke-width="1"/><polygon points="103.5,75 89,75 89,89.5" fill="#d0d0d0" stroke="#000" stroke-width="0.8"/></svg>';
+  const digits = m.pin
+    ? h("p", { class: "l-postit-pin" }, m.pin)
+    : h("div", { class: "l-postit-boxes" }, h("span", {}), h("span", {}), h("span", {}), h("span", {}));
+  box.append(
+    h(
+      "div",
+      { class: "l-postit-text" },
+      h("p", { class: "l-postit-label" }, "PIN"),
+      digits,
+      h("p", { class: "l-postit-room" }, `${m.roomLabel.split(" · ")[0]} ${m.room}`),
+    ),
+  );
+  return box;
+}
+
 function focusedItem(): ArrivalItem | null {
   return state.items.find((i) => i.key === state.focusKey) ?? null;
 }
@@ -658,6 +704,7 @@ function modelFor(item: ArrivalItem): LetterModel | null {
     arrival: item.arrival,
     departure: item.departure,
     note: item.note,
+    pin: item.pin,
   });
 }
 
@@ -683,7 +730,8 @@ function renderPreview(): void {
     h(
       "div",
       { class: m.note ? "l-page compact" : "l-page" },
-      h("img", { class: "l-logo", src: LOGO_URL, alt: "AlpStay" }),
+      postItEl(m),
+      h("img", { class: "l-logo", src: LOGO_BW_URL, alt: "AlpStay" }),
       h("p", { class: "l-hotel" }, m.hotelName),
       h("p", { class: "l-place" }, m.place),
       h(
@@ -877,6 +925,13 @@ function wire(): void {
     if (target.classList.contains("name")) {
       item.name = (target as HTMLInputElement).value;
       saveEdit(item, { name: item.name });
+    } else if (target.classList.contains("pin")) {
+      const input = target as HTMLInputElement;
+      const digits = input.value.replace(/\D/g, "").slice(0, 4);
+      if (input.value !== digits) input.value = digits;
+      item.pin = digits;
+      saveEdit(item, { pin: digits });
+      updateRowChrome(item);
     } else if (target.classList.contains("note")) {
       item.note = (target as HTMLTextAreaElement).value.slice(0, NOTE_MAX);
       saveEdit(item, { note: item.note });
@@ -931,6 +986,7 @@ function wire(): void {
       langSource: "manuale",
       name: "",
       note: "",
+      pin: "",
       lang: "de",
       selected: true,
     });

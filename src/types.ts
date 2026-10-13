@@ -63,6 +63,8 @@ export interface LetterInput {
   readonly departure: string | null;
   /** Nota libera della reception, stampata così com'è scritta. */
   readonly note?: string | null;
+  /** PIN a 4 cifre per il post-it; null = caselle vuote da scrivere a mano. */
+  readonly pin?: string | null;
 }
 
 /** Un blocco di testo completo in una lingua. */
@@ -94,6 +96,8 @@ export interface LetterModel {
   /** Nota della reception (null se vuota) e il suo titolino nelle due lingue. */
   readonly note: string | null;
   readonly noteLabel: string;
+  /** PIN a 4 cifre stampato sul post-it (null = caselle vuote). */
+  readonly pin: string | null;
   readonly hotelName: string;
   readonly place: string;
   readonly signer: string;
@@ -188,6 +192,8 @@ export interface ArrivalItem {
   name: string;
   /** Nota della reception per questa lettera (resta solo su questo dispositivo). */
   note: string;
+  /** PIN a 4 cifre scritto dalla reception (resta solo su questo dispositivo). */
+  pin: string;
   lang: LangCode;
   selected: boolean;
 }

@@ -107,6 +107,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .note:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 .note-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .note-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: auto; }
+.pin-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
+.pin { width: 76px; font-size: 18px; font-weight: 700; letter-spacing: 0.3em; text-align: center; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-variant-numeric: tabular-nums; }
+.pin:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold-soft); }
 .empty { padding: 28px 10px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .empty strong { display: block; color: var(--ink); font-family: var(--display); font-weight: 400; font-size: 18px; margin-bottom: 4px; }
 .add { margin-top: 14px; }
@@ -118,7 +121,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Foglio A4 in scala: 1cqw = 1% della larghezza del foglio (595,28 pt). */
 .sheet { position: relative; container-type: inline-size; width: 100%; max-width: 100%; aspect-ratio: 210 / 297; background: #fff; border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(46, 47, 45, 0.06), 0 12px 30px -12px rgba(46, 47, 45, 0.18); overflow: hidden; }
-.l-page { --pt: calc(100cqw / 595.28); padding: calc(34 * var(--pt)) calc(64 * var(--pt)); font-family: var(--text); font-size: calc(10.5 * var(--pt)); line-height: 1.32; color: var(--ink); }
+/* La lettera si stampa in bianco e nero: nell'anteprima i colori della pagina diventano nero e grigio scuro. */
+.l-page { --gold: #000; --gold-soft: #000; --muted: #3a3a3a; --ink: #000; position: relative; --pt: calc(100cqw / 595.28); padding: calc(34 * var(--pt)) calc(64 * var(--pt)); font-family: var(--text); font-size: calc(10.5 * var(--pt)); line-height: 1.32; color: var(--ink); }
 .l-page p { margin: 0; }
 .l-logo { display: block; width: calc(86 * var(--pt)); margin: 0 auto calc(4 * var(--pt)); }
 .l-hotel { text-align: center; font-family: var(--display); font-size: calc(10.5 * var(--pt)); letter-spacing: 0.29em; text-transform: uppercase; color: var(--gold); }
@@ -142,7 +146,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .l-qr-text .l-muted { font-size: calc(8.5 * var(--pt)); margin-top: calc(4 * var(--pt)) !important; }
 .l-qr img { width: calc(68 * var(--pt)); height: calc(68 * var(--pt)); flex: none; image-rendering: pixelated; }
 .l-role { font-size: calc(8.5 * var(--pt)); color: var(--muted); margin-top: calc(2 * var(--pt)) !important; }
-.l-note { margin-top: calc(9 * var(--pt)); padding: calc(7 * var(--pt)) calc(10 * var(--pt)) calc(8 * var(--pt)) calc(11 * var(--pt)); background: #f8f5ef; border-left: calc(1.6 * var(--pt)) solid var(--gold-soft); }
+.l-note { margin-top: calc(9 * var(--pt)); padding: calc(7 * var(--pt)) calc(10 * var(--pt)) calc(8 * var(--pt)) calc(11 * var(--pt)); background: none; border-left: calc(1.6 * var(--pt)) solid var(--gold-soft); }
 .l-note-label { font-family: var(--display); font-size: calc(7.5 * var(--pt)); letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin-bottom: calc(3 * var(--pt)) !important; }
 .l-note-text { font-style: italic; font-size: calc(10.5 * var(--pt)); line-height: 1.25; white-space: pre-line; overflow-wrap: anywhere; }
 .l-page.compact { font-size: calc(9.7 * var(--pt)); line-height: 1.22; }
@@ -152,6 +156,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .l-page.compact .l-block .p { margin-bottom: calc(2.5 * var(--pt)); }
 .l-page.compact .l-divider { margin-top: calc(9 * var(--pt)) !important; padding-top: calc(4 * var(--pt)); margin-bottom: calc(6 * var(--pt)) !important; }
 .l-page.compact .l-foot { margin-top: calc(6 * var(--pt)); }
+.l-postit { position: absolute; left: calc(64 * var(--pt)); top: calc(28 * var(--pt)); width: calc(104 * var(--pt)); height: calc(90 * var(--pt)); }
+.l-postit svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.l-postit-text { position: relative; padding: calc(10 * var(--pt)) calc(11 * var(--pt)); }
+.l-postit-label { font-weight: 700; font-size: calc(9 * var(--pt)); letter-spacing: 0.33em; line-height: 1; }
+.l-postit-pin { font-weight: 700; font-size: calc(30 * var(--pt)); letter-spacing: 0.17em; line-height: 1; margin: calc(4 * var(--pt)) 0 calc(6 * var(--pt)) !important; font-variant-numeric: tabular-nums; }
+.l-postit-boxes { display: flex; margin: calc(5 * var(--pt)) 0 calc(7 * var(--pt)); }
+.l-postit-boxes span { width: calc(15 * var(--pt)); height: calc(24 * var(--pt)); border: calc(0.8 * var(--pt)) solid #000; margin-left: calc(-0.8 * var(--pt)); }
+.l-postit-boxes span:first-child { margin-left: 0; }
+.l-postit-room { font-size: calc(7.5 * var(--pt)); letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); line-height: 1; }
 .l-empty { display: grid; place-items: center; height: 100%; color: var(--muted); }
 .l-badge { position: absolute; top: 12px; right: 12px; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--info-bg); color: var(--info); }
 .sheet.example .l-page { opacity: 0.8; }
