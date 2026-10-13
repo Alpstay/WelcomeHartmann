@@ -125,7 +125,8 @@ var TEXTS = {
     wifiLabel: "Wi-Fi password",
     emergency: (p) => [t("In case of emergency, please call "), b(p), t(".")],
     closing: "We wish you a wonderful stay!",
-    qr: "Scan the QR code to find all the information about Chalet Hotel Hartmann."
+    qr: "Scan the QR code to find all the information about Chalet Hotel Hartmann.",
+    noteLabel: "A note for you"
   },
   it: {
     nameIt: "Italiano",
@@ -148,7 +149,8 @@ var TEXTS = {
     wifiLabel: "Password Wi-Fi",
     emergency: (p) => [t("In caso di emergenza potete chiamare il numero "), b(p), t(".")],
     closing: "Vi auguriamo un buon soggiorno!",
-    qr: "Inquadrate il codice QR: troverete tutte le informazioni sullo Chalet Hotel Hartmann."
+    qr: "Inquadrate il codice QR: troverete tutte le informazioni sullo Chalet Hotel Hartmann.",
+    noteLabel: "Una nota per voi"
   },
   de: {
     nameIt: "Tedesco",
@@ -172,7 +174,8 @@ var TEXTS = {
     wifiLabel: "WLAN-Passwort",
     emergency: (p) => [t("Im Notfall erreichen Sie uns unter "), b(p), t(".")],
     closing: "Wir w\xFCnschen Ihnen einen wundersch\xF6nen Aufenthalt!",
-    qr: "Scannen Sie den QR-Code: Dort finden Sie alle Informationen zum Chalet Hotel Hartmann."
+    qr: "Scannen Sie den QR-Code: Dort finden Sie alle Informationen zum Chalet Hotel Hartmann.",
+    noteLabel: "Eine Notiz f\xFCr Sie"
   },
   fr: {
     nameIt: "Francese",
@@ -195,7 +198,8 @@ var TEXTS = {
     wifiLabel: "Mot de passe Wi-Fi",
     emergency: (p) => [t("En cas d\u2019urgence, vous pouvez nous appeler au "), b(p), t(".")],
     closing: `Nous vous souhaitons un excellent s\xE9jour${NBSP}!`,
-    qr: "Scannez le code QR pour retrouver toutes les informations sur le Chalet Hotel Hartmann."
+    qr: "Scannez le code QR pour retrouver toutes les informations sur le Chalet Hotel Hartmann.",
+    noteLabel: "Un petit mot pour vous"
   },
   es: {
     nameIt: "Spagnolo",
@@ -219,7 +223,8 @@ var TEXTS = {
     wifiLabel: "Contrase\xF1a del wifi",
     emergency: (p) => [t("En caso de emergencia, pueden llamarnos al "), b(p), t(".")],
     closing: "\xA1Les deseamos una estancia maravillosa!",
-    qr: "Escaneen el c\xF3digo QR para encontrar toda la informaci\xF3n sobre el Chalet Hotel Hartmann."
+    qr: "Escaneen el c\xF3digo QR para encontrar toda la informaci\xF3n sobre el Chalet Hotel Hartmann.",
+    noteLabel: "Una nota para ustedes"
   },
   nl: {
     nameIt: "Olandese",
@@ -242,7 +247,8 @@ var TEXTS = {
     wifiLabel: "Wifi-wachtwoord",
     emergency: (p) => [t("In geval van nood kunt u ons bellen op "), b(p), t(".")],
     closing: "Wij wensen u een heerlijk verblijf!",
-    qr: "Scan de QR-code voor alle informatie over Chalet Hotel Hartmann."
+    qr: "Scan de QR-code voor alle informatie over Chalet Hotel Hartmann.",
+    noteLabel: "Een bericht voor u"
   },
   pl: {
     nameIt: "Polacco",
@@ -266,7 +272,8 @@ var TEXTS = {
     wifiLabel: "Has\u0142o do Wi-Fi",
     emergency: (p) => [t("W nag\u0142ych przypadkach prosimy dzwoni\u0107 pod numer "), b(p), t(".")],
     closing: "\u017Byczymy udanego pobytu!",
-    qr: "Prosimy zeskanowa\u0107 kod QR \u2013 znajd\u0105 tam Pa\u0144stwo wszystkie informacje o Chalet Hotel Hartmann."
+    qr: "Prosimy zeskanowa\u0107 kod QR \u2013 znajd\u0105 tam Pa\u0144stwo wszystkie informacje o Chalet Hotel Hartmann.",
+    noteLabel: "Wiadomo\u015B\u0107 dla Pa\u0144stwa"
   },
   cs: {
     nameIt: "Ceco",
@@ -290,7 +297,8 @@ var TEXTS = {
     wifiLabel: "Heslo k Wi-Fi",
     emergency: (p) => [t("V nal\xE9hav\xFDch p\u0159\xEDpadech n\xE1m volejte na \u010D\xEDslo "), b(p), t(".")],
     closing: "P\u0159ejeme V\xE1m p\u0159\xEDjemn\xFD pobyt!",
-    qr: "Naskenujte QR k\xF3d \u2013 najdete v n\u011Bm v\u0161echny informace o Chalet Hotelu Hartmann."
+    qr: "Naskenujte QR k\xF3d \u2013 najdete v n\u011Bm v\u0161echny informace o Chalet Hotelu Hartmann.",
+    noteLabel: "Vzkaz pro V\xE1s"
   },
   da: {
     nameIt: "Danese",
@@ -313,7 +321,8 @@ var TEXTS = {
     wifiLabel: "Wi-Fi-adgangskode",
     emergency: (p) => [t("I n\xF8dstilf\xE6lde kan I ringe til os p\xE5 "), b(p), t(".")],
     closing: "Vi \xF8nsker jer et dejligt ophold!",
-    qr: "Scan QR-koden, s\xE5 finder I alle oplysninger om Chalet Hotel Hartmann."
+    qr: "Scan QR-koden, s\xE5 finder I alle oplysninger om Chalet Hotel Hartmann.",
+    noteLabel: "En besked til jer"
   },
   sv: {
     nameIt: "Svedese",
@@ -336,7 +345,8 @@ var TEXTS = {
     wifiLabel: "Wi-Fi-l\xF6senord",
     emergency: (p) => [t("Vid en n\xF6dsituation kan ni ringa oss p\xE5 "), b(p), t(".")],
     closing: "Vi \xF6nskar er en riktigt trevlig vistelse!",
-    qr: "Skanna QR-koden f\xF6r all information om Chalet Hotel Hartmann."
+    qr: "Skanna QR-koden f\xF6r all information om Chalet Hotel Hartmann.",
+    noteLabel: "Ett meddelande till er"
   }
 };
 
@@ -426,6 +436,7 @@ function toItems(rows, lookup) {
       langSource: choice.source,
       langNote: choice.note,
       name: guest?.name || booker?.name || "",
+      note: "",
       lang: choice.lang,
       selected: true
     };
