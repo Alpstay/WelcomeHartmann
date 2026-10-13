@@ -153,6 +153,7 @@ function forecast(rows, propertyId, from, days) {
   const occ = new Array(days).fill(0);
   const cap = new Array(days).fill(0);
   const opt = new Array(days).fill(0);
+  const phys = new Array(days).fill(0);
   const base = Date.parse(`${from}T12:00:00Z`);
   for (const r of byProperty(rows, propertyId)) {
     const d = str(r.day);
@@ -160,10 +161,11 @@ function forecast(rows, propertyId, from, days) {
     const i = Math.round((Date.parse(`${d.slice(0, 10)}T12:00:00Z`) - base) / 864e5);
     if (!(i >= 0 && i < days)) continue;
     occ[i] += num(r.confirmed_occupied);
+    phys[i] += num(r.physical_rooms);
     cap[i] += Math.max(0, num(r.physical_rooms) - num(r.closure_count));
     opt[i] += num(r.option_occupied);
   }
-  return { from, occ, cap, opt };
+  return { from, occ, cap, opt, phys };
 }
 function buildHotel(raw, hotel, day) {
   const live = (rows) => unique(byProperty(rows, hotel.id)).filter((r) => !isCancelled(r));
@@ -205,7 +207,8 @@ function summaryLines(p) {
   return p.hotels.map((h) => {
     const arrived = h.arrivals.filter((m) => m.status !== "TO_ARRIVE").length;
     const left = h.departures.filter((m) => m.status === "DEPARTED").length;
-    const occ0 = h.forecast.cap[0] ? `${h.forecast.occ[0]}/${h.forecast.cap[0]}` : "chiuso";
+    const f = h.forecast, closed = (f.phys[0] ?? 0) - (f.cap[0] ?? 0);
+    const occ0 = f.cap[0] ? `${f.occ[0]}/${f.phys[0]}${closed > 0 ? ` (${closed} chiuse)` : ""}` : "chiuso";
     return `${h.short}: arrivi ${h.arrivals.length} (${arrived} arrivati) \xB7 partenze ${h.departures.length} (${left} partiti) \xB7 fermate ${h.stayovers} \xB7 stanotte ${occ0} \xB7 pickup 24h +${h.pickup24.created}/\u2212${h.pickup24.cancelled} \xB7 7 giorni +${h.pickup7.created}/\u2212${h.pickup7.cancelled}${h.ly7 === null ? "" : ` (anno scorso ${h.ly7})`}`;
   });
 }

@@ -54,6 +54,8 @@ export interface HoForecast {
   readonly occ: readonly number[];
   /** Camere vendibili: fisiche meno chiuse. */
   readonly cap: readonly number[];
+  /** Camere fisiche della casa (tutte, anche quelle chiuse o fuori servizio). */
+  readonly phys: readonly number[];
   /** Camere in opzione. */
   readonly opt: readonly number[];
 }
@@ -231,6 +233,7 @@ function forecast(rows: readonly Row[], propertyId: string, from: string, days: 
   const occ = new Array<number>(days).fill(0);
   const cap = new Array<number>(days).fill(0);
   const opt = new Array<number>(days).fill(0);
+  const phys = new Array<number>(days).fill(0);
   const base = Date.parse(`${from}T12:00:00Z`);
   for (const r of byProperty(rows, propertyId)) {
     const d = str(r.day);
@@ -238,10 +241,11 @@ function forecast(rows: readonly Row[], propertyId: string, from: string, days: 
     const i = Math.round((Date.parse(`${d.slice(0, 10)}T12:00:00Z`) - base) / 86_400_000);
     if (!(i >= 0 && i < days)) continue;
     occ[i] += num(r.confirmed_occupied);
+    phys[i] += num(r.physical_rooms);
     cap[i] += Math.max(0, num(r.physical_rooms) - num(r.closure_count));
     opt[i] += num(r.option_occupied);
   }
-  return { from, occ, cap, opt };
+  return { from, occ, cap, opt, phys };
 }
 
 /** Compone i dati di una casa. Pura: stessi ingressi, stessa uscita. */
@@ -295,7 +299,8 @@ export function summaryLines(p: HoPayload): string[] {
   return p.hotels.map((h) => {
     const arrived = h.arrivals.filter((m) => m.status !== "TO_ARRIVE").length;
     const left = h.departures.filter((m) => m.status === "DEPARTED").length;
-    const occ0 = h.forecast.cap[0] ? `${h.forecast.occ[0]}/${h.forecast.cap[0]}` : "chiuso";
+    const f = h.forecast, closed = (f.phys[0] ?? 0) - (f.cap[0] ?? 0);
+    const occ0 = f.cap[0] ? `${f.occ[0]}/${f.phys[0]}${closed > 0 ? ` (${closed} chiuse)` : ""}` : "chiuso";
     return `${h.short}: arrivi ${h.arrivals.length} (${arrived} arrivati) · partenze ${h.departures.length} (${left} partiti) · fermate ${h.stayovers} · stanotte ${occ0} · pickup 24h +${h.pickup24.created}/−${h.pickup24.cancelled} · 7 giorni +${h.pickup7.created}/−${h.pickup7.cancelled}${h.ly7 === null ? "" : ` (anno scorso ${h.ly7})`}`;
   });
 }

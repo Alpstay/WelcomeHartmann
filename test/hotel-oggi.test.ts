@@ -92,12 +92,15 @@ assert.equal(buildPayload({ ...raw, ly7: [] }, day, w.windows).hotels[0].ly7, nu
 assert.equal(acadia.forecast.occ.length, 90);
 assert.equal(acadia.forecast.occ[0], 16);
 assert.equal(acadia.forecast.cap[0], 19, "camere chiuse tolte");
+assert.equal(acadia.forecast.phys[0], 21, "camere fisiche: tutte, anche le chiuse");
+assert.equal(hartmann.forecast.phys[0], 9);
 assert.equal(acadia.forecast.opt[0], 1);
 assert.equal(acadia.forecast.occ[1], 20);
 assert.equal(hartmann.forecast.cap[0], 0, "casa chiusa");
 assert.equal(saslong.forecast.cap.reduce((a, b) => a + b, 0), 0);
 const lines = summaryLines(p);
 assert.ok(lines[0].startsWith("Acadia: arrivi 2 (1 arrivati)"));
+assert.ok(lines[0].includes("stanotte 16/21 (2 chiuse)"), lines[0]);
 assert.ok(lines[1].includes("stanotte chiuso"));
 assert.ok(!lines.join(" ").includes("€") && !lines.join(" ").includes("20000"), "nessun importo nel riepilogo");
 assert.equal(worstFreshness([{ overall: { status: "fresh" }, sources: [] }, { overall: { status: "stale" }, sources: [] }]), "stale");
