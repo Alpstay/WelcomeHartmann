@@ -12,3 +12,10 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/
 - Senza dati si possono sempre creare lettere a mano.
 
 Sorgente TypeScript in `src/`; build con `npm install && node build.mjs`.
+
+## Hotel oggi (AlpStay App Hub)
+
+Lo stesso repository pubblica anche `hotel-oggi.json`: arrivi, partenze, fermate, pickup e
+occupazione in portafoglio di Acadia, Hartmann e Saslong per la pagina «Hotel oggi» del hub
+(www.saslong.ai). File cifrato, aggiornato ogni ora da un'attività pianificata separata;
+procedura in `tools/HOTEL-OGGI.md`, sorgente in `src/hotel-oggi/`.

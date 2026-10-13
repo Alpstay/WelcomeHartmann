@@ -22,6 +22,17 @@ await build({
   banner: { js: "// Generato da src/cli/feed-cli.ts con build.mjs: non modificare a mano." },
   legalComments: "none",
 });
+// Programma «Hotel oggi» per l'AlpStay App Hub (gira in Node nella sessione pianificata)
+await build({
+  entryPoints: ["src/hotel-oggi/cli.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  outfile: "tools/hotel-oggi.mjs",
+  banner: { js: "// Generato da src/hotel-oggi/cli.ts con build.mjs: non modificare a mano." },
+  legalComments: "none",
+});
 const js = out.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
 const page = readFileSync("src/page.html", "utf8");
 if (!page.includes("/*APP_SCRIPT*/")) throw new Error("segnaposto mancante");
