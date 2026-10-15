@@ -1,0 +1,1 @@
+2026-10-15 11:03 non pubblicato · passo 3 · Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Data Exfiltration].
