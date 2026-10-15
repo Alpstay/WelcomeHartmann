@@ -10,14 +10,10 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { FEED_DAYS, FEED_FILE, decryptJson, encryptJson, feedAad, isFeedEnvelope, toFeedItem } from "../feed";
-import type { FeedEnvelope, FeedItem, FeedPayload } from "../feed";
-import { PROPERTY_NAME_MATCH } from "../hotel";
-import { lookupFromRows, toItems } from "../scatola";
-import type { ArrivalRow, BookerFields, Freshness, FreshnessStatus, GuestStayFields } from "../types";
-
-/** property_id dello Chalet Hartmann in La Scatola (copiato com'è). */
-const HARTMANN_ID = "22222222-2222-4222-8222-222222222222";
+import { FEED_FILE, decryptJson, feedAad, isFeedEnvelope } from "../feed";
+import type { FeedPayload } from "../feed";
+import { HARTMANN_ID, buildFeed, feedDates, hartmannRows } from "../feed-build";
+import type { ArrivalRow, BookerFields, Freshness, GuestStayFields } from "../types";
 const RUN_FILE = join(tmpdir(), "welcome-hartmann-run.json");
 const MAX_TRIES = 3;
 
@@ -53,13 +49,6 @@ function fail(message: string): never {
   out(`ERRORE ${message}`);
   process.exit(2);
 }
-
-// ——— date (Europe/Rome) ———
-
-const romeToday = (): string =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-const addDays = (iso: string, n: number): string => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
-const dm = (iso: string): string => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 
 // ——— registro della sessione ———
 
@@ -227,12 +216,11 @@ function start(args: string[]): void {
   if (!password || password.length < 8) fail('serve la password: node tools/feed.mjs start "<PASSWORD>"');
   if (!existsSync("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
   const ti = args.indexOf("--transcript");
-  const from = romeToday();
   const run: Run = {
     token: `WH-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`,
     startedAt: new Date(Date.now() - 1000).toISOString(),
     password,
-    dates: Array.from({ length: FEED_DAYS }, (_, i) => addDays(from, i)),
+    dates: feedDates(),
     transcript: ti >= 0 ? args[ti + 1] ?? null : null,
   };
   writeFileSync(RUN_FILE, JSON.stringify(run), { mode: 0o600 });
@@ -240,8 +228,6 @@ function start(args: string[]): void {
   out(`Giorni: ${run.dates[0]} → ${run.dates[run.dates.length - 1]}`);
   out("Ora esegui: node tools/feed.mjs next");
 }
-
-const RANK: Record<FreshnessStatus, number> = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
 
 async function next(): Promise<void> {
   const run = loadRun();
@@ -258,9 +244,7 @@ async function next(): Promise<void> {
     arrivals.push(...(chain.rows as unknown as ArrivalRow[]));
     fresh.push(...chain.freshness);
   }
-  const rows = [...new Map(arrivals.map((r) => [r.reservation_id, r])).values()].filter(
-    (r) => typeof r.reservation_id === "string" && PROPERTY_NAME_MATCH.test(String(r.property_name)) && r.booking_status !== "CANCELLED",
-  );
+  const rows = hartmannRows(arrivals);
 
   // 2) nomi e lingue (viste con dati personali: le legge solo il programma)
   const ids = rows.map((r) => r.reservation_id).sort();
@@ -293,42 +277,11 @@ async function next(): Promise<void> {
   }
 
   // 3) composizione, cifratura, verifica
-  const lookup = lookupFromRows(stays, contacts);
-  const days: Record<string, FeedItem[]> = {};
-  const counts: Record<string, number> = {};
-  for (const date of run.dates) {
-    const items = toItems(rows.filter((r) => r.arrival === date), lookup).map(toFeedItem);
-    days[date] = items;
-    counts[date] = items.length;
-  }
-  const worst = fresh.reduce<FreshnessStatus>((w, f) => (RANK[f.overall.status] > RANK[w] ? f.overall.status : w), "fresh");
-  const times = fresh
-    .flatMap((f) => f.sources)
-    .filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at)
-    .map((s) => Date.parse(s.last_success_at!))
-    .filter(Number.isFinite);
-  const from = run.dates[0];
-  const payload: FeedPayload = { days };
-  const envelope: FeedEnvelope = {
-    format: 1,
-    app: "WelcomeHartmann",
-    generated_at: new Date().toISOString(),
-    scatola_updated_at: times.length ? new Date(Math.max(...times)).toISOString() : null,
-    freshness: worst,
-    from,
-    to: run.dates[run.dates.length - 1],
-    counts,
-    enc: await encryptJson(payload, run.password, feedAad(from)),
-  };
-  const back = await decryptJson<FeedPayload>(envelope.enc, run.password, feedAad(from));
-  if (JSON.stringify(back) !== JSON.stringify(payload)) fail("la verifica della cifratura non torna. Non pubblicare.");
-  writeFileSync(FEED_FILE, `${JSON.stringify(envelope)}\n`);
-
-  const noRoom = rows.filter((r) => !r.room_name).length;
-  const noName = Object.values(days).flat().filter((i) => !i.name).length;
-  out(`RIEPILOGO arrivi ${run.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" · ")}`);
-  out(`RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`);
-  out(`RIEPILOGO senza camera: ${noRoom} · senza nome: ${noName} · chiamate lette: ${calls.length}`);
+  const built = await buildFeed({ dates: run.dates, rows, stays, contacts, freshness: fresh }, run.password).catch((e: unknown) =>
+    fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`),
+  );
+  writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}\n`);
+  for (const line of built.summary) out(line.startsWith("RIEPILOGO senza") ? `${line} · chiamate lette: ${calls.length}` : line);
   out(`PRONTO ${FEED_FILE} scritto e verificato`);
 }
 

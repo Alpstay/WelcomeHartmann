@@ -1,0 +1,44 @@
+# Aggiorna arrivi.json (lettere di benvenuto Hartmann) leggendo La Scatola dal connettore /mcp.
+# Ogni ora alle :40 (orari GitHub in UTC: 7:40–18:40 ora legale, 6:40–17:40 ora solare) e a mano con "Run workflow".
+# Procedura e segreti: tools/GITHUB.md. Il registro di un repository pubblico è pubblico: il programma non
+# stampa mai dati degli ospiti.
+name: Aggiorna arrivi
+on:
+  schedule:
+    - cron: "40 5-16 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: aggiorna-arrivi
+  cancel-in-progress: false
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Accesso a La Scatola
+        id: token
+        env:
+          SCATOLA_TOKEN_KEY: ${{ secrets.SCATOLA_TOKEN_KEY }}
+          SCATOLA_REFRESH_TOKEN: ${{ secrets.SCATOLA_REFRESH_TOKEN }}
+        run: node tools/github-feed.mjs token "$RUNNER_TEMP/scatola-access"
+      # Il collegamento rinnovato si salva subito, anche se i passi successivi non riescono.
+      - name: Salva il collegamento
+        if: always()
+        run: bash tools/github-commit.sh "Collegamento La Scatola" scatola-token.json
+      - name: Arrivi da La Scatola
+        if: steps.token.outputs.collegato == 'true'
+        env:
+          ARRIVI_PASSWORD: ${{ secrets.ARRIVI_PASSWORD }}
+        run: node tools/github-feed.mjs arrivi "$RUNNER_TEMP/scatola-access"
+      - name: Pubblica
+        if: always() && steps.token.outputs.collegato != 'false'
+        run: bash tools/github-commit.sh "Arrivi Hartmann $(TZ=Europe/Rome date '+%Y-%m-%d %H:%M') (GitHub)" arrivi.json stato-arrivi.txt
+      - name: Pulizia
+        if: always()
+        run: rm -f "$RUNNER_TEMP/scatola-access"

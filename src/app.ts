@@ -7,6 +7,7 @@ import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
 import { buildLetter, isPin, nightsBetween } from "./letter";
 import { PDF_FONTS, buildDocDefinition, pdfVfs } from "./pdf";
 import { SERVER, fetchArrivals, fetchGuestInfo, freshnessTime, isMcpError, toItems } from "./scatola";
+import { CLIENT_FILE, parseClient } from "./scatola-client";
 import { buildSummary, whatsappUrl } from "./summary";
 import { LANG_ORDER, TEXTS } from "./texts";
 import type { ArrivalItem, Freshness, LangCode, LetterModel, Paragraph } from "./types";
@@ -303,9 +304,27 @@ function showUnlock(show: boolean, message = ""): void {
   if (show) window.setTimeout(() => $<HTMLInputElement>("pw").focus(), 0);
 }
 
+/** Pagina di GitHub da cui si avvia a mano l'aggiornamento ("Run workflow"). */
+const GITHUB_RUN_URL = "https://github.com/Alpstay/WelcomeHartmann/actions/workflows/aggiorna-arrivi.yml";
+
+/** Vero se l'aggiornamento su GitHub è configurato (client_id presente in scatola-client.json). */
+let githubReady: boolean | null = null;
+async function isGithubReady(): Promise<boolean> {
+  if (githubReady !== null) return githubReady;
+  try {
+    const res = await fetch(`${CLIENT_FILE}?t=${Date.now()}`, { cache: "no-store" });
+    githubReady = res.ok && parseClient(await res.json()).client_id !== "";
+  } catch {
+    githubReady = false;
+  }
+  return githubReady;
+}
+
 /** Come aggiornare subito quando l'aggiornamento automatico non passa. */
-const MANUAL_REFRESH_HINT =
-  "Per aggiornare subito: in Claude apri le attività pianificate, avvia «WelcomeHartmann: aggiorna ora (con permesso)» e consenti le richieste; poi premi Aggiorna dati.";
+const manualRefreshHint = (github: boolean): string =>
+  github
+    ? "Per aggiornare subito: su GitHub apri «Aggiorna arrivi», premi Run workflow e, dopo un paio di minuti, Aggiorna dati qui."
+    : "Per aggiornare subito: in Claude apri le attività pianificate, avvia «WelcomeHartmann: aggiorna ora (con permesso)» e consenti le richieste; poi premi Aggiorna dati.";
 
 /**
  * L'attività oraria, quando non riesce a pubblicare, scrive stato-arrivi.txt
@@ -361,7 +380,7 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
 
   const ageH = (Date.now() - Date.parse(feed.generated_at)) / 3_600_000;
   const lastWhen = `${dayRome(feed.generated_at) === romeDate(0) ? "alle" : `del ${shortDate(dayRome(feed.generated_at))} alle`} ${timeRome(feed.generated_at)}`;
-  const failedAt = await lastFailedRun(feed.generated_at);
+  const [failedAt, github] = await Promise.all([lastFailedRun(feed.generated_at), isGithubReady()]);
   if (seq !== state.loadSeq) return;
   if (failedAt || ageH > 2)
     banners.push({
@@ -370,7 +389,8 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
         (failedAt
           ? `L'aggiornamento automatico delle ${failedAt} non è riuscito: i dati sono quelli ${lastWhen}.`
           : `I dati potrebbero non essere aggiornati: ultimo aggiornamento ${lastWhen}.`) +
-        ` ${MANUAL_REFRESH_HINT}`,
+        ` ${manualRefreshHint(github)}`,
+      ...(github ? { action: { label: "Apri su GitHub", run: () => void window.open(GITHUB_RUN_URL, "_blank", "noopener") } } : {}),
     });
   else if (feed.freshness === "failing") banners.push({ tone: "warn", text: "L'ultimo aggiornamento non è riuscito; sono mostrati gli ultimi dati disponibili." });
   else if (feed.freshness === "stale") banners.push({ tone: "warn", text: "I dati potrebbero non essere aggiornati." });

@@ -1,0 +1,9 @@
+{
+  "note": "Accesso di GitHub a La Scatola. client_id lo assegna l'amministratore della Scatola (client OAuth pubblico con PKCE, redirect https://alpstay.github.io/WelcomeHartmann/collega.html, permesso sullo Chalet Hartmann).",
+  "client_id": "",
+  "mcp_url": "https://databox-ffvb3.ondigitalocean.app/mcp",
+  "authorize_url": "https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/authorize",
+  "token_url": "https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/token",
+  "scope": "openid",
+  "resource": "https://databox-ffvb3.ondigitalocean.app/mcp"
+}

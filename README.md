@@ -9,6 +9,9 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/
 - Gli arrivi arrivano da La Scatola tramite `arrivi.json`, aggiornato ogni ora (alle :40, dalle 7:40
   alle 17:40) da un'attività pianificata (procedura in `tools/AGGIORNA.md`). Nomi e lingue sono cifrati: la prima
   volta su ogni dispositivo la pagina chiede la password reception.
+- In arrivo: aggiornamento direttamente da GitHub Actions dal connettore La Scatola (`/mcp`), senza
+  Claude. Pronto nel repository, manca solo il `client_id` dell'amministratore della Scatola: vedi
+  `tools/GITHUB.md`.
 - Senza dati si possono sempre creare lettere a mano.
 - «Riepilogo WhatsApp»: testo con gli arrivi selezionati (camera, nome, date, lingua, note e, a
   scelta, i PIN) da copiare o aprire in WhatsApp, dove si sceglie il gruppo a cui inviarlo.

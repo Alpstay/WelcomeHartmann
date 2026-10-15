@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo-google-fonts/belleza": "^0.4.1",
     "@expo-google-fonts/lato": "^0.4.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/node": "^22.20.5",
     "@types/pdfmake": "^0.2.13",
     "esbuild": "^0.28.2",

@@ -444,8 +444,57 @@ function toItems(rows, lookup) {
   }).sort((a, b2) => (a.room ?? "zzz").localeCompare(b2.room ?? "zzz", "it", { numeric: true }));
 }
 
-// src/cli/feed-cli.ts
+// src/feed-build.ts
 var HARTMANN_ID = "22222222-2222-4222-8222-222222222222";
+var romeToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(/* @__PURE__ */ new Date());
+var addDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+var dm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+var feedDates = (from = romeToday()) => Array.from({ length: FEED_DAYS }, (_, i) => addDays(from, i));
+function hartmannRows(arrivals) {
+  return [...new Map(arrivals.map((r) => [r.reservation_id, r])).values()].filter(
+    (r) => typeof r.reservation_id === "string" && PROPERTY_NAME_MATCH.test(String(r.property_name)) && r.booking_status !== "CANCELLED"
+  );
+}
+var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
+async function buildFeed(src, password) {
+  const lookup = lookupFromRows(src.stays, src.contacts);
+  const days = {};
+  const counts = {};
+  for (const date of src.dates) {
+    const items = toItems(src.rows.filter((r) => r.arrival === date), lookup).map(toFeedItem);
+    days[date] = items;
+    counts[date] = items.length;
+  }
+  const worst = src.freshness.reduce((w, f) => RANK[f.overall.status] > RANK[w] ? f.overall.status : w, "fresh");
+  const times = src.freshness.flatMap((f) => f.sources).filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at).map((s) => Date.parse(s.last_success_at)).filter(Number.isFinite);
+  const from = src.dates[0];
+  const payload = { days };
+  const envelope = {
+    format: 1,
+    app: "WelcomeHartmann",
+    generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    scatola_updated_at: times.length ? new Date(Math.max(...times)).toISOString() : null,
+    freshness: worst,
+    from,
+    to: src.dates[src.dates.length - 1],
+    counts,
+    enc: await encryptJson(payload, password, feedAad(from))
+  };
+  const back = await decryptJson(envelope.enc, password, feedAad(from));
+  if (JSON.stringify(back) !== JSON.stringify(payload)) throw new Error("la verifica della cifratura non torna");
+  const noRoom = src.rows.filter((r) => !r.room_name).length;
+  const noName = Object.values(days).flat().filter((i) => !i.name).length;
+  return {
+    envelope,
+    summary: [
+      `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`,
+      `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
+      `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`
+    ]
+  };
+}
+
+// src/cli/feed-cli.ts
 var RUN_FILE = join(tmpdir(), "welcome-hartmann-run.json");
 var MAX_TRIES = 3;
 function out(line) {
@@ -456,9 +505,6 @@ function fail(message) {
   out(`ERRORE ${message}`);
   process.exit(2);
 }
-var romeToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit" }).format(/* @__PURE__ */ new Date());
-var addDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
-var dm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 function transcripts() {
   const found = [];
   const walk = (dir, depth) => {
@@ -594,12 +640,11 @@ function start(args) {
   if (!password || password.length < 8) fail('serve la password: node tools/feed.mjs start "<PASSWORD>"');
   if (!existsSync("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
   const ti = args.indexOf("--transcript");
-  const from = romeToday();
   const run2 = {
     token: `WH-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`,
     startedAt: new Date(Date.now() - 1e3).toISOString(),
     password,
-    dates: Array.from({ length: FEED_DAYS }, (_, i) => addDays(from, i)),
+    dates: feedDates(),
     transcript: ti >= 0 ? args[ti + 1] ?? null : null
   };
   writeFileSync(RUN_FILE, JSON.stringify(run2), { mode: 384 });
@@ -607,7 +652,6 @@ function start(args) {
   out(`Giorni: ${run2.dates[0]} \u2192 ${run2.dates[run2.dates.length - 1]}`);
   out("Ora esegui: node tools/feed.mjs next");
 }
-var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
 async function next() {
   const run2 = loadRun();
   const calls = readCalls(findTranscript(run2), run2.startedAt);
@@ -621,9 +665,7 @@ async function next() {
     arrivals.push(...chain.rows);
     fresh.push(...chain.freshness);
   }
-  const rows = [...new Map(arrivals.map((r) => [r.reservation_id, r])).values()].filter(
-    (r) => typeof r.reservation_id === "string" && PROPERTY_NAME_MATCH.test(String(r.property_name)) && r.booking_status !== "CANCELLED"
-  );
+  const rows = hartmannRows(arrivals);
   const ids = rows.map((r) => r.reservation_id).sort();
   const stays = [];
   const contacts = [];
@@ -644,38 +686,12 @@ async function next() {
       sink(chain.rows);
     }
   }
-  const lookup = lookupFromRows(stays, contacts);
-  const days = {};
-  const counts = {};
-  for (const date of run2.dates) {
-    const items = toItems(rows.filter((r) => r.arrival === date), lookup).map(toFeedItem);
-    days[date] = items;
-    counts[date] = items.length;
-  }
-  const worst = fresh.reduce((w, f) => RANK[f.overall.status] > RANK[w] ? f.overall.status : w, "fresh");
-  const times = fresh.flatMap((f) => f.sources).filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at).map((s) => Date.parse(s.last_success_at)).filter(Number.isFinite);
-  const from = run2.dates[0];
-  const payload = { days };
-  const envelope = {
-    format: 1,
-    app: "WelcomeHartmann",
-    generated_at: (/* @__PURE__ */ new Date()).toISOString(),
-    scatola_updated_at: times.length ? new Date(Math.max(...times)).toISOString() : null,
-    freshness: worst,
-    from,
-    to: run2.dates[run2.dates.length - 1],
-    counts,
-    enc: await encryptJson(payload, run2.password, feedAad(from))
-  };
-  const back = await decryptJson(envelope.enc, run2.password, feedAad(from));
-  if (JSON.stringify(back) !== JSON.stringify(payload)) fail("la verifica della cifratura non torna. Non pubblicare.");
-  writeFileSync(FEED_FILE, `${JSON.stringify(envelope)}
+  const built = await buildFeed({ dates: run2.dates, rows, stays, contacts, freshness: fresh }, run2.password).catch(
+    (e) => fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`)
+  );
+  writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}
 `);
-  const noRoom = rows.filter((r) => !r.room_name).length;
-  const noName = Object.values(days).flat().filter((i) => !i.name).length;
-  out(`RIEPILOGO arrivi ${run2.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`);
-  out(`RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`);
-  out(`RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName} \xB7 chiamate lette: ${calls.length}`);
+  for (const line of built.summary) out(line.startsWith("RIEPILOGO senza") ? `${line} \xB7 chiamate lette: ${calls.length}` : line);
   out(`PRONTO ${FEED_FILE} scritto e verificato`);
 }
 async function verify(args) {
