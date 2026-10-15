@@ -175,6 +175,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .toast[data-tone="error"] { background: var(--error); }
 .toast[data-tone="warn"] { background: var(--warn); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* Riepilogo WhatsApp */
+.wa { border: 0; padding: 0; border-radius: 14px; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); background: var(--paper); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.35); }
+.wa::backdrop { background: rgba(46, 47, 45, 0.35); }
+.wa-box { display: grid; gap: 12px; padding: 20px; }
+.wa-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wa-head h2 { font-size: 22px; }
+.wa-sub, .wa-hint { margin: 0; font-size: 13px; color: var(--muted); }
+.wa-opts { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; }
+.wa-opts label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.wa-opts input { width: 18px; height: 18px; accent-color: var(--gold); }
+.wa-warn { margin: 0; font-size: 13px; color: var(--warn); background: var(--warn-bg); padding: 7px 10px; border-radius: 8px; }
+.wa-text { width: 100%; min-height: 220px; max-height: 46dvh; resize: vertical; font-size: 14px; line-height: 1.45; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--wash); }
+.wa-text:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.wa-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -187,8 +203,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .c-lang { grid-column: 3; justify-items: start; padding-top: 0; }
   .room-btn { font-size: 26px; }
   .fresh { margin-left: 0; flex-basis: 100%; }
-  .actionbar { justify-content: space-between; padding-inline: 16px; }
+  .actionbar { justify-content: space-between; gap: 10px; padding-inline: 16px; }
+  .actionbar p { font-size: 13px; }
+  .wa-long { display: none; }
   .btn.primary { padding: 11px 18px; }
+  .wa-box { padding: 16px; }
 }
 </style>
 
@@ -252,9 +271,32 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
   <footer class="actionbar">
     <p id="sel-count">Nessuna lettera selezionata</p>
+    <button type="button" class="btn ghost" id="wa-open" disabled><span class="wa-long">Riepilogo </span>WhatsApp</button>
     <button type="button" class="btn primary" id="pdf-all" disabled>Crea PDF</button>
   </footer>
   <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+
+  <!-- Riepilogo per WhatsApp: testo pronto, il gruppo si sceglie in WhatsApp al momento dell'invio. -->
+  <dialog class="wa" id="wa" aria-labelledby="wa-title">
+    <form method="dialog" class="wa-box">
+      <div class="wa-head">
+        <h2 id="wa-title">Riepilogo per WhatsApp</h2>
+        <button class="btn ghost small" value="close">Chiudi</button>
+      </div>
+      <p class="wa-sub" id="wa-sub"></p>
+      <div class="wa-opts">
+        <label><input type="checkbox" id="wa-pins"> Includi i PIN delle porte</label>
+        <label><input type="checkbox" id="wa-notes" checked> Includi le note</label>
+      </div>
+      <p class="wa-warn" id="wa-pin-warn" hidden>I PIN restano nella chat: inviali solo nel gruppo dello staff.</p>
+      <textarea class="wa-text" id="wa-text" rows="14" spellcheck="false" aria-label="Testo del riepilogo"></textarea>
+      <p class="wa-hint">Puoi correggere il testo qui sopra (cambiando le opzioni il testo si rifà). WhatsApp ti chiede poi a quale gruppo inviarlo.</p>
+      <div class="wa-actions">
+        <button type="button" class="btn ghost" id="wa-copy">Copia testo</button>
+        <a class="btn dark" id="wa-send" href="https://wa.me/" target="_blank" rel="noopener">Apri WhatsApp</a>
+      </div>
+    </form>
+  </dialog>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/pdfmake.min.js"></script>

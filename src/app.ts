@@ -7,6 +7,7 @@ import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
 import { buildLetter, isPin, nightsBetween } from "./letter";
 import { PDF_FONTS, buildDocDefinition, pdfVfs } from "./pdf";
 import { SERVER, fetchArrivals, fetchGuestInfo, freshnessTime, isMcpError, toItems } from "./scatola";
+import { buildSummary, whatsappUrl } from "./summary";
 import { LANG_ORDER, TEXTS } from "./texts";
 import type { ArrivalItem, Freshness, LangCode, LetterModel, Paragraph } from "./types";
 
@@ -33,6 +34,8 @@ interface AppState {
   date: string;
   /** Giorno degli arrivi attualmente in elenco (null se nessun dato scaricato). */
   loadedDate: string | null;
+  /** Ora dei dati di La Scatola (HH:MM) per il giorno in elenco. */
+  dataTime: string | null;
   items: ArrivalItem[];
   focusKey: string | null;
   loading: boolean;
@@ -92,6 +95,7 @@ const state: AppState = {
   feedData: null,
   date: romeDate(0),
   loadedDate: null,
+  dataTime: null,
   items: [],
   focusKey: null,
   loading: false,
@@ -309,6 +313,7 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
   if (status !== "ok" || !state.feed || !state.feedData) {
     state.items = manual;
     state.loadedDate = null;
+    state.dataTime = null;
     $("fresh").textContent = "";
     showUnlock(status === "locked");
     if (status === "missing")
@@ -333,12 +338,13 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
     });
 
   const ageH = (Date.now() - Date.parse(feed.generated_at)) / 3_600_000;
-  if (ageH > 3) banners.push({ tone: "warn", text: `I dati potrebbero non essere aggiornati: ultimo aggiornamento ${dayRome(feed.generated_at) === romeDate(0) ? "alle" : `del ${shortDate(dayRome(feed.generated_at))} alle`} ${timeRome(feed.generated_at)}.` });
+  if (ageH > 2) banners.push({ tone: "warn", text: `I dati potrebbero non essere aggiornati: ultimo aggiornamento ${dayRome(feed.generated_at) === romeDate(0) ? "alle" : `del ${shortDate(dayRome(feed.generated_at))} alle`} ${timeRome(feed.generated_at)}.` });
   else if (feed.freshness === "failing") banners.push({ tone: "warn", text: "L'ultimo aggiornamento non è riuscito; sono mostrati gli ultimi dati disponibili." });
   else if (feed.freshness === "stale") banners.push({ tone: "warn", text: "I dati potrebbero non essere aggiornati." });
 
   const n = items.length;
   const when = feed.scatola_updated_at ?? feed.generated_at;
+  state.dataTime = inRange ? timeRome(when) : null;
   $("fresh").textContent = inRange
     ? `${n === 0 ? "Nessun arrivo" : plural(n, "arrivo", "arrivi")} di ${longDate(date)} · La Scatola delle ${timeRome(when)} · si aggiorna ogni ora (8–18)`
     : "";
@@ -375,6 +381,7 @@ async function load(): Promise<void> {
   state.loading = true;
   state.items = state.items.filter((i) => i.manual);
   state.loadedDate = date;
+  state.dataTime = null;
   renderToolbar();
   renderList();
   $("fresh").textContent = `Scarico da La Scatola gli arrivi di ${longDate(date)}…`;
@@ -422,6 +429,7 @@ async function load(): Promise<void> {
     const fb = freshnessBanner(freshness);
     if (fb) banners.unshift(fb);
     const time = freshnessTime(freshness, state.propertyIds);
+    state.dataTime = time;
     const n = rows.length;
     $("fresh").textContent =
       `${n === 0 ? "Nessun arrivo" : plural(n, "arrivo", "arrivi")} di ${longDate(date)}` +
@@ -626,6 +634,7 @@ function renderSelection(): void {
   const btn = $<HTMLButtonElement>("pdf-all");
   btn.disabled = n === 0 || state.busy || state.loading || otherDay;
   btn.textContent = state.busy ? "Creo il PDF…" : n > 1 ? `Crea PDF (${n} lettere)` : "Crea PDF";
+  $<HTMLButtonElement>("wa-open").disabled = n === 0 || state.loading || otherDay;
 }
 
 /** Vero se nel campo data c'è un giorno diverso da quello degli arrivi in elenco. */
@@ -831,6 +840,69 @@ async function makePdf(items: readonly ArrivalItem[], filename: string): Promise
   }
 }
 
+// ——— riepilogo WhatsApp ———
+
+const WA_PINS_KEY = "welcomeHartmann.waPins";
+
+function readWaPins(): boolean {
+  try {
+    return localStorage.getItem(WA_PINS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function summaryItems(): ArrivalItem[] {
+  return state.items.filter((i) => i.selected);
+}
+
+/** Rifà il testo dalle lettere selezionate (le correzioni a mano nel riquadro si perdono). */
+function renderSummaryText(): void {
+  const pins = $<HTMLInputElement>("wa-pins").checked;
+  const notes = $<HTMLInputElement>("wa-notes").checked;
+  const text = buildSummary({ date: state.loadedDate ?? state.date, items: summaryItems(), dataTime: state.dataTime }, { pins, notes });
+  $<HTMLTextAreaElement>("wa-text").value = text;
+  $("wa-pin-warn").hidden = !pins;
+  syncSummaryLink();
+}
+
+function syncSummaryLink(): void {
+  $<HTMLAnchorElement>("wa-send").href = whatsappUrl($<HTMLTextAreaElement>("wa-text").value);
+}
+
+function openSummary(): void {
+  const items = summaryItems();
+  if (items.length === 0 || dateChangedNotLoaded()) return;
+  const day = state.loadedDate ?? state.date;
+  const noRoom = items.filter((i) => !i.room).length;
+  $("wa-sub").textContent =
+    `Arrivi di ${longDate(day)} · ${plural(items.length, "lettera selezionata", "lettere selezionate")}` +
+    (noRoom ? ` · ${plural(noRoom, "senza camera", "senza camera")}` : "");
+  $<HTMLInputElement>("wa-pins").checked = readWaPins();
+  renderSummaryText();
+  const dlg = $<HTMLDialogElement>("wa");
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+}
+
+async function copySummary(): Promise<void> {
+  const area = $<HTMLTextAreaElement>("wa-text");
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(area.value);
+    ok = true;
+  } catch {
+    area.focus();
+    area.select();
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+  }
+  toast(ok ? "Testo copiato: incollalo nel gruppo WhatsApp." : "Non riesco a copiare da qui: seleziona il testo e copialo a mano.", ok ? "info" : "warn");
+}
+
 // ——— eventi ———
 
 function itemFromEvent(e: Event): ArrivalItem | null {
@@ -1004,6 +1076,18 @@ function wire(): void {
       : `Lettere benvenuto Hartmann ${state.date}.pdf`;
     void makePdf(chosen, name);
   });
+  $("wa-open").addEventListener("click", openSummary);
+  $("wa-pins").addEventListener("change", (e) => {
+    try {
+      localStorage.setItem(WA_PINS_KEY, (e.target as HTMLInputElement).checked ? "1" : "0");
+    } catch {
+      /* scelta valida solo finché la pagina resta aperta */
+    }
+    renderSummaryText();
+  });
+  $("wa-notes").addEventListener("change", renderSummaryText);
+  $("wa-text").addEventListener("input", syncSummaryLink);
+  $("wa-copy").addEventListener("click", () => void copySummary());
   $("pdf-one").addEventListener("click", () => {
     const item = focusedItem();
     if (item) void makePdf([item], `Benvenuto Hartmann camera ${item.room ?? ""}.pdf`.replace(" .pdf", ".pdf"));
