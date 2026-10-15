@@ -1,0 +1,198 @@
+### POST /mcp senza credenziali
+HTTP/2 401 
+date: Thu, 15 Oct 2026 13:34:32 GMT
+content-type: application/json; charset=utf-8
+content-length: 74
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+www-authenticate: Bearer resource_metadata="https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-protected-resource/mcp"
+server: cloudflare
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 401
+cf-cache-status: DYNAMIC
+set-cookie: __cf_bm=OJQai6mieBYWLM0CWLMS6XHaN9U6KIv5L4hhRngNI_I-1792071272.4133573-1.0.1.1-_dClyDYFYC2DP_rFPs9OGsIVWeMPSjh5bsytKtF3w1oFgUeeN8br3qVG2mM8.0nyP_EvVaLFd.alne2XbsRXxmuUaH0945G4hfiDMq1YoNBkMys1rNAi47Qx.xVvoJGt; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:32 GMT
+cf-ray: a4af33ac9bb9327e-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"statusCode":401,"error":"Unauthorized","message":"missing bearer token"}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-protected-resource/mcp
+HTTP/2 200 
+date: Thu, 15 Oct 2026 13:34:33 GMT
+content-type: application/json; charset=utf-8
+content-length: 166
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+set-cookie: __cf_bm=geyvc_U4l.8ep749TbCzSCWZPVd5qOw5EXYlCUL6Wzs-1792071273.0034997-1.0.1.1-T_xDF_tPBtjq1PsYUVzTvcSAq59K655kDQhKOGuebkWVynqa_XdZr1EQd31Zela4h5E4gwG_pgH9xYml8M2zHWsN5Fe9jmQm_XLJd15PvSLE6V.vBOZ3DxLkzAZGCerl; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:33 GMT
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 200
+server: cloudflare
+accept-ranges: bytes
+cf-cache-status: BYPASS
+cf-ray: a4af33b04fc889cc-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"resource":"https://databox-ffvb3.ondigitalocean.app/mcp","authorization_servers":["https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1"],"scopes_supported":["openid"]}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-protected-resource
+HTTP/2 404 
+date: Thu, 15 Oct 2026 13:34:33 GMT
+content-type: application/json; charset=utf-8
+content-length: 108
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+set-cookie: __cf_bm=rJzaKPTp3p5hUx5IwkLkk_0uztQr.XP4XU1SeDgVBSI-1792071273.521373-1.0.1.1-6HK4man8xP5ukSwNy.rVzmCh5P8qQ6sLRXbeTxPlc3Ou_wCONoklmkLts3ZdNUcqlvB6DvEUXH9_W7B.aDgxZc8qc_bjlnWSqVE650aB0ZHkNv2agOJf9lJi8s5YseX6; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:33 GMT
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 404
+server: cloudflare
+cf-cache-status: BYPASS
+cf-ray: a4af33b38bef72fa-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"message":"Route GET:/.well-known/oauth-protected-resource not found","error":"Not Found","statusCode":404}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-protected-resource/api/v1
+HTTP/2 404 
+date: Thu, 15 Oct 2026 13:34:34 GMT
+content-type: application/json; charset=utf-8
+content-length: 115
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+server: cloudflare
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 404
+cf-cache-status: BYPASS
+set-cookie: __cf_bm=_uDFY2baY85Qp.CYx3Ij8DEeyZzqUU2pW9Bgu7.YNiA-1792071273.9794335-1.0.1.1-CNLZZSQuJZKXppVKl4qI6rr6JS9JwvKxAYiu9zzTb489a9aXwxl1judZzZt95.tqJCY0.Zt639UHfBq8ypdCegZU4Tmv0USL7UUFQe2VqmBUpe37NXuU9AMfCUOzw.2K; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:34 GMT
+cf-ray: a4af33b65f0dd293-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"message":"Route GET:/.well-known/oauth-protected-resource/api/v1 not found","error":"Not Found","statusCode":404}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-authorization-server
+HTTP/2 404 
+date: Thu, 15 Oct 2026 13:34:35 GMT
+content-type: application/json; charset=utf-8
+content-length: 110
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+set-cookie: __cf_bm=G_TvNBk7vOVuk6f16i67fSz_ZM7WTb6X3vk9UbGpWwg-1792071274.4786317-1.0.1.1-yphegXUuABRUG6P01r3j8zcwDNLZu8eB_xUvkj4kF22_lFlVhTNLjdrkjFq9aM7Bu8t.E9PJWIN6LYCxC43uLHIOSiyNCYokoUmUynD.CkqoWBFFs8AP3hhgMEeRrFMv; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:35 GMT
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 404
+server: cloudflare
+cf-cache-status: BYPASS
+cf-ray: a4af33b979bd22ae-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"message":"Route GET:/.well-known/oauth-authorization-server not found","error":"Not Found","statusCode":404}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/oauth-authorization-server/mcp
+HTTP/2 404 
+date: Thu, 15 Oct 2026 13:34:35 GMT
+content-type: application/json; charset=utf-8
+content-length: 114
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+server: cloudflare
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 404
+cf-cache-status: BYPASS
+set-cookie: __cf_bm=yYMsUPFfHUB.eSPfYbOupdfGR1lOxE02HmAseWXRRLk-1792071275.0415742-1.0.1.1-JoSWKSm5x_mwcWNmaaBPap7WBqPmyp7uXw_Ef.bkthc6DzdsoSVJrl97nk9u5KeqseKWqkK2xZhGoMSv_Xge9f93YPZ6meJq8n8jdzrjCGRj4gyF_QISus0tcnPLOOMr; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:35 GMT
+cf-ray: a4af33bcf9fd053e-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"message":"Route GET:/.well-known/oauth-authorization-server/mcp not found","error":"Not Found","statusCode":404}
+
+### https://databox-ffvb3.ondigitalocean.app/.well-known/openid-configuration
+HTTP/2 404 
+date: Thu, 15 Oct 2026 13:34:36 GMT
+content-type: application/json; charset=utf-8
+content-length: 104
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self' https://esm.sh 'sha256-SFc+07DertPz5C42QYK7UEdsKS6WZnKe2smTo7nMjKM=';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests;connect-src 'self' https://bxyakwawtkoacfrmqcpb.supabase.co
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-xss-protection: 0
+set-cookie: __cf_bm=WX0Iuj83BYpQtvVkMZ7TZD.al9Sle_tjfl3r5u...Sg-1792071275.6013038-1.0.1.1-VnGV_3Xn8aXCNUd._KZc0EGZeDpIk3na9b_8KohpGzz4kqoCnumEVieegjqSoEzEtELmJBWb.PAvBXDXP0FQ0nhoHmHIPiyLlnIN4TIQmGV8Exy3AuVJStow_beVcqLX; HttpOnly; SameSite=None; Secure; Path=/; Domain=ondigitalocean.app; Expires=Thu, 15 Oct 2026 14:04:36 GMT
+x-do-app-origin: 38a5e6c1-a13e-48e5-87da-abeb2c779c03
+cache-control: private
+x-do-orig-status: 404
+server: cloudflare
+cf-cache-status: BYPASS
+cf-ray: a4af33c07ac36af7-SJC
+alt-svc: h3=":443"; ma=86400
+
+{"message":"Route GET:/.well-known/openid-configuration not found","error":"Not Found","statusCode":404}
+

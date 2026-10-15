@@ -1,0 +1,61 @@
+authorization server: https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1
+### https://bxyakwawtkoacfrmqcpb.supabase.co/.well-known/oauth-authorization-server/auth/v1
+HTTP/2 200 
+date: Thu, 15 Oct 2026 13:34:37 GMT
+content-type: application/json
+cf-ray: a4af33c58ff87e0e-SJC
+cf-cache-status: DYNAMIC
+cache-control: public, max-age=600
+set-cookie: __cf_bm=.r82EN4Hex2az1AYQKYkEe3SXiQl3ThAQri.Rstv0Nw-1792071276.4061525-1.0.1.1-7sbgmX.BaY9OrAZkEvsZ2r78E0hu1Pp_U3.ETXqgbn5apb2m65vkw7RAoqV_H3wSe_ytVEGxyIkOakbkEIAcu73Qpf2IX6FoWJ6bRZ0o8Zh_EE4Qdw6hq0jQ1YBbCBZL; HttpOnly; SameSite=None; Secure; Path=/; Domain=supabase.co; Expires=Thu, 15 Oct 2026 14:04:37 GMT
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+vary: Origin, Accept-Encoding
+sb-gateway-version: 1
+sb-project-ref: bxyakwawtkoacfrmqcpb
+sb-request-id: 01a13fc5-979a-738a-9ae5-1e2e67a06a20
+x-envoy-attempt-count: 1
+x-envoy-upstream-service-time: 64
+alt-svc: h3=":443"; ma=86400
+
+{"issuer":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1","authorization_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/authorize","token_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/token","jwks_uri":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/.well-known/jwks.json","userinfo_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/userinfo","scopes_supported":["openid","profile","email","phone","offline_access"],"response_types_supported":["code"],"response_modes_supported":["query"],"grant_types_supported":["authorization_code","refresh_token"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256","HS256","ES256"],"token_endpoint_auth_methods_supported":["client_secret_basic","client_secret_post","none"],"claims_supported":["sub","aud","iss","exp","iat","auth_time","nonce","email","email_verified","phone_number","phone_number_verified","name","picture","preferred_username","updated_at"],"code_challenge_methods_supported":["S256","plain"]}
+
+### https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/.well-known/oauth-authorization-server
+HTTP/2 200 
+date: Thu, 15 Oct 2026 13:34:37 GMT
+content-type: application/json
+cf-ray: a4af33c9f9002710-SJC
+cf-cache-status: DYNAMIC
+cache-control: public, max-age=600
+set-cookie: __cf_bm=VottLFHG4H8YhZyvkIRnCPgZGazQBeknfdwtwdPmV9Q-1792071277.1254284-1.0.1.1-Ugct.A8Utnr8dvidBK9dLYTR90hPI5ANIgJqDy0YkH_SbR4Izn5blAcysImRP3Op1c3TYvoX9uWPdxF4aKFFPykpcgYVcG9AXVCJSUWOVyiOxO7X_oFSmNGb4oZogr57; HttpOnly; SameSite=None; Secure; Path=/; Domain=supabase.co; Expires=Thu, 15 Oct 2026 14:04:37 GMT
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+vary: Origin, Accept-Encoding
+sb-gateway-version: 2
+sb-project-ref: bxyakwawtkoacfrmqcpb
+sb-request-id: 01a13fc5-9a57-7bdd-aefa-9b337c762d7a
+x-envoy-attempt-count: 1
+x-envoy-upstream-service-time: 3
+alt-svc: h3=":443"; ma=86400
+
+{"issuer":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1","authorization_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/authorize","token_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/token","jwks_uri":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/.well-known/jwks.json","userinfo_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/userinfo","scopes_supported":["openid","profile","email","phone","offline_access"],"response_types_supported":["code"],"response_modes_supported":["query"],"grant_types_supported":["authorization_code","refresh_token"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256","HS256","ES256"],"token_endpoint_auth_methods_supported":["client_secret_basic","client_secret_post","none"],"claims_supported":["sub","aud","iss","exp","iat","auth_time","nonce","email","email_verified","phone_number","phone_number_verified","name","picture","preferred_username","updated_at"],"code_challenge_methods_supported":["S256","plain"]}
+
+### https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/.well-known/openid-configuration
+HTTP/2 200 
+date: Thu, 15 Oct 2026 13:34:37 GMT
+content-type: application/json
+cf-ray: a4af33cb89ea300b-SJC
+cf-cache-status: DYNAMIC
+cache-control: public, max-age=600
+set-cookie: __cf_bm=4Ih7ssUqQMftVf86KcZtKym9SijUUzsQfZw5.zcaJ44-1792071277.3655736-1.0.1.1-7DL_bZN2z0z4EJgXDdElMGzBE4kmg3X.NfxljaQiAyepd5eVcK.CjRGs1hDXeHsaJNXZHKnUhq6rUDQXOtrWP_VxsPlQKZEwx_xQRUac87tmOtD2lBvz1J5JjmSDZgpz; HttpOnly; SameSite=None; Secure; Path=/; Domain=supabase.co; Expires=Thu, 15 Oct 2026 14:04:37 GMT
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+vary: Origin, Accept-Encoding
+sb-gateway-version: 2
+sb-project-ref: bxyakwawtkoacfrmqcpb
+sb-request-id: 01a13fc5-9b5f-70c6-a96f-946bd4a769e9
+x-envoy-attempt-count: 1
+x-envoy-upstream-service-time: 0
+alt-svc: h3=":443"; ma=86400
+
+{"issuer":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1","authorization_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/authorize","token_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/token","jwks_uri":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/.well-known/jwks.json","userinfo_endpoint":"https://bxyakwawtkoacfrmqcpb.supabase.co/auth/v1/oauth/userinfo","scopes_supported":["openid","profile","email","phone","offline_access"],"response_types_supported":["code"],"response_modes_supported":["query"],"grant_types_supported":["authorization_code","refresh_token"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256","HS256","ES256"],"token_endpoint_auth_methods_supported":["client_secret_basic","client_secret_post","none"],"claims_supported":["sub","aud","iss","exp","iat","auth_time","nonce","email","email_verified","phone_number","phone_number_verified","name","picture","preferred_username","updated_at"],"code_challenge_methods_supported":["S256","plain"]}
+
