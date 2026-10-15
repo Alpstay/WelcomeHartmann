@@ -1,6 +1,6 @@
 # Aggiornamento automatico degli arrivi (La Scatola → WelcomeHartmann)
 
-Procedura per l'attività pianificata che ogni ora, dalle 8 alle 18, rigenera `arrivi.json`: il file
+Procedura per l'attività pianificata che ogni ora (alle :40, dalle 7:40 alle 17:40) rigenera `arrivi.json`: il file
 che la pagina https://alpstay.github.io/WelcomeHartmann/ legge per preparare le lettere di benvenuto.
 La **password reception** che cifra il file NON è in questo repository (è pubblico): viene data nel
 testo dell'attività pianificata.
@@ -42,6 +42,15 @@ dell'ospite). Nomi e lingue sono cifrati; in chiaro restano solo le date e il nu
    `git fetch origin main`, `git reset --hard origin/main`, rimetti il file, di nuovo add, commit e push.
    Una volta sola. Con errore 403 non insistere: scrivilo nel riepilogo.
 5. Riepilogo breve in italiano con le righe `RIEPILOGO` (non contengono dati personali).
+
+## Quando l'aggiornamento automatico non passa
+
+- Il controllo automatico dei permessi delle attività pianificate a volte blocca la procedura
+  (motivo "Data Exfiltration": dati personali degli ospiti verso un repository pubblico, anche se cifrati).
+- In quel caso l'attività scrive `stato-arrivi.txt` (una riga: ora, passo, messaggio, nessun dato
+  personale) e lo pubblica: la pagina mostra l'avviso con l'ora del tentativo.
+- Aggiornamento a mano: attività pianificata «WelcomeHartmann: aggiorna ora (con permesso)», senza
+  orario e con approvazione manuale. Si avvia da Claude e si consentono le richieste che compaiono.
 
 ## Modifiche al codice
 

@@ -303,6 +303,28 @@ function showUnlock(show: boolean, message = ""): void {
   if (show) window.setTimeout(() => $<HTMLInputElement>("pw").focus(), 0);
 }
 
+/** Come aggiornare subito quando l'aggiornamento automatico non passa. */
+const MANUAL_REFRESH_HINT =
+  "Per aggiornare subito: in Claude apri le attività pianificate, avvia «WelcomeHartmann: aggiorna ora (con permesso)» e consenti le richieste; poi premi Aggiorna dati.";
+
+/**
+ * L'attività oraria, quando non riesce a pubblicare, scrive stato-arrivi.txt
+ * ("AAAA-MM-GG HH:MM non pubblicato · …", ora italiana). Restituisce l'ora del tentativo
+ * se è più recente dei dati in uso.
+ */
+async function lastFailedRun(generatedAt: string): Promise<string | null> {
+  try {
+    const res = await fetch(`stato-arrivi.txt?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/.exec((await res.text()).trim());
+    if (!m) return null;
+    const dataAt = `${dayRome(generatedAt)} ${timeRome(generatedAt)}`;
+    return `${m[1]} ${m[2]}` > dataAt ? (m[1] === romeDate(0) ? m[2] : `${shortDate(m[1])} ${m[2]}`) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadFromFeed(seq: number, date: string): Promise<void> {
   const manual = state.items.filter((i) => i.manual);
   const status = await refreshFeed();
@@ -338,7 +360,18 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
     });
 
   const ageH = (Date.now() - Date.parse(feed.generated_at)) / 3_600_000;
-  if (ageH > 2) banners.push({ tone: "warn", text: `I dati potrebbero non essere aggiornati: ultimo aggiornamento ${dayRome(feed.generated_at) === romeDate(0) ? "alle" : `del ${shortDate(dayRome(feed.generated_at))} alle`} ${timeRome(feed.generated_at)}.` });
+  const lastWhen = `${dayRome(feed.generated_at) === romeDate(0) ? "alle" : `del ${shortDate(dayRome(feed.generated_at))} alle`} ${timeRome(feed.generated_at)}`;
+  const failedAt = await lastFailedRun(feed.generated_at);
+  if (seq !== state.loadSeq) return;
+  if (failedAt || ageH > 2)
+    banners.push({
+      tone: "warn",
+      text:
+        (failedAt
+          ? `L'aggiornamento automatico delle ${failedAt} non è riuscito: i dati sono quelli ${lastWhen}.`
+          : `I dati potrebbero non essere aggiornati: ultimo aggiornamento ${lastWhen}.`) +
+        ` ${MANUAL_REFRESH_HINT}`,
+    });
   else if (feed.freshness === "failing") banners.push({ tone: "warn", text: "L'ultimo aggiornamento non è riuscito; sono mostrati gli ultimi dati disponibili." });
   else if (feed.freshness === "stale") banners.push({ tone: "warn", text: "I dati potrebbero non essere aggiornati." });
 
@@ -346,7 +379,7 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
   const when = feed.scatola_updated_at ?? feed.generated_at;
   state.dataTime = inRange ? timeRome(when) : null;
   $("fresh").textContent = inRange
-    ? `${n === 0 ? "Nessun arrivo" : plural(n, "arrivo", "arrivi")} di ${longDate(date)} · La Scatola delle ${timeRome(when)} · si aggiorna ogni ora (8–18)`
+    ? `${n === 0 ? "Nessun arrivo" : plural(n, "arrivo", "arrivi")} di ${longDate(date)} · La Scatola delle ${timeRome(when)}`
     : "";
   if (!state.items.some((i) => i.key === state.focusKey)) state.focusKey = state.items[0]?.key ?? null;
   showBanners(banners);
