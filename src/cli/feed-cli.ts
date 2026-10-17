@@ -3,6 +3,9 @@
 //   node tools/feed.mjs start "<PASSWORD>"   prepara l'esecuzione (giorni da oggi a +6)
 //   node tools/feed.mjs next                  dice quale chiamata fare a La Scatola, oppure scrive arrivi.json
 //   node tools/feed.mjs verify [file] "<PASSWORD>"
+//   node tools/feed.mjs build "<PASSWORD>" <file> [<file> ...]
+//       come l'app colazioni: legge solo i file indicati (risposte salvate dal sistema o scritte nello
+//       scratchpad con {"vista", "total", "rows"}) e scrive arrivi.json. Non apre i registri della sessione.
 //
 // Le risposte di La Scatola NON si ricopiano a mano: il programma le legge dal registro della sessione
 // (~/.claude/projects/…/*.jsonl), così gli ID di Slope restano esattamente quelli ricevuti.
@@ -12,7 +15,9 @@ import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { FEED_FILE, decryptJson, feedAad, isFeedEnvelope } from "../feed";
 import type { FeedPayload } from "../feed";
-import { HARTMANN_ID, buildFeed, feedDates, hartmannRows } from "../feed-build";
+import { HARTMANN_ID, buildFeed, dm, feedDates, hartmannRows } from "../feed-build";
+import { FileError, checkPages, readBundle, splitPaths } from "./feed-files";
+import type { Bundle, Kind } from "./feed-files";
 import type { ArrivalRow, BookerFields, Freshness, GuestStayFields } from "../types";
 const RUN_FILE = join(tmpdir(), "welcome-hartmann-run.json");
 const MAX_TRIES = 3;
@@ -285,6 +290,65 @@ async function next(): Promise<void> {
   out(`PRONTO ${FEED_FILE} scritto e verificato`);
 }
 
+const VIEW_OF: Record<Kind, string> = {
+  arrivi: "curated_operational_stays",
+  ospiti: "curated_guest_stays",
+  intestatari: "curated_reservation_contacts",
+};
+
+async function build(args: string[]): Promise<void> {
+  const force = args.includes("--forza");
+  const rest = args.filter((a) => a !== "--forza");
+  const password = rest[0];
+  if (!password || password.length < 8) fail('uso: node tools/feed.mjs build "<PASSWORD>" <file> [<file> ...]');
+  if (!existsSync("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
+  const files = splitPaths(rest.slice(1));
+  if (files.length === 0) fail("indica i file con le risposte di La Scatola");
+  let bundles: Bundle[] = [];
+  try {
+    bundles = files.map(readBundle);
+    checkPages(bundles);
+  } catch (e) {
+    fail(e instanceof FileError ? e.message : "file non leggibili");
+  }
+  const of = (k: Kind): Bundle[] => bundles.filter((b) => b.kind === k);
+  for (const k of ["arrivi", "ospiti", "intestatari"] as const) {
+    if (of(k).length === 0) fail(`manca il file della vista ${VIEW_OF[k]}`);
+  }
+
+  const dates = feedDates();
+  const inWindow = (d: unknown): boolean => typeof d === "string" && d >= dates[0] && d <= dates[dates.length - 1];
+  const rows = hartmannRows(of("arrivi").flatMap((b) => b.rows) as unknown as ArrivalRow[]).filter((r) => inWindow(r.arrival));
+  const stays = of("ospiti").flatMap((b) => b.rows) as unknown as GuestStayFields[];
+  const contactRows = of("intestatari").flatMap((b) => b.rows);
+  const contacts = contactRows as unknown as BookerFields[];
+
+  // Controlli incrociati, come le righe ATTENZIONE delle colazioni: un reservation_id trascritto male non trova
+  // il suo intestatario. Nei messaggi solo camere e date, mai nomi.
+  const ids = new Set(rows.map((r) => r.reservation_id));
+  const withBooker = new Set(contactRows.map((c) => c.reservation_id as string));
+  const warnings: string[] = [];
+  for (const r of rows) {
+    if (!withBooker.has(r.reservation_id))
+      warnings.push(`ATTENZIONE camera ${r.room_name ?? "senza camera"}, arrivo ${dm(r.arrival)}: nessun intestatario con lo stesso reservation_id`);
+  }
+  for (const c of contactRows) {
+    const pid = c.property_id;
+    if (inWindow(c.arrival) && c.booking_status !== "CANCELLED" && (pid === undefined || pid === HARTMANN_ID) && !ids.has(c.reservation_id as string))
+      warnings.push(`ATTENZIONE un intestatario con arrivo ${dm(String(c.arrival))} non corrisponde a nessun arrivo`);
+  }
+  for (const w of warnings) out(w);
+  if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
+
+  const freshness = bundles.map((b) => b.freshness).filter((f): f is Freshness => f !== null);
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness }, password).catch((e: unknown) =>
+    fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`),
+  );
+  writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}\n`);
+  for (const line of built.summary) out(line.startsWith("RIEPILOGO senza") ? `${line} · file letti: ${bundles.length}` : line);
+  out(`PRONTO ${FEED_FILE} scritto e verificato`);
+}
+
 async function verify(args: string[]): Promise<void> {
   const file = args.length > 1 ? args[0] : FEED_FILE;
   const password = args.length > 1 ? args[1] : args[0];
@@ -299,6 +363,11 @@ async function verify(args: string[]): Promise<void> {
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
-const run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : null;
-if (!run) fail('comandi: start "<PASSWORD>" · next · verify [file] "<PASSWORD>"');
+const run =
+  cmd === "start" ? async () => start(rest)
+  : cmd === "next" ? next
+  : cmd === "verify" ? () => verify(rest)
+  : cmd === "build" ? () => build(rest)
+  : null;
+if (!run) fail('comandi: build "<PASSWORD>" <file>… · verify [file] "<PASSWORD>" · start "<PASSWORD>" · next');
 run().catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));

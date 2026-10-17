@@ -1,9 +1,9 @@
 // Generato da src/cli/feed-cli.ts con build.mjs: non modificare a mano.
 
 // src/cli/feed-cli.ts
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync as existsSync2, readFileSync as readFileSync2, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename as basename2, join } from "node:path";
 
 // src/feed.ts
 var FEED_FILE = "arrivi.json";
@@ -452,7 +452,7 @@ var dm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 var feedDates = (from = romeToday()) => Array.from({ length: FEED_DAYS }, (_, i) => addDays(from, i));
 function hartmannRows(arrivals) {
   return [...new Map(arrivals.map((r) => [r.reservation_id, r])).values()].filter(
-    (r) => typeof r.reservation_id === "string" && PROPERTY_NAME_MATCH.test(String(r.property_name)) && r.booking_status !== "CANCELLED"
+    (r) => typeof r.reservation_id === "string" && (r.property_id === HARTMANN_ID || PROPERTY_NAME_MATCH.test(String(r.property_name ?? ""))) && r.booking_status !== "CANCELLED"
   );
 }
 var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
@@ -494,6 +494,90 @@ async function buildFeed(src, password) {
   };
 }
 
+// src/cli/feed-files.ts
+import { existsSync, readFileSync } from "node:fs";
+import { basename } from "node:path";
+var isRec = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var VIEW_KIND = {
+  curated_operational_stays: "arrivi",
+  list_arrivals: "arrivi",
+  curated_guest_stays: "ospiti",
+  curated_reservation_contacts: "intestatari"
+};
+function kindOf(vista, rows) {
+  if (typeof vista === "string" && VIEW_KIND[vista]) return VIEW_KIND[vista];
+  const r = rows[0];
+  if (!r) return null;
+  if ("booker_type" in r) return "intestatari";
+  if ("guest_type" in r || "is_primary_guest" in r || "stay_start" in r) return "ospiti";
+  if ("room_name" in r || "adults" in r || "lodging_type_id" in r) return "arrivi";
+  return null;
+}
+function parse(text, depth = 0) {
+  const v = JSON.parse(text);
+  if (Array.isArray(v) && depth < 2 && v.every((b2) => isRec(b2) && typeof b2.text === "string")) {
+    return parse(v.map((b2) => b2.text).join(""), depth + 1);
+  }
+  if (typeof v === "string" && depth < 2) return parse(v, depth + 1);
+  return v;
+}
+var FileError = class extends Error {
+};
+function readBundle(path) {
+  const name = basename(path);
+  if (!existsSync(path)) throw new FileError(`file non trovato: ${name}`);
+  let v;
+  try {
+    v = parse(readFileSync(path, "utf8").trim());
+  } catch {
+    throw new FileError(`${name} non \xE8 un JSON leggibile`);
+  }
+  if (!isRec(v)) throw new FileError(`${name}: contenuto non riconosciuto`);
+  let rows;
+  let total = null;
+  let more = false;
+  if (Array.isArray(v.data)) {
+    rows = v.data;
+    const page = isRec(v.page) ? v.page : {};
+    total = typeof page.total === "number" ? page.total : null;
+    more = page.truncated === true || typeof page.next_cursor === "string" && page.next_cursor !== "";
+  } else if (Array.isArray(v.rows)) {
+    rows = v.rows;
+    total = typeof v.total === "number" ? v.total : null;
+  } else {
+    throw new FileError(`${name}: mancano le righe ("data" o "rows")`);
+  }
+  const kind = kindOf(v.vista ?? v.view, rows);
+  if (!kind) {
+    if (rows.length === 0) throw new FileError(`${name}: vuoto e senza "vista": indica quale vista \xE8`);
+    throw new FileError(`${name}: vista non riconosciuta (aggiungi "vista")`);
+  }
+  rows.forEach((r, i) => {
+    if (!isRec(r) || typeof r.reservation_id !== "string" || !UUID.test(r.reservation_id))
+      throw new FileError(`${name}: reservation_id mancante o non valido alla riga ${i + 1}`);
+  });
+  const freshness = isRec(v.freshness) && isRec(v.freshness.overall) ? v.freshness : null;
+  return { file: name, kind, rows, freshness, total, more };
+}
+function checkPages(bundles) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const b2 of bundles) {
+    if (b2.total === null) continue;
+    const key = `${b2.kind}|${b2.total}`;
+    groups.set(key, [...groups.get(key) ?? [], b2]);
+  }
+  for (const [key, list] of groups) {
+    const total = Number(key.split("|")[1]);
+    const rows = list.reduce((n, b2) => n + b2.rows.length, 0);
+    if (rows < total) {
+      const files = list.map((b2) => b2.file).join(", ");
+      throw new FileError(`${files}: ${rows} righe su ${total}: mancano pagine (segui next_cursor e passa anche i file delle pagine successive)`);
+    }
+  }
+}
+var splitPaths = (args) => args.flatMap((a) => a.split(",")).map((s) => s.trim()).filter(Boolean);
+
 // src/cli/feed-cli.ts
 var RUN_FILE = join(tmpdir(), "welcome-hartmann-run.json");
 var MAX_TRIES = 3;
@@ -534,7 +618,7 @@ function findTranscript(run2) {
   if (all.length === 0) fail(`nessun registro di sessione in ${join(homedir(), ".claude", "projects")}. Passa --transcript <file> a start.`);
   const marked = all.find((t2) => {
     try {
-      return readFileSync(t2.path, "utf8").includes(run2.token);
+      return readFileSync2(t2.path, "utf8").includes(run2.token);
     } catch {
       return false;
     }
@@ -542,10 +626,10 @@ function findTranscript(run2) {
   if (!marked) fail(`nessun registro contiene il segno ${run2.token}: riesegui start e poi next.`);
   return marked.path;
 }
-var isRec = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var isRec2 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 function resultText(content) {
   if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map((b2) => isRec(b2) && typeof b2.text === "string" ? b2.text : "").join("");
+  if (Array.isArray(content)) return content.map((b2) => isRec2(b2) && typeof b2.text === "string" ? b2.text : "").join("");
   return "";
 }
 var SAVED_PATH = /saved to:?\s+(\/\S+?\.(?:txt|json))(?=[.,;)\s]|$)/i;
@@ -559,10 +643,10 @@ function asEnvelope(v, depth = 0) {
       return null;
     }
   }
-  if (Array.isArray(v)) return asEnvelope(v.map((b2) => isRec(b2) && typeof b2.text === "string" ? b2.text : "").join(""), depth + 1);
-  if (!isRec(v) || !Array.isArray(v.data)) return null;
-  const page = isRec(v.page) ? v.page : {};
-  const fresh = isRec(v.freshness) ? v.freshness : { overall: { status: "unavailable" }, sources: [] };
+  if (Array.isArray(v)) return asEnvelope(v.map((b2) => isRec2(b2) && typeof b2.text === "string" ? b2.text : "").join(""), depth + 1);
+  if (!isRec2(v) || !Array.isArray(v.data)) return null;
+  const page = isRec2(v.page) ? v.page : {};
+  const fresh = isRec2(v.freshness) ? v.freshness : { overall: { status: "unavailable" }, sources: [] };
   return { data: v.data, freshness: fresh, next: typeof page.next_cursor === "string" ? page.next_cursor : null };
 }
 function parseResult(body, isError) {
@@ -572,15 +656,15 @@ function parseResult(body, isError) {
   if (!env) {
     const saved = SAVED_PATH.exec(raw);
     if (saved) {
-      if (!existsSync(saved[1])) return { page: null, error: `file della risposta non trovato (${basename(saved[1])})` };
-      env = asEnvelope(readFileSync(saved[1], "utf8"));
+      if (!existsSync2(saved[1])) return { page: null, error: `file della risposta non trovato (${basename2(saved[1])})` };
+      env = asEnvelope(readFileSync2(saved[1], "utf8"));
     }
   }
   return env ? { page: env, error: null } : { page: null, error: `risposta non riconosciuta (${raw.length} caratteri)` };
 }
 function readCalls(transcript, since) {
   const byId = /* @__PURE__ */ new Map();
-  for (const line of readFileSync(transcript, "utf8").split("\n")) {
+  for (const line of readFileSync2(transcript, "utf8").split("\n")) {
     if (!line || !line.includes("Scatola") && !line.includes("tool_result")) continue;
     let o;
     try {
@@ -588,11 +672,11 @@ function readCalls(transcript, since) {
     } catch {
       continue;
     }
-    if (!isRec(o) || !isRec(o.message) || !Array.isArray(o.message.content)) continue;
+    if (!isRec2(o) || !isRec2(o.message) || !Array.isArray(o.message.content)) continue;
     const at = typeof o.timestamp === "string" ? o.timestamp : "";
     for (const block of o.message.content) {
-      if (!isRec(block)) continue;
-      if (block.type === "tool_use" && typeof block.name === "string" && /scatola/i.test(block.name) && typeof block.id === "string" && isRec(block.input)) {
+      if (!isRec2(block)) continue;
+      if (block.type === "tool_use" && typeof block.name === "string" && /scatola/i.test(block.name) && typeof block.id === "string" && isRec2(block.input)) {
         const tool = /list_arrivals$/.test(block.name) ? "list_arrivals" : /query_curated_view$/.test(block.name) ? "query_curated_view" : null;
         if (tool && at >= since) byId.set(block.id, { id: block.id, at, tool, input: block.input, page: null, error: "nessuna risposta" });
       } else if (block.type === "tool_result" && typeof block.tool_use_id === "string") {
@@ -632,13 +716,13 @@ function ask(tool, input, failures, lastError2) {
 }
 var lastError = (calls, match) => calls.filter(match).filter((c) => c.error).pop()?.error ?? null;
 function loadRun() {
-  if (!existsSync(RUN_FILE)) fail("nessuna esecuzione avviata: esegui prima start.");
-  return JSON.parse(readFileSync(RUN_FILE, "utf8"));
+  if (!existsSync2(RUN_FILE)) fail("nessuna esecuzione avviata: esegui prima start.");
+  return JSON.parse(readFileSync2(RUN_FILE, "utf8"));
 }
 function start(args) {
   const password = args[0];
   if (!password || password.length < 8) fail('serve la password: node tools/feed.mjs start "<PASSWORD>"');
-  if (!existsSync("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
+  if (!existsSync2("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
   const ti = args.indexOf("--transcript");
   const run2 = {
     token: `WH-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`,
@@ -694,11 +778,64 @@ async function next() {
   for (const line of built.summary) out(line.startsWith("RIEPILOGO senza") ? `${line} \xB7 chiamate lette: ${calls.length}` : line);
   out(`PRONTO ${FEED_FILE} scritto e verificato`);
 }
+var VIEW_OF = {
+  arrivi: "curated_operational_stays",
+  ospiti: "curated_guest_stays",
+  intestatari: "curated_reservation_contacts"
+};
+async function build(args) {
+  const force = args.includes("--forza");
+  const rest2 = args.filter((a) => a !== "--forza");
+  const password = rest2[0];
+  if (!password || password.length < 8) fail('uso: node tools/feed.mjs build "<PASSWORD>" <file> [<file> ...]');
+  if (!existsSync2("index.html")) fail("esegui il comando dalla cartella del repository WelcomeHartmann.");
+  const files = splitPaths(rest2.slice(1));
+  if (files.length === 0) fail("indica i file con le risposte di La Scatola");
+  let bundles = [];
+  try {
+    bundles = files.map(readBundle);
+    checkPages(bundles);
+  } catch (e) {
+    fail(e instanceof FileError ? e.message : "file non leggibili");
+  }
+  const of = (k) => bundles.filter((b2) => b2.kind === k);
+  for (const k of ["arrivi", "ospiti", "intestatari"]) {
+    if (of(k).length === 0) fail(`manca il file della vista ${VIEW_OF[k]}`);
+  }
+  const dates = feedDates();
+  const inWindow = (d) => typeof d === "string" && d >= dates[0] && d <= dates[dates.length - 1];
+  const rows = hartmannRows(of("arrivi").flatMap((b2) => b2.rows)).filter((r) => inWindow(r.arrival));
+  const stays = of("ospiti").flatMap((b2) => b2.rows);
+  const contactRows = of("intestatari").flatMap((b2) => b2.rows);
+  const contacts = contactRows;
+  const ids = new Set(rows.map((r) => r.reservation_id));
+  const withBooker = new Set(contactRows.map((c) => c.reservation_id));
+  const warnings = [];
+  for (const r of rows) {
+    if (!withBooker.has(r.reservation_id))
+      warnings.push(`ATTENZIONE camera ${r.room_name ?? "senza camera"}, arrivo ${dm(r.arrival)}: nessun intestatario con lo stesso reservation_id`);
+  }
+  for (const c of contactRows) {
+    const pid = c.property_id;
+    if (inWindow(c.arrival) && c.booking_status !== "CANCELLED" && (pid === void 0 || pid === HARTMANN_ID) && !ids.has(c.reservation_id))
+      warnings.push(`ATTENZIONE un intestatario con arrivo ${dm(String(c.arrival))} non corrisponde a nessun arrivo`);
+  }
+  for (const w of warnings) out(w);
+  if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
+  const freshness = bundles.map((b2) => b2.freshness).filter((f) => f !== null);
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness }, password).catch(
+    (e) => fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`)
+  );
+  writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}
+`);
+  for (const line of built.summary) out(line.startsWith("RIEPILOGO senza") ? `${line} \xB7 file letti: ${bundles.length}` : line);
+  out(`PRONTO ${FEED_FILE} scritto e verificato`);
+}
 async function verify(args) {
   const file = args.length > 1 ? args[0] : FEED_FILE;
   const password = args.length > 1 ? args[1] : args[0];
   if (!password) fail('uso: node tools/feed.mjs verify [arrivi.json] "<PASSWORD>"');
-  const env = JSON.parse(readFileSync(file, "utf8"));
+  const env = JSON.parse(readFileSync2(file, "utf8"));
   if (!isFeedEnvelope(env)) fail(`${file} non \xE8 un file arrivi valido`);
   const payload = await decryptJson(env.enc, password, feedAad(env.from)).catch(() => fail("password errata o file alterato"));
   const total = Object.values(payload.days).reduce((n, d) => n + d.length, 0);
@@ -707,6 +844,6 @@ async function verify(args) {
   out(`verifica OK: ${env.from} \u2192 ${env.to}, ${total} arrivi, scritto ${env.generated_at}`);
 }
 var [cmd, ...rest] = process.argv.slice(2);
-var run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : null;
-if (!run) fail('comandi: start "<PASSWORD>" \xB7 next \xB7 verify [file] "<PASSWORD>"');
+var run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : cmd === "build" ? () => build(rest) : null;
+if (!run) fail('comandi: build "<PASSWORD>" <file>\u2026 \xB7 verify [file] "<PASSWORD>" \xB7 start "<PASSWORD>" \xB7 next');
 run().catch((e) => fail(e instanceof Error ? e.message : String(e)));

@@ -22,7 +22,10 @@ export const feedDates = (from = romeToday()): string[] => Array.from({ length: 
 /** Arrivi dello Hartmann, senza doppioni e senza prenotazioni cancellate. */
 export function hartmannRows(arrivals: readonly ArrivalRow[]): ArrivalRow[] {
   return [...new Map(arrivals.map((r) => [r.reservation_id, r])).values()].filter(
-    (r) => typeof r.reservation_id === "string" && PROPERTY_NAME_MATCH.test(String(r.property_name)) && r.booking_status !== "CANCELLED",
+    (r) =>
+      typeof r.reservation_id === "string" &&
+      (r.property_id === HARTMANN_ID || PROPERTY_NAME_MATCH.test(String(r.property_name ?? ""))) &&
+      r.booking_status !== "CANCELLED",
   );
 }
 
