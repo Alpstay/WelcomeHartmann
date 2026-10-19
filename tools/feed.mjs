@@ -9,6 +9,7 @@ import { basename as basename2, join } from "node:path";
 var FEED_FILE = "arrivi.json";
 var FEED_DAYS = 7;
 var ITERATIONS = 25e4;
+var FEED_ITERATIONS = 6e5;
 var feedAad = (from) => `WelcomeHartmann|${from}`;
 var subtle = () => {
   const c = globalThis.crypto;
@@ -30,17 +31,17 @@ async function keyFrom(password, salt, iter, usage) {
   const base = await subtle().importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
   return subtle().deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, [usage]);
 }
-async function encryptJson(value, password, aad) {
+async function encryptJson(value, password, aad, iter = ITERATIONS) {
   const c = globalThis.crypto;
   const salt = c.getRandomValues(new Uint8Array(16));
   const iv = c.getRandomValues(new Uint8Array(12));
-  const key = await keyFrom(password, salt, ITERATIONS, "encrypt");
+  const key = await keyFrom(password, salt, iter, "encrypt");
   const ct = await subtle().encrypt(
     { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(aad) },
     key,
     new TextEncoder().encode(JSON.stringify(value))
   );
-  return { alg: "AES-GCM/PBKDF2-SHA256", iter: ITERATIONS, salt: toB64(salt), iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+  return { alg: "AES-GCM/PBKDF2-SHA256", iter, salt: toB64(salt), iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
 }
 async function decryptJson(enc, password, aad) {
   const key = await keyFrom(password, fromB64(enc.salt), enc.iter, "decrypt");
@@ -478,7 +479,7 @@ async function buildFeed(src, password) {
     from,
     to: src.dates[src.dates.length - 1],
     counts,
-    enc: await encryptJson(payload, password, feedAad(from))
+    enc: await encryptJson(payload, password, feedAad(from), FEED_ITERATIONS)
   };
   const back = await decryptJson(envelope.enc, password, feedAad(from));
   if (JSON.stringify(back) !== JSON.stringify(payload)) throw new Error("la verifica della cifratura non torna");

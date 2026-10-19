@@ -16,7 +16,23 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/
 - «Riepilogo WhatsApp»: testo con gli arrivi selezionati (camera, nome, date, lingua, note e, a
   scelta, i PIN) da copiare o aprire in WhatsApp, dove si sceglie il gruppo a cui inviarlo.
 
-Sorgente TypeScript in `src/`; build con `npm install && node build.mjs`.
+Sorgente TypeScript in `src/`; build con `npm install && node build.mjs` (scrive anche `index.html`).
+
+## Sicurezza
+
+- Il repository è pubblico: degli ospiti si pubblicano solo date e conteggi in chiaro. Nomi, lingue e
+  camere sono in `arrivi.json` cifrati con AES-256-GCM; la chiave deriva dalla password reception con
+  PBKDF2-SHA256 a 600 000 iterazioni (i file più vecchi, a 250 000, restano leggibili). La password non
+  è mai nel repository.
+- `index.html` ha una Content-Security-Policy: gira solo lo script dell'app (impronta sha256 calcolata
+  da `build.mjs`) e pdfmake con controllo di integrità (SRI); la pagina può scaricare dati solo dal
+  proprio sito, quindi password e nomi non possono essere inviati ad altri indirizzi. Nessun referrer
+  verso Google Fonts e jsDelivr. Per aggiornare pdfmake vanno cambiati insieme indirizzo e impronta in
+  `src/page.html`.
+- Nel browser della reception restano la password (per non chiederla a ogni ora) e le modifiche a
+  nome, lingua, PIN e nota: queste ultime si cancellano dopo la partenza dell'ospite, al massimo dopo
+  14 giorni.
+- Il workflow GitHub usa azioni fissate a un commit preciso, perché ha accesso ai segreti.
 
 ## Hotel oggi (AlpStay App Hub)
 

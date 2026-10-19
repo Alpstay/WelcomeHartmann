@@ -2,7 +2,7 @@
 // Claude (tools/feed.mjs) sia da quello su GitHub Actions (tools/github-feed.mjs). Gli ID di Slope passano
 // così come arrivano.
 
-import { FEED_DAYS, decryptJson, encryptJson, feedAad, toFeedItem } from "./feed";
+import { FEED_DAYS, FEED_ITERATIONS, decryptJson, encryptJson, feedAad, toFeedItem } from "./feed";
 import type { FeedEnvelope, FeedItem, FeedPayload } from "./feed";
 import { PROPERTY_NAME_MATCH } from "./hotel";
 import { lookupFromRows, toItems } from "./scatola";
@@ -73,7 +73,7 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
     from,
     to: src.dates[src.dates.length - 1],
     counts,
-    enc: await encryptJson(payload, password, feedAad(from)),
+    enc: await encryptJson(payload, password, feedAad(from), FEED_ITERATIONS),
   };
   const back = await decryptJson<FeedPayload>(envelope.enc, password, feedAad(from));
   if (JSON.stringify(back) !== JSON.stringify(payload)) throw new Error("la verifica della cifratura non torna");

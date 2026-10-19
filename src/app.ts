@@ -126,6 +126,8 @@ interface ItemEdit {
   lang?: LangCode;
   note?: string;
   at: number;
+  /** Giorno di partenza (AAAA-MM-GG): dopo, nome, PIN e nota spariscono dal browser. */
+  until?: string;
 }
 
 const noteOpen = new Set<string>();
@@ -134,7 +136,15 @@ function loadEdits(): Record<string, ItemEdit> {
   try {
     const raw = JSON.parse(localStorage.getItem(EDITS_KEY) ?? "{}") as Record<string, ItemEdit>;
     const limit = Date.now() - EDITS_DAYS * 86_400_000;
-    return Object.fromEntries(Object.entries(raw).filter(([, e]) => e && typeof e.at === "number" && e.at > limit));
+    const today = romeDate(0);
+    const kept = Object.fromEntries(
+      Object.entries(raw).filter(
+        ([, e]) => e && typeof e.at === "number" && e.at > limit && !(typeof e.until === "string" && e.until < today),
+      ),
+    );
+    // Quello che è scaduto (ospite partito o più di 14 giorni) si cancella anche dal browser, non solo dalla vista.
+    if (Object.keys(kept).length !== Object.keys(raw).length) localStorage.setItem(EDITS_KEY, JSON.stringify(kept));
+    return kept;
   } catch {
     return {};
   }
@@ -144,7 +154,7 @@ const edits: Record<string, ItemEdit> = loadEdits();
 
 function saveEdit(item: ArrivalItem, patch: Omit<ItemEdit, "at">): void {
   if (item.manual) return;
-  edits[item.key] = { ...edits[item.key], ...patch, at: Date.now() };
+  edits[item.key] = { ...edits[item.key], ...patch, at: Date.now(), ...(item.departure ? { until: item.departure } : {}) };
   try {
     localStorage.setItem(EDITS_KEY, JSON.stringify(edits));
   } catch {

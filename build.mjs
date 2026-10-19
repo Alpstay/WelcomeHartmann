@@ -1,6 +1,7 @@
 // Build: TypeScript → pagina per l'artifact claude.ai + file HTML completo da aprire nel browser.
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const out = await build({
   entryPoints: ["src/app.ts"],
@@ -54,11 +55,29 @@ const body = page.replace("/*APP_SCRIPT*/", () => js);
 mkdirSync("dist", { recursive: true });
 // 1) contenuto per l'artifact (lo scheletro <html><head> lo aggiunge la piattaforma)
 writeFileSync("dist/benvenuto-hartmann.html", body);
-// 2) documento HTML completo, apribile con doppio clic
+// 2) documento HTML completo (index.html su GitHub Pages), con Content-Security-Policy: gira solo lo script
+//    dell'app (impronta sha256) e pdfmake con controllo di integrità; la pagina può scaricare dati solo dal
+//    proprio sito (connect-src 'self'), quindi nomi e password non possono partire verso altri indirizzi.
+const inlineHashes = (html) =>
+  [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => `'sha256-${createHash("sha256").update(m[1]).digest("base64")}'`);
+const PDFMAKE_URL = "https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/pdfmake.min.js";
+if (!body.includes(`src="${PDFMAKE_URL}" integrity="sha384-`)) throw new Error("pdfmake senza controllo di integrità in src/page.html");
+const appCsp = [
+  "default-src 'none'",
+  `script-src ${inlineHashes(body).join(" ")} ${PDFMAKE_URL}`,
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+].join("; ");
 const full = `<!doctype html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="${appCsp}">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -68,6 +87,7 @@ ${body}
 </html>
 `;
 writeFileSync("dist/Benvenuto Hartmann.html", full);
+writeFileSync("index.html", full);
 console.log("ok", Math.round(full.length / 1024), "KB");
 
 // Pagina collega.html (collegamento una tantum di GitHub a La Scatola)
@@ -79,8 +99,19 @@ console.log("ok", Math.round(full.length / 1024), "KB");
   const cut = tpl.indexOf("<main>");
   const head = tpl.slice(0, cut).trim();
   const bodyPart = tpl.slice(cut).replace("/*APP_SCRIPT*/", () => cjs).trim();
+  // Il token si chiede solo al server di accesso indicato in scatola-client.json.
+  const tokenOrigin = new URL(JSON.parse(readFileSync("scatola-client.json", "utf8")).token_url).origin;
+  const collegaCsp = [
+    "default-src 'none'",
+    `script-src ${inlineHashes(bodyPart).join(" ")}`,
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    `connect-src 'self' ${tokenOrigin}`,
+    "base-uri 'none'",
+    "object-src 'none'",
+  ].join("; ");
   writeFileSync(
     "collega.html",
-    `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta name="referrer" content="no-referrer">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`,
+    `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${collegaCsp}">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta name="referrer" content="no-referrer">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`,
   );
 }

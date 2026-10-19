@@ -6,6 +6,9 @@ import type { ArrivalItem, FreshnessStatus, LangCode, LangSource } from "./types
 export const FEED_FILE = "arrivi.json";
 export const FEED_DAYS = 7;
 const ITERATIONS = 250_000;
+/** Iterazioni per arrivi.json (nomi degli ospiti in un repository pubblico): valore consigliato OWASP per
+ *  PBKDF2-SHA256. Chi decifra legge il numero dal file, quindi i file vecchi a 250 000 restano leggibili. */
+export const FEED_ITERATIONS = 600_000;
 
 export interface EncBlock {
   readonly alg: "AES-GCM/PBKDF2-SHA256";
@@ -77,17 +80,17 @@ async function keyFrom(password: string, salt: Uint8Array<ArrayBuffer>, iter: nu
   return subtle().deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, [usage]);
 }
 
-export async function encryptJson(value: unknown, password: string, aad: string): Promise<EncBlock> {
+export async function encryptJson(value: unknown, password: string, aad: string, iter = ITERATIONS): Promise<EncBlock> {
   const c = (globalThis as { crypto: Crypto }).crypto;
   const salt = c.getRandomValues(new Uint8Array(16));
   const iv = c.getRandomValues(new Uint8Array(12));
-  const key = await keyFrom(password, salt, ITERATIONS, "encrypt");
+  const key = await keyFrom(password, salt, iter, "encrypt");
   const ct = await subtle().encrypt(
     { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(aad) },
     key,
     new TextEncoder().encode(JSON.stringify(value)),
   );
-  return { alg: "AES-GCM/PBKDF2-SHA256", iter: ITERATIONS, salt: toB64(salt), iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+  return { alg: "AES-GCM/PBKDF2-SHA256", iter, salt: toB64(salt), iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
 }
 
 /** Lancia un errore se la password è sbagliata o il file è stato alterato. */

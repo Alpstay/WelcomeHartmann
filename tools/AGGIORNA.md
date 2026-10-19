@@ -62,7 +62,9 @@ predefinito); senza ospite registrato valgono nome e lingua dell'intestatario; a
 ## Modifiche al codice
 
 La pagina e i programmi si generano da `src/` con `npm install` e `node build.mjs`
-(`dist/Benvenuto Hartmann.html` → `index.html`, `tools/feed.mjs`, `tools/github-feed.mjs`, `collega.html`).
+(`index.html` con la sua Content-Security-Policy, `tools/feed.mjs`, `tools/github-feed.mjs`, `collega.html`).
+Dopo la build `tools/hotel-oggi.mjs` va lasciato com'è (`git checkout -- tools/hotel-oggi.mjs`) se non si
+sta lavorando a Hotel oggi.
 Testi della lettera in `src/texts.ts`; Wi-Fi, emergenze, colazione e camere in `src/hotel.ts`.
 Aggiornamento alternativo da GitHub Actions: `tools/GITHUB.md`. I vecchi comandi `start`/`next`, che leggono
 il registro della sessione, restano solo per compatibilità: non usarli nell'attività pianificata.
