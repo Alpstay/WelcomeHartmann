@@ -9,8 +9,9 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
 
 - Gli ID ricevuti da Slope / La Scatola non si modificano mai: si copiano identici. Il programma li
   ricontrolla (righe `ATTENZIONE`).
-- Nomi e altri dati personali degli ospiti non si stampano, non si riassumono e non si scrivono in nessun
-  file del repository. Vivono solo in file privati nello scratchpad e, cifrati, dentro `arrivi.json`.
+- Nomi, email, telefoni, link di check-in e altri dati personali degli ospiti non si stampano, non si
+  riassumono e non si scrivono in nessun file del repository. Vivono solo in file privati nello scratchpad e,
+  cifrati, dentro `arrivi.json` (blocchi `enc` per le lettere e `avvisi` per le email pre-arrivo).
 - Si pubblica solo `arrivi.json`. Non modificare `index.html`, `hotel-oggi.json`, `src/` né `tools/`.
 - Se La Scatola non risponde o il programma risponde `ERRORE`: **non pubblicare**. La pagina continua con
   l'ultimo file riuscito e avvisa da sola quando i dati sono vecchi.
@@ -39,8 +40,10 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    risposta arriva nel messaggio, salvala tu in un file dello scratchpad
    `{"vista": "<nome vista>", "total": <page.total>, "rows": [...]}` tenendo solo i campi
    `reservation_id, guest_type, is_primary_guest, first_name, last_name, language` (ospiti) oppure
-   `reservation_id, property_id, arrival, booking_status, booker_type, first_name, last_name, language,
-   company_language` (intestatari). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
+   `reservation_id, property_id, arrival, departure, booking_status, booker_type, first_name, last_name,
+   language, company_language, organization_name, primary_email, primary_phone_number, company_email,
+   company_phone, checkin_url` (intestatari: email, telefono e link di check-in servono alla pagina
+   `avvisi/` delle email pre-arrivo e finiscono solo cifrati). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
 4. **Costruisci**, dalla cartella del repository:
    `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <file ospiti…> <file intestatari…>`
    (percorsi separati da spazi o da virgole). Una riga `ATTENZIONE` indica quasi sempre un

@@ -90,6 +90,46 @@ writeFileSync("dist/Benvenuto Hartmann.html", full);
 writeFileSync("index.html", full);
 console.log("ok", Math.round(full.length / 1024), "KB");
 
+// Pagina avvisi/ (email pre-arrivo agli ospiti): legge ../arrivi.json (blocco «avvisi» cifrato) con la stessa
+// password reception delle lettere. Content-Security-Policy come index.html: solo il proprio script, dati solo dal
+// proprio sito, così email e link di check-in non possono partire verso altri indirizzi.
+{
+  const a = await build({ entryPoints: ["src/avvisi/app.ts"], bundle: true, format: "iife", target: "es2020", minify: true, write: false, legalComments: "none" });
+  const ajs = a.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
+  const tpl = readFileSync("src/avvisi/page.html", "utf8");
+  if (!tpl.includes("/*__APP__*/")) throw new Error("segnaposto mancante in src/avvisi/page.html");
+  const cut = tpl.indexOf('<div id="app">');
+  if (cut < 0) throw new Error("<div id=\"app\"> mancante in src/avvisi/page.html");
+  const head = tpl.slice(0, cut).trim();
+  const bodyPart = tpl.slice(cut).replace("/*__APP__*/", () => ajs).trim();
+  const avvisiCsp = [
+    "default-src 'none'",
+    `script-src ${inlineHashes(bodyPart).join(" ")}`,
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "form-action 'none'",
+  ].join("; ");
+  mkdirSync("avvisi", { recursive: true });
+  const pagina = `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${avvisiCsp}">\n<meta name="referrer" content="no-referrer">\n<meta name="robots" content="noindex, nofollow">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`;
+  writeFileSync("avvisi/index.html", pagina);
+  console.log("ok avvisi/index.html", Math.round(pagina.length / 1024), "KB");
+}
+// Cifratura del link del gruppo WhatsApp per avvisi/ (si usa solo quando il gruppo cambia)
+await build({
+  entryPoints: ["src/avvisi/cifra-gruppo.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  outfile: "tools/avvisi-gruppo.mjs",
+  banner: { js: "// Generato da src/avvisi/cifra-gruppo.ts con build.mjs: non modificare a mano." },
+  legalComments: "none",
+});
+
 // Pagina collega.html (collegamento una tantum di GitHub a La Scatola)
 {
   const c = await build({ entryPoints: ["src/collega.ts"], bundle: true, format: "iife", target: "es2020", minify: true, write: false, legalComments: "none" });

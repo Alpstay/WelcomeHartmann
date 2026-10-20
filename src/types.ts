@@ -169,6 +169,20 @@ export interface BookerFields {
   readonly company_language: string | null;
 }
 
+/**
+ * Campi di curated_reservation_contacts usati per le email pre-arrivo (pagina avvisi/). Facoltativi: un file
+ * scritto a mano con i soli campi della lettera resta valido, ma senza contatti.
+ */
+export interface ContactFields extends BookerFields {
+  readonly organization_name?: string | null;
+  readonly primary_email?: string | null;
+  readonly primary_phone_number?: string | null;
+  readonly company_email?: string | null;
+  readonly company_phone?: string | null;
+  /** Link personale di check-in online di Slope: dà accesso ai dati dell'ospite, solo cifrato. */
+  readonly checkin_url?: string | null;
+}
+
 /** Da dove arriva la lingua proposta. */
 export type LangSource = "ospite" | "prenotazione" | "predefinita" | "manuale";
 

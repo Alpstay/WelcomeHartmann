@@ -1,0 +1,7 @@
+{
+ "alg": "AES-GCM/PBKDF2-SHA256",
+ "iter": 600000,
+ "salt": "9WcWZv57/GMy1vrw2dlxew==",
+ "iv": "btpmm2TXrldaO8L4",
+ "ct": "xTWfklz4udaUDBX4tiXPimvLWRPTzI9ASl8mc593X84H5fR/2Z8SFR2LyQw3A7izwXbhyONLAR9W8PcOyFeep7+QOH9bjJ9/gDRi"
+}

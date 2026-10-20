@@ -39,6 +39,32 @@ export interface FeedPayload {
   readonly days: Readonly<Record<string, readonly FeedItem[]>>;
 }
 
+/**
+ * Contatti per le email pre-arrivo (pagina avvisi/): una riga per prenotazione confermata, cifrata a parte.
+ * reservationId è quello di Slope, invariato.
+ */
+export interface AvvisoItem {
+  readonly reservationId: string;
+  readonly arrival: string;
+  readonly departure: string;
+  /** «Cognome Nome» (o ragione sociale) per l'elenco della reception. */
+  readonly name: string;
+  /** «Nome Cognome» per il saluto; vuoto per le aziende. */
+  readonly greetingName: string;
+  readonly email: string | null;
+  readonly phone: string | null;
+  /** Lingua dell'intestatario così come in Slope (es. "en"). */
+  readonly lang: string | null;
+  /** Link personale di check-in online di Slope (solo https://booking.slope.it/…). */
+  readonly checkinUrl: string | null;
+}
+
+export interface AvvisiPayload {
+  readonly items: readonly AvvisoItem[];
+}
+
+export const avvisiAad = (from: string): string => `WelcomeHartmann|avvisi|${from}`;
+
 export interface FeedEnvelope {
   readonly format: 1;
   readonly app: "WelcomeHartmann";
@@ -52,6 +78,10 @@ export interface FeedEnvelope {
   /** Numero di arrivi per giorno (nessun dato personale). */
   readonly counts: Readonly<Record<string, number>>;
   readonly enc: EncBlock;
+  /** Numero di prenotazioni nel blocco avvisi (nessun dato personale). Assente nei file più vecchi. */
+  readonly avvisi_count?: number;
+  /** Contatti per le email pre-arrivo, cifrati con la stessa password (AvvisiPayload). */
+  readonly avvisi?: EncBlock;
 }
 
 export const feedAad = (from: string): string => `WelcomeHartmann|${from}`;

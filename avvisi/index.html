@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-mQMpUoWpCrufzuGfHUW3NADUzwEBCmZHIUg36O5MYT0='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Avvisi Arrivo Hartmann</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Belleza&family=Lato:wght@400;700&display=swap">
+<style>
+/* Layout: colonna unica da banco reception (max 860px). Testata con finestra di date, poi «Da avvisare via email»
+   (una email per ospite), «Senza email», «Già avvisati» e impostazioni in fondo.
+   Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
+:root {
+  --bg: #ffffff;
+  --surface: #f8f6f1;
+  --fg: #161512;
+  --muted: #69645a;
+  --line: #e5dfd2;
+  --gold: #94752f;
+  --gold-soft: #f4eddc;
+  --ok: #2c7549;
+  --ok-soft: #e4f1e8;
+  --warn: #8f5400;
+  --warn-soft: #fbefd9;
+  --danger: #b42318;
+  --btn-bg: #161512;
+  --btn-fg: #ffffff;
+  --focus: #94752f;
+  --font-title: "Belleza", "Gill Sans", "Trebuchet MS", sans-serif;
+  --font-body: "Lato", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+    --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+    --danger: #f08a7f; --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+  --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+  --danger: #f08a7f; --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+#app { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+h1, h2, h3 { font-family: var(--font-title); font-weight: 400; text-wrap: balance; margin: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Testata */
+.testata { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.testata-titolo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.occhiello { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
+#finestra { color: var(--fg); font-size: 15px; }
+.testata-stato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#freschezza { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#riepilogo { display: flex; flex-wrap: wrap; gap: 8px; }
+#riepilogo:empty { display: none; }
+.chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 13px; border: 1px solid var(--line); background: var(--surface); }
+.chip b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.chip-da-fare { background: var(--gold-soft); border-color: transparent; }
+.chip-ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.chip-attenzione { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+
+/* Pulsanti */
+.btn {
+  font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 42px; padding: 10px 16px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--fg); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primario { background: var(--btn-bg); color: var(--btn-fg); border-color: var(--btn-bg); }
+.btn-primario:hover:not(:disabled) { background: var(--gold); border-color: var(--gold); color: #fff; }
+.btn-conferma { background: var(--ok); color: var(--bg); border-color: var(--ok); }
+.btn-piccolo { min-height: 32px; padding: 5px 11px; font-size: 13px; font-weight: 700; }
+.link { font: inherit; font-weight: 700; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+
+/* Avvisi */
+#avvisi { display: flex; flex-direction: column; gap: 10px; }
+#avvisi:empty { display: none; }
+.avviso { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 14px 16px; border-radius: var(--r); background: var(--warn-soft); color: var(--fg); }
+.avviso strong { color: var(--warn); }
+.avviso-setup { flex-direction: column; gap: 12px; background: var(--gold-soft); }
+.avviso-setup strong { color: var(--fg); }
+.avviso-testo { display: flex; flex-direction: column; gap: 2px; }
+.riga-setup { display: flex; flex-wrap: wrap; gap: 8px; }
+.riga-setup input { flex: 1 1 260px; min-width: 0; }
+
+input[type="url"], input[type="email"], input[type="text"], input[type="number"], select, textarea {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; min-height: 42px; width: 100%;
+}
+textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
+
+/* Gruppi per lingua */
+#lista { display: flex; flex-direction: column; gap: 18px; }
+.gruppo { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+.gruppo-testa { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.gruppo-testa h3 { font-size: 22px; display: flex; align-items: baseline; gap: 10px; }
+.codice { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 1px 6px; }
+.conta { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.ospiti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ospite {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, 1.6fr) auto; gap: 4px 14px; align-items: center;
+  padding: 9px 0; border-top: 1px solid var(--line);
+}
+.ospite:first-child { border-top: 0; }
+.ospite.escluso { opacity: .5; }
+.ospite-nome { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.ospite-nome span { overflow-wrap: anywhere; }
+.ospite-nome input { width: 18px; height: 18px; accent-color: var(--fg); flex: none; margin: 0; }
+.quando { font-size: 14px; font-variant-numeric: tabular-nums; }
+.distanza { color: var(--muted); font-size: 13px; }
+.contatto { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.azioni-riga { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 4px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
+.motivo { display: block; color: var(--warn); }
+
+.gruppo-azioni { display: flex; flex-wrap: wrap; gap: 8px; }
+.nota { margin: 0; font-size: 13px; color: var(--muted); max-width: 65ch; }
+.nota b { color: var(--fg); }
+
+.manuale { border-top: 1px dashed var(--line); padding-top: 10px; }
+.manuale summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.manuale dl { margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.manuale dl > div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; align-items: start; }
+.manuale dt { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
+.manuale dd { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; min-width: 0; }
+.manuale code, .manuale pre { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface); border-radius: 6px; padding: 6px 9px; overflow-wrap: anywhere; white-space: pre-wrap; margin: 0; flex: 1 1 240px; min-width: 0; user-select: all; }
+
+.gruppo-senza { border-color: var(--warn-soft); }
+.gruppo-senza .gruppo-testa h3 { color: var(--warn); }
+.gruppo-fatti { padding: 12px 18px; }
+.gruppo-fatti > summary { cursor: pointer; list-style: none; }
+.gruppo-fatti > summary::-webkit-details-marker { display: none; }
+.gruppo-fatti > summary h3::before { content: "▸"; font-size: 14px; color: var(--muted); margin-right: 4px; }
+.gruppo-fatti[open] > summary h3::before { content: "▾"; }
+.gruppo-fatti h3 { color: var(--ok); font-size: 19px; }
+.gruppo-fatti .ospiti { margin-top: 8px; }
+.ospite.fatto .ospite-nome { font-weight: 400; }
+
+.vuoto { border: 1px dashed var(--line); border-radius: var(--r); padding: 28px 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.vuoto p { margin: 0; color: var(--muted); max-width: 60ch; }
+.vuoto .vuoto-titolo { font-family: var(--font-title); font-size: 21px; color: var(--fg); }
+.vuoto-errore .vuoto-titolo { color: var(--danger); }
+.vuoto-ok .vuoto-titolo { color: var(--ok); }
+
+/* Impostazioni */
+#impostazioni { border-top: 1px solid var(--line); padding-top: 16px; }
+#impostazioni > summary { cursor: pointer; font-family: var(--font-title); font-size: 20px; color: var(--gold); }
+#form-impostazioni { display: flex; flex-direction: column; gap: 18px; margin-top: 16px; }
+.campi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.campo-largo { grid-column: 1 / -1; }
+.campo label { font-size: 13px; font-weight: 700; }
+.aiuto { font-size: 12.5px; color: var(--muted); margin: 0; }
+.testi { display: flex; flex-direction: column; gap: 14px; }
+.testi fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.testi legend { font-family: var(--font-title); font-size: 17px; padding: 0 6px; }
+.azioni-modulo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sblocco { max-width: 520px; }
+.sblocco .riga-setup { width: 100%; }
+
+.badge-mano { color: var(--gold); background: var(--gold-soft); }
+.ospite-email.aperta { background: var(--ok-soft); border-radius: 8px; padding-inline: 8px; margin-inline: -8px; }
+.ospite .azioni-riga { align-items: center; }
+.link-piccolo { font-size: 13px; font-weight: 400; color: var(--muted); }
+.link-piccolo:hover { color: var(--fg); }
+.badge-ok { color: var(--ok); background: var(--ok-soft); }
+.barra-aperte { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 14px; border-radius: 8px; background: var(--ok-soft); font-weight: 700; }
+.segnaposti dl { margin: 4px 0 0; display: grid; gap: 4px; }
+.segnaposti dl > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; font-size: 13px; }
+.segnaposti dd { margin: 0; color: var(--muted); }
+.segnaposti code { font-family: var(--font-mono); font-size: 12.5px; color: var(--gold); }
+.etichetta-segnaposti { font-size: 13px; font-weight: 700; }
+.nota-errore { color: var(--danger); font-weight: 700; }
+.btn-rimuovi { color: var(--danger); }
+.contatto s { color: var(--muted); }
+.gruppo-attesa { padding: 12px 18px; }
+.gruppo-attesa > summary { cursor: pointer; list-style: none; }
+.gruppo-attesa > summary::-webkit-details-marker { display: none; }
+.gruppo-attesa > summary h3::before { content: "▸"; font-size: 14px; color: var(--muted); margin-right: 4px; }
+.gruppo-attesa[open] > summary h3::before { content: "▾"; }
+.gruppo-attesa h3 { font-size: 19px; }
+.gruppo-attesa .ospiti { margin-top: 8px; }
+
+/* Dialogo email a mano */
+#dialogo-email {
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 12px; padding: 22px 22px 20px;
+  background: var(--bg); color: var(--fg); box-shadow: 0 18px 50px rgba(0,0,0,.25);
+}
+#dialogo-email::backdrop { background: rgba(20, 18, 14, .45); }
+#form-dialogo { display: flex; flex-direction: column; gap: 14px; }
+#form-dialogo h2 { font-size: 24px; color: var(--gold); }
+.campi-dlg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.campi-dlg .campo[hidden] + .campo { grid-column: 1 / -1; }
+.spunta { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.spunta input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--fg); flex: none; }
+.spunta b { overflow-wrap: anywhere; font-weight: 700; }
+.errore { margin: 0; color: var(--danger); font-size: 14px; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.errore .btn { color: var(--fg); }
+.aiuto-inline { flex-basis: 100%; font-weight: 400; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.btn-rimuovi { color: var(--danger); margin-left: auto; }
+
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  max-width: min(560px, calc(100vw - 32px));
+  background: var(--btn-bg); color: var(--btn-fg);
+  padding: 12px 16px; border-radius: 10px; font-size: 14px;
+  display: flex; gap: 14px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 20;
+}
+
+@media (max-width: 640px) {
+  .ospite { grid-template-columns: minmax(0, 1fr) auto; }
+  .ospite .contatto { grid-column: 1 / -1; }
+  .ospite .azioni-riga { grid-column: 1 / -1; justify-content: flex-start; }
+  .campi { grid-template-columns: minmax(0, 1fr); }
+  .gruppo-azioni .btn { flex: 1 1 100%; }
+  .manuale dl > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .campi-dlg { grid-template-columns: minmax(0, 1fr); }
+  .btn-rimuovi { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="testata">
+    <div class="testata-titolo">
+      <span class="occhiello">Chalet Hotel Hartmann · Ortisei · reception</span>
+      <h1>Avvisi arrivo</h1>
+      <span id="finestra">Arrivi dei prossimi giorni</span>
+    </div>
+    <div class="testata-stato">
+      <span id="freschezza" aria-live="polite"></span>
+      <button type="button" class="btn" id="aggiungi-email">Aggiungi ospite a mano</button>
+      <button type="button" class="btn" id="aggiorna">Aggiorna</button>
+    </div>
+  </header>
+
+  <div id="riepilogo" aria-live="polite"></div>
+  <div id="avvisi"></div>
+  <div id="lista"></div>
+
+  <details id="impostazioni">
+    <summary>Impostazioni</summary>
+    <form id="form-impostazioni" novalidate>
+      <div class="campi">
+        <div class="campo campo-largo">
+          <label for="imp-link">Link del gruppo WhatsApp</label>
+          <input id="imp-link" type="url" inputmode="url" placeholder="Vuoto = gruppo dello chalet" autocomplete="off">
+          <p class="aiuto">Va nel testo al posto di {LINK_WHATSAPP}. Lascia vuoto per usare il gruppo dello chalet; incolla un altro link solo se il gruppo cambia.</p>
+        </div>
+        <div class="campo">
+          <label for="imp-programma">Le email si aprono in</label>
+          <select id="imp-programma">
+            <option value="mailto">Programma email del computer (Outlook, Mail)</option>
+            <option value="gmail">Gmail nel browser</option>
+          </select>
+          <p class="aiuto">Spedisci da info@alpstay.eu, l'indirizzo registrato nell'extranet Booking: solo così arrivano le email ai …@guest.booking.com.</p>
+        </div>
+        <div class="campo">
+          <label for="imp-giorni">Giorni di anticipo</label>
+          <input id="imp-giorni" type="number" min="1" max="14" step="1" inputmode="numeric">
+          <p class="aiuto">Compaiono gli arrivi da domani fino a questo giorno, finché non sono segnati come avvisati.</p>
+        </div>
+        <div class="campo campo-largo segnaposti">
+          <span class="etichetta-segnaposti">Parti che la pagina compila per ogni ospite</span>
+          <dl>
+            <div><dt><code>{NOME}</code></dt><dd>nome dell'ospite nel saluto</dd></div>
+            <div><dt><code>{CHECKIN}</code></dt><dd>il blocco «Importante: check-in online»; sparisce se Slope non ha il link</dd></div>
+            <div><dt><code>{LINK_CHECKIN}</code></dt><dd>il link personale di check-in, da usare dentro la frase</dd></div>
+            <div><dt><code>{LINK_ARRIVO}</code></dt><dd>la pagina d'arrivo nella lingua dell'ospite, con il suo check-in già dentro</dd></div>
+            <div><dt><code>{LINK_WHATSAPP}</code></dt><dd>il link del gruppo WhatsApp</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="testi">
+        <fieldset>
+          <legend>Deutsch</legend>
+          <div class="campo"><label for="imp-de-oggetto">Betreff</label><input id="imp-de-oggetto" type="text"></div>
+          <div class="campo"><label for="imp-de-corpo">E-Mail</label><textarea id="imp-de-corpo" rows="12"></textarea></div>
+          <div class="campo"><label for="imp-de-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-de-checkin" rows="8"></textarea></div>
+          <div class="campo"><label for="imp-de-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-de-whatsapp" rows="6"></textarea></div>
+        </fieldset>
+        <fieldset>
+          <legend>Italiano</legend>
+          <div class="campo"><label for="imp-it-oggetto">Oggetto</label><input id="imp-it-oggetto" type="text"></div>
+          <div class="campo"><label for="imp-it-corpo">Email</label><textarea id="imp-it-corpo" rows="12"></textarea></div>
+          <div class="campo"><label for="imp-it-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-it-checkin" rows="8"></textarea></div>
+          <div class="campo"><label for="imp-it-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-it-whatsapp" rows="6"></textarea></div>
+        </fieldset>
+        <fieldset>
+          <legend>English · tutte le altre lingue</legend>
+          <div class="campo"><label for="imp-en-oggetto">Subject</label><input id="imp-en-oggetto" type="text"></div>
+          <div class="campo"><label for="imp-en-corpo">Email</label><textarea id="imp-en-corpo" rows="12"></textarea></div>
+          <div class="campo"><label for="imp-en-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-en-checkin" rows="8"></textarea></div>
+          <div class="campo"><label for="imp-en-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-en-whatsapp" rows="6"></textarea></div>
+        </fieldset>
+      </div>
+
+      <div class="azioni-modulo">
+        <button type="submit" class="btn btn-primario">Salva impostazioni</button>
+        <button type="button" class="btn" id="ripristina-testi">Ripristina testi predefiniti</button>
+      </div>
+      <p class="aiuto">Impostazioni, email aggiunte a mano e registro «già avvisati» sono salvati in questo browser. Gli arrivi si aggiornano da Slope ogni ora (alle :40, dalle 7:40 alle 17:40).</p>
+      <div class="azioni-modulo">
+        <button type="button" class="btn btn-rimuovi" id="blocca">Blocca questo computer</button>
+        <span class="aiuto">Toglie la password reception da questo browser: serve di nuovo anche per le lettere di benvenuto.</span>
+      </div>
+    </form>
+  </details>
+</div>
+
+<dialog id="dialogo-email" aria-labelledby="dlg-titolo">
+  <form id="form-dialogo" novalidate>
+    <h2 id="dlg-titolo">Aggiungi email</h2>
+    <p id="dlg-contesto" class="aiuto"></p>
+    <div class="campo" id="dlg-riga-nome">
+      <label for="dlg-nome">Nome dell'ospite</label>
+      <input id="dlg-nome" type="text" autocomplete="off" placeholder="Nome Cognome">
+    </div>
+    <div class="campo">
+      <label for="dlg-email">Indirizzo email</label>
+      <input id="dlg-email" type="email" inputmode="email" autocomplete="off" placeholder="nome@esempio.it">
+    </div>
+    <div class="campo">
+      <label for="dlg-telefono">Cellulare WhatsApp <span class="aiuto">· se non c'è l'email</span></label>
+      <input id="dlg-telefono" type="tel" inputmode="tel" autocomplete="off" placeholder="+49 170 1234567">
+    </div>
+    <div class="campi-dlg">
+      <div class="campo" id="dlg-riga-arrivo">
+        <label for="dlg-arrivo">Data di arrivo</label>
+        <input id="dlg-arrivo" type="date">
+      </div>
+      <div class="campo">
+        <label for="dlg-lingua">Lingua del messaggio</label>
+        <select id="dlg-lingua">
+          <option value="">Scegli…</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="en">English · altre lingue</option>
+        </select>
+      </div>
+    </div>
+    <label class="spunta" id="dlg-riga-sostituisci" for="dlg-sostituisci">
+      <input id="dlg-sostituisci" type="checkbox">
+      <span>Invia solo a questo indirizzo, non a <b id="dlg-email-scatola"></b></span>
+    </label>
+    <p id="dlg-errore" class="errore" role="alert" hidden></p>
+    <div class="azioni-modulo">
+      <button type="submit" class="btn btn-primario" id="dlg-salva">Salva</button>
+      <button type="button" class="btn" id="dlg-annulla">Annulla</button>
+      <button type="button" class="btn btn-rimuovi" id="dlg-rimuovi" hidden>Rimuovi contatto</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+"use strict";(()=>{var gt=t=>`WelcomeHartmann|avvisi|${t}`;var U=()=>{let t=globalThis.crypto;if(!t?.subtle)throw new Error("WebCrypto non disponibile");return t.subtle};function B(t){let n=atob(t),e=new Uint8Array(new ArrayBuffer(n.length));for(let i=0;i<n.length;i++)e[i]=n.charCodeAt(i);return e}async function Ft(t,n,e,i){let a=await U().importKey("raw",new TextEncoder().encode(t),"PBKDF2",!1,["deriveKey"]);return U().deriveKey({name:"PBKDF2",salt:n,iterations:e,hash:"SHA-256"},a,{name:"AES-GCM",length:256},!1,[i])}async function F(t,n,e){let i=await Ft(n,B(t.salt),t.iter,"decrypt"),a=await U().decrypt({name:"AES-GCM",iv:B(t.iv),additionalData:new TextEncoder().encode(e)},i,B(t.ct));return JSON.parse(new TextDecoder().decode(a))}function dt(t){let n=t;return!!n&&n.format===1&&n.app==="WelcomeHartmann"&&typeof n.from=="string"&&typeof n.to=="string"&&!!n.enc}var ft={alg:"AES-GCM/PBKDF2-SHA256",iter:6e5,salt:"9WcWZv57/GMy1vrw2dlxew==",iv:"btpmm2TXrldaO8L4",ct:"xTWfklz4udaUDBX4tiXPimvLWRPTzI9ASl8mc593X84H5fR/2Z8SFR2LyQw3A7izwXbhyONLAR9W8PcOyFeep7+QOH9bjJ9/gDRi"};var vt="AvvisiHartmann|gruppo";var Kt="../arrivi.json",V="welcomeHartmann.password",Q="avvisiHartmann.invii",Y="avvisiHartmann.manuali",x="avvisiHartmann.impostazioni",tt="Europe/Rome",I="{LINK_WHATSAPP}",S="{NOME}",E="{CHECKIN}",z="{LINK_CHECKIN}",w="{LINK_ARRIVO}",j="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",Zt=new RegExp(`^https://booking\\.slope\\.it/g/(${j})/(${j})/reservations/(${j})/check-in$`,"i"),At="https://alpstay.github.io/5DAYTO-ARRIVAL/",Vt=2e3,qt=7500,Jt=30,Xt=30,Et=6,Qt=10*6e4,Yt=180*6e4,wt={de:"Deutsch",it:"Italiano",en:"English"},P=["de","it","en"],A={it:{oggetto:"Importante: check-in online prima del vostro arrivo \xB7 Chalet Hotel Hartmann",corpo:["Gentile "+S+",","","che bello: tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!","",E,"","Parcheggio, indicazioni e tutto per il vostro arrivo:",w,"","Bus, taxi e il nostro shuttle per gli impianti nel gruppo WhatsApp:",I,"","A presto in Val Gardena!","Il team dello Chalet Hotel Hartmann"].join(`
+`),checkin:["\u26A0\uFE0F IMPORTANTE \xB7 CHECK-IN ONLINE","Vi chiediamo di completarlo prima della partenza: \xE8 indispensabile per ricevere","\u2022 il Guest Pass per i mezzi pubblici, che vi inviamo via email solo dopo il check-in online","\u2022 le istruzioni per il self check-in, se arrivate dopo le 18:00","Bastano pochi minuti con il vostro link personale (vi preghiamo di non inoltrarlo):",z].join(`
+`),whatsapp:["Gentile "+S+", tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!","",E,"","Tutto per il vostro arrivo: "+w,"Bus, taxi e shuttle per gli impianti: "+I].join(`
+`)},de:{oggetto:"Wichtig: Online-Check-in vor Ihrer Anreise \xB7 Chalet Hotel Hartmann",corpo:["Guten Tag "+S+",","","wie sch\xF6n: In wenigen Tagen sind Sie bei uns im Chalet Hotel Hartmann in St. Ulrich zu Gast!","",E,"","Parkplatz, Anfahrt und alles f\xFCr Ihre Ankunft:",w,"","Bus, Taxi und unser Shuttle zu den Liften in der WhatsApp-Gruppe:",I,"","Bis bald in Gr\xF6den!","Ihr Team vom Chalet Hotel Hartmann"].join(`
+`),checkin:["\u26A0\uFE0F WICHTIG \xB7 ONLINE-CHECK-IN","Bitte erledigen Sie ihn vor der Abreise: Er ist unbedingt n\xF6tig, damit Sie Folgendes erhalten:","\u2022 den Guest Pass f\xFCr die \xF6ffentlichen Verkehrsmittel, den wir Ihnen erst nach dem Online-Check-in per E-Mail schicken","\u2022 die Anleitung zum Self-Check-in, falls Sie nach 18:00 Uhr ankommen","Es dauert nur wenige Minuten mit Ihrem pers\xF6nlichen Link (bitte nicht weiterleiten):",z].join(`
+`),whatsapp:["Guten Tag "+S+", in wenigen Tagen sind Sie bei uns im Chalet Hotel Hartmann in St. Ulrich zu Gast!","",E,"","Alles f\xFCr Ihre Ankunft: "+w,"Bus, Taxi und Shuttle zu den Liften: "+I].join(`
+`)},en:{oggetto:"Important: online check-in before your arrival \xB7 Chalet Hotel Hartmann",corpo:["Dear "+S+",","","how lovely: in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!","",E,"","Parking, directions and everything for your arrival:",w,"","Bus, taxi and our shuttle to the ski lifts in our WhatsApp group:",I,"","See you soon in Val Gardena!","The Chalet Hotel Hartmann team"].join(`
+`),checkin:["\u26A0\uFE0F IMPORTANT \xB7 ONLINE CHECK-IN","Please complete it before you travel: it is essential to receive","\u2022 the Guest Pass for public transport, which we email to you only after your online check-in","\u2022 the self check-in instructions, if you arrive after 6 pm","It only takes a few minutes with your personal link (please do not forward it):",z].join(`
+`),whatsapp:["Dear "+S+", in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!","",E,"","Everything for your arrival: "+w,"Bus, taxi and shuttle to the lifts: "+I].join(`
+`)}},xt={it:"ospite",de:"",en:"guest"};function $t(){return{linkWhatsapp:"",programma:"mailto",giorniAnticipo:5,testi:structuredClone(A)}}function nt(){return new Intl.DateTimeFormat("en-CA",{timeZone:tt,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date)}function M(t,n){let e=new Date(t+"T00:00:00Z");return e.setUTCDate(e.getUTCDate()+n),e.toISOString().slice(0,10)}function St(t,n){return Math.round((Date.parse(n+"T00:00:00Z")-Date.parse(t+"T00:00:00Z"))/864e5)}function kt(t){return/^\d{4}-\d{2}-\d{2}$/.test(t)&&!Number.isNaN(Date.parse(t+"T00:00:00Z"))}var tn=new Intl.DateTimeFormat("it-IT",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"}),et=new Intl.DateTimeFormat("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",timeZone:tt});function v(t){return tn.format(new Date(t+"T00:00:00Z"))}function nn(t){return t<=0?"oggi":t===1?"domani":`fra ${t} giorni`}function en(t){if(!t)return"et\xE0 dei dati non disponibile";let n=Math.max(0,Math.round((Date.now()-Date.parse(t))/6e4));return n<1?"dati Slope aggiornati ora":n<60?`dati Slope di ${n} min fa`:`dati Slope delle ${et.format(new Date(t))}`}function it(t){let n=(t??"").trim().toLowerCase().slice(0,2);return n==="de"?"de":n==="it"?"it":"en"}function at(t){let n=(t??"").trim();return/^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i.test(n)?n:null}var K=["gmail.com","googlemail.com","hotmail.com","hotmail.it","hotmail.de","outlook.com","outlook.it","outlook.de","live.com","live.it","live.de","yahoo.com","yahoo.it","yahoo.de","icloud.com","me.com","libero.it","virgilio.it","alice.it","tim.it","tiscali.it","fastwebnet.it","gmx.de","gmx.at","gmx.net","gmx.ch","web.de","t-online.de","aon.at","bluewin.ch","orange.fr","wp.pl","seznam.cz"],an=new Set(["com","net","org","eu","it","de","at","ch","fr","es","nl","be","lu","li","pl","cz","sk","si","hr","hu","dk","se","no","fi","pt","ie","uk","gr","ro","bg","us","ca","au","ru","il","ar","br","mx","jp","cn"]);function on(t,n){let e=Array.from({length:n.length+1},(i,a)=>a);for(let i=1;i<=t.length;i++){let a=e[0];e[0]=i;for(let r=1;r<=n.length;r++){let l=e[r];e[r]=Math.min(e[r]+1,e[r-1]+1,a+(t[i-1]===n[r-1]?0:1)),a=l}}return e[n.length]}function rn(t){let[n,e]=t.toLowerCase().split("@");if(!n||!e||K.includes(e))return null;let i=e.split("."),a=i.slice(1).join("."),r=K.filter(g=>g.split(".")[0]===i[0]);if(r.length>0)return an.has(a)?null:`${n}@${r[0]}`;let l=e.length>=8?2:1,u=null,p=l+1;for(let g of K){let b=on(e,g);b<p&&(p=b,u=g)}return u?`${n}@${u}`:null}function ln(t){if(!t)return null;let n=t.split("@")[1]?.toLowerCase()??"";return n.endsWith("guest.booking.com")?"Booking.com":n.includes("expediapartnercentral.com")?"Expedia":null}function Tt(t){let n=t.trim().replace(/\s+/g," ");return n!==n.toUpperCase()?n:n.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu,(e,i,a)=>i+a.toUpperCase())}function sn(t){let n=(t??"").trim();return/^https:\/\/[a-z0-9.-]*slope\.it\/\S+$/i.test(n)?n:null}function cn(t,n){let e=at(t.email);return{reservationId:t.reservationId,arrivo:t.arrival,partenza:t.departure,nome:t.name||"Ospite senza nome",nomeSaluto:Tt(t.greetingName??""),email:e,telefono:(t.phone??"").trim()||null,lingua:it(t.lang),relayOta:ln(e),giorniAllArrivo:St(n,t.arrival),checkinUrl:sn(t.checkinUrl)}}var Lt=new Set(["20","27","30","31","32","33","34","36","40","41","43","44","45","46","47","48","49","61","64","90","91"]);function k(t){let n=t.trim().replace(/[\s().\/-]/g,""),e;if(n.startsWith("+"))e=n.slice(1);else if(n.startsWith("00"))e=n.slice(2);else if(/^3\d{8,9}$/.test(n))e=`39${n}`;else return null;if(!/^\d+$/.test(e))return null;let i=e.slice(0,2);return Lt.has(i)&&e[2]==="0"&&(e=i+e.slice(3)),e.length>=8&&e.length<=15?e:null}function un(t){let n=t.startsWith("39")||Lt.has(t.slice(0,2))?2:t.length>11?3:2;return`+${t.slice(0,n)} ${t.slice(n)}`}function pn(){return`manuale-${typeof crypto<"u"&&typeof crypto.randomUUID=="function"?crypto.randomUUID():`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`}`}function mn(t,n){if(!n)return null;let e=at(typeof n.email=="string"?n.email:null),i=typeof n.telefono=="string"?n.telefono.trim():"",a=i&&k(i)?i:null,r=typeof n.arrivo=="string"?n.arrivo:"";if(!e&&!a||!kt(r))return null;let l=n.tipo==="prenotazione"?"prenotazione":"manuale";return{id:t,tipo:l,reservationId:l==="prenotazione"&&typeof n.reservationId=="string"?n.reservationId:null,email:e,telefono:a,lingua:it(typeof n.lingua=="string"?n.lingua:null),arrivo:r,nome:typeof n.nome=="string"&&n.nome.trim()?n.nome.trim():null,sostituisce:n.sostituisce===!0,creatoIl:typeof n.creatoIl=="string"?n.creatoIl:""}}function gn(t,n){return t.includes(I)?t.split(I).join(n):n&&t.includes(n)?t:`${t}
+
+${n}`}function ht(t,n){return n?t.split(n).join(I):t}function dn(t,n){let e=`${At}?lang=${t}`,i=n?Zt.exec(n):null;return i?`${e}#ci=${i[1]}~${i[2]}~${i[3]}`:e}function zt(t,n,e,i,a,r){let l=a?n.split(z).join(a):"",u=t.includes(E)?t.split(E).join(l):l?`${t}
+
+${l}`:t,p=dn(e,a);return u=u.split(At).join(w).split(w).join(p),u=u.split(S).join(i.trim()||xt[e]),u=gn(u,r),u.replace(/[ \t]+([,.;:!?])/g,"$1").replace(/[ \t]+\n/g,`
+`).replace(/\n{3,}/g,`
+
+`).trim()}function fn(t,n,e,i){let a=encodeURIComponent;return t==="gmail"?`https://mail.google.com/mail/?view=cm&fs=1&to=${a(n.join(","))}&su=${a(e)}&body=${a(i)}`:`mailto:${n.map(l=>a(l).replace(/%40/g,"@")).join(";")}?subject=${a(e)}&body=${a(i.replace(/\r?\n/g,`\r
+`))}`}function Mt(t,n){let e=n.testi[t.lingua],i=zt(e.corpo,e.checkin,t.lingua,t.nomeSaluto,t.checkinUrl,L()),a=fn(n.programma,t.emails,e.oggetto,i),r=n.programma==="gmail"?qt:Vt;return{a:t.emails,oggetto:e.oggetto,corpo:i,url:a,troppoLunga:a.length>r}}function Ct(t,n){let e=n.testi[t.lingua],i=zt(e.whatsapp,e.checkin,t.lingua,t.nomeSaluto,t.checkinUrl,L()),a=e.checkin.split(`
+`)[0]?.trim()??"";return a&&!a.includes("{")&&!a.startsWith("*")?i.replace(a,`*${a}*`):i}function vn(t,n){let e=t.telefono?k(t.telefono):null;return e?`https://wa.me/${e}?text=${encodeURIComponent(Ct(t,n))}`:null}function D(t){return/^https:\/\/(chat\.whatsapp\.com\/|(www\.)?whatsapp\.com\/channel\/|wa\.me\/)/i.test(t.trim())}var o={caricamento:"attesa",errore:null,arrivi:[],aggiornatoAlle:null,finestra:{da:"",a:"",oggi:""},registro:new Map,archivioOk:!0,erroreSblocco:null,manuali:new Map,impostazioni:$t(),aperte:new Set,inScrittura:!1,dialogo:null},C=null,q=null,O="",H=!1;function L(){return o.impostazioni.linkWhatsapp.trim()||O}function Ht(){let t=nt(),n=Math.min(Et,Math.max(1,Math.round(o.impostazioni.giorniAnticipo)||5));o.finestra={oggi:t,da:M(t,1),a:M(t,n)}}function $(){let{oggi:t,da:n,a:e}=o.finestra,i=o.arrivi.map(a=>{let r=o.manuali.get(a.reservationId),l=r&&r.tipo==="prenotazione"?r:null,u=!!a.email&&!(l&&l.email&&l.sostituisce),p=[...new Set([u?a.email:null,l?.email??null].filter(g=>!!g).map(g=>g.toLowerCase()))];return{id:a.reservationId,tipo:"prenotazione",prenotazione:a,manuale:l,nome:a.nome,dataArrivo:a.arrivo,giorniAllArrivo:a.giorniAllArrivo,lingua:l?.lingua??a.lingua,emails:p,emailScatola:a.email,scatolaSostituita:!!(a.email&&l?.email&&l.sostituisce),relayOta:u?a.relayOta:null,telefono:l?.telefono??a.telefono,nomeSaluto:a.nomeSaluto,checkinUrl:a.checkinUrl}});for(let a of o.manuali.values())a.tipo!=="manuale"||a.arrivo<n||a.arrivo>e||i.push({id:a.id,tipo:"manuale",prenotazione:null,manuale:a,nome:a.nome??a.email??a.telefono??"Ospite",dataArrivo:a.arrivo,giorniAllArrivo:St(t,a.arrivo),lingua:a.lingua,emails:a.email?[a.email.toLowerCase()]:[],emailScatola:null,scatolaSostituita:!1,relayOta:null,telefono:a.telefono,nomeSaluto:Tt(a.nome??""),checkinUrl:null});return i.sort((a,r)=>a.dataArrivo.localeCompare(r.dataArrivo)||a.nome.localeCompare(r.nome))}function Dt(){return[...o.manuali.values()].filter(t=>t.tipo==="manuale"&&t.arrivo>o.finestra.a).sort((t,n)=>t.arrivo.localeCompare(n.arrivo))}function hn(){try{return localStorage.getItem(V)}catch{return null}}function Ot(t){try{t?localStorage.setItem(V,t):localStorage.removeItem(V)}catch{}}async function bn(){let t=await fetch(`${Kt}?t=${Date.now()}`,{cache:"no-store"});if(!t.ok)throw new Error(`HTTP ${t.status}`);let n=await t.json();if(!dt(n))throw new Error("formato non riconosciuto");return n}async function yn(t){try{let n=await F(ft,t,vt);O=D(n.link)?n.link.trim():""}catch{O=""}}async function T(t){Ht(),o.caricamento="in-corso",o.errore=null,f();let n;try{n=await bn()}catch{o.caricamento="errore",o.errore={titolo:"Non riesco a scaricare gli arrivi",dettaglio:"Controlla la connessione a internet e premi Riprova.",riprova:!0},f();return}if(q=n,!n.avvisi){o.caricamento="errore",o.errore={titolo:"Email e link di check-in non ancora disponibili",dettaglio:"Arrivano con il prossimo aggiornamento orario degli arrivi (alle :40, dalle 7:40 alle 17:40). Riprova pi\xF9 tardi.",riprova:!0},f();return}let e=t??C??hn();if(!e){o.caricamento="bloccata",f();return}try{let i=await F(n.avvisi,e,gt(n.from));C=e,t&&Ot(e),await yn(e);let{da:a,a:r,oggi:l}=o.finestra,u=new Set;o.arrivi=i.items.filter(p=>p.arrival>=a&&p.arrival<=r).filter(p=>u.has(p.reservationId)?!1:(u.add(p.reservationId),!0)).map(p=>cn(p,l)).sort((p,g)=>p.arrivo.localeCompare(g.arrivo)||p.nome.localeCompare(g.nome)),o.aggiornatoAlle=n.scatola_updated_at??n.generated_at,o.erroreSblocco=null,o.caricamento="ok"}catch{C=null,o.erroreSblocco=t?"Password errata. Riprova.":"La password salvata non apre i dati: inseriscila di nuovo.",o.caricamento="bloccata"}f()}function ot(t,n){try{let e=localStorage.getItem(t);return e?JSON.parse(e):n}catch{return o.archivioOk=!1,n}}function rt(t,n){try{return localStorage.setItem(t,JSON.stringify(n)),!0}catch{return o.archivioOk=!1,!1}}function _(){let t=M(nt(),-Xt),n=ot(Q,[]),e=new Map;for(let i of Array.isArray(n)?n:[])!i||typeof i.id!="string"||String(i.arrival??"")<t||e.set(i.id,{id:i.id,tipo:i.tipo==="manuale"?"manuale":"prenotazione",arrival:String(i.arrival??""),canale:i.canale==="whatsapp"?"whatsapp":"email",lingua:it(i.lingua??null),inviatoIl:String(i.inviatoIl??"")});o.registro=e}function Nt(){return rt(Q,[...o.registro.values()])}async function Z(t,n){let e=new Date().toISOString(),i=t.map(r=>({id:r.id,tipo:r.tipo,arrival:r.dataArrivo,canale:n,lingua:r.lingua,inviatoIl:e}));_();for(let r of i)o.registro.set(r.id,r),o.aperte.delete(r.id);let a=Nt();if(f(),!a){d("Segnati solo finch\xE9 la pagina resta aperta: questo browser non salva i dati.");return}d(i.length===1?"1 ospite segnato come avvisato.":`${i.length} ospiti segnati come avvisati.`,async()=>{await Pt(i.map(r=>r.id))})}async function Pt(t){_();for(let n of t)o.registro.delete(n);Nt(),f(),d("Annullato.")}function R(){let t=M(nt(),-Jt),n=ot(Y,[]),e=new Map,i=0;for(let a of Array.isArray(n)?n:[]){let r=a&&typeof a.id=="string"?mn(a.id,a):null;r&&r.arrivo>=t?e.set(r.id,r):i++}o.manuali=e,i&&lt()}function lt(){return rt(Y,[...o.manuali.values()])}async function _t(t){R();let n=o.manuali.get(t.id);return o.manuali.set(t.id,t),lt()?d(n?"Contatto aggiornato.":"Contatto aggiunto."):d("Contatto aggiunto solo finch\xE9 la pagina resta aperta: questo browser non salva i dati."),f(),!0}async function In(t){R();let n=o.manuali.get(t);n&&(o.manuali.delete(t),lt(),f(),d("Contatto rimosso.",async()=>{await _t(n)}))}function Rt(t){let n=$t();if(!t)return n;let e=typeof t.linkWhatsapp=="string"?t.linkWhatsapp.trim():"",i={...n.testi};for(let a of P){let r=t.testi?.[a];r&&(i[a]={oggetto:r.oggetto||n.testi[a].oggetto,corpo:ht(r.corpo||n.testi[a].corpo,e),checkin:r.checkin&&r.checkin.includes(z)?r.checkin:n.testi[a].checkin,whatsapp:ht(r.whatsapp||n.testi[a].whatsapp,e)})}return{linkWhatsapp:e,programma:t.programma==="gmail"?"gmail":"mailto",giorniAnticipo:Number.isFinite(t.giorniAnticipo)?Math.min(Et,Math.max(1,Number(t.giorniAnticipo))):5,testi:i}}function Gt(){o.impostazioni=Rt(ot(x,void 0))}async function bt(t){let n=t.giorniAnticipo!==o.impostazioni.giorniAnticipo;return o.impostazioni=t,rt(x,t)||d("Impostazioni valide solo finch\xE9 la pagina resta aperta: questo browser non salva i dati."),H=!1,f(),n&&T(),!0}function m(t){let n=document.querySelector(t);if(!n)throw new Error(`Elemento mancante: ${t}`);return n}function c(t){return document.getElementById(t)}function s(t){return t.replace(/[&<>"']/g,n=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[n])}var yt;function d(t,n){let e=m("#toast");e.innerHTML=`<span>${s(t)}</span>${n?'<button type="button" class="link" id="toast-annulla">Annulla</button>':""}`,e.hidden=!1,n&&document.getElementById("toast-annulla")?.addEventListener("click",()=>{e.hidden=!0,n()}),window.clearTimeout(yt),yt=window.setTimeout(()=>e.hidden=!0,n?12e3:6e3)}async function It(t,n){let e=()=>{let r=n.textContent;n.textContent="Copiato",window.setTimeout(()=>n.textContent=r,1500)};try{await navigator.clipboard.writeText(t),e();return}catch{}let i=document.createElement("textarea");i.value=t,i.setAttribute("readonly",""),i.style.position="fixed",i.style.opacity="0",document.body.appendChild(i),i.select();let a=!1;try{a=document.execCommand("copy")}catch{a=!1}i.remove(),a?e():d("Copia non riuscita: seleziona il testo e premi Ctrl+C.")}function G(){return $().filter(t=>!o.registro.has(t.id))}function An(){let{da:t,a:n,oggi:e}=o.finestra,i=t?`Arrivi da ${v(t)} a ${v(n)}`:"Arrivi dei prossimi giorni";m("#finestra").textContent=`${i} \xB7 oggi ${e?v(e):""}`;let a=m("#freschezza");a.textContent=o.caricamento==="ok"?en(o.aggiornatoAlle):o.caricamento==="in-corso"?"lettura dalla Scatola\u2026":"",document.getElementById("aggiorna").disabled=o.caricamento==="in-corso"||o.caricamento==="bloccata";let r=m("#riepilogo");if(o.caricamento!=="ok"){r.innerHTML="";return}let l=$(),u=l.filter(b=>!o.registro.has(b.id)),p=u.filter(b=>b.emails.length===0).length,g=l.length-u.length;r.innerHTML=[`<span class="chip ${u.length-p>0?"chip-da-fare":"chip-ok"}"><b>${u.length-p}</b> da avvisare via email</span>`,p?`<span class="chip chip-attenzione"><b>${p}</b> senza email</span>`:"",`<span class="chip chip-ok"><b>${g}</b> gi\xE0 avvisati</span>`].join("")}function En(t){let n=Date.parse(t.generated_at),e=Number(new Intl.DateTimeFormat("en-GB",{timeZone:tt,hour:"2-digit",hour12:!1}).format(new Date));return Number.isFinite(n)&&Date.now()-n>Yt&&e>=9&&e<=19?{titolo:`Dati fermi alle ${et.format(new Date(n))}.`,dettaglio:"L'aggiornamento orario da Slope non \xE8 riuscito: le prenotazioni pi\xF9 recenti potrebbero mancare."}:t.to<o.finestra.a?{titolo:`Arrivi disponibili fino al ${v(t.to)}.`,dettaglio:"Gli arrivi successivi compariranno con il prossimo aggiornamento."}:null}function wn(){let t=m("#avvisi"),n=[],e=q&&o.caricamento==="ok"?En(q):null;e&&n.push(`<div class="avviso"><strong>${s(e.titolo)}</strong> <span>${s(e.dettaglio)}</span></div>`),o.caricamento!=="ok"||(L()?D(L())||n.push('<div class="avviso"><strong>Il link salvato non sembra un link WhatsApp.</strong> <span>Controllalo nelle impostazioni in fondo alla pagina.</span></div>'):n.push(`
+      <div class="avviso avviso-setup">
+        <div class="avviso-testo">
+          <strong>Prima di inviare: incolla il link del gruppo WhatsApp.</strong>
+          <span>Finch\xE9 manca, i pulsanti di invio restano spenti.</span>
+        </div>
+        <form class="riga-setup" id="form-setup">
+          <label class="sr" for="setup-link">Link del gruppo WhatsApp</label>
+          <input id="setup-link" type="url" inputmode="url" placeholder="https://chat.whatsapp.com/\u2026" autocomplete="off" required>
+          <button class="btn btn-primario" type="submit">Salva link</button>
+        </form>
+      </div>`)),o.archivioOk||n.push('<div class="avviso"><strong>Questo browser non salva i dati.</strong> <span>Chi \xE8 gi\xE0 stato avvisato e le email aggiunte a mano si perdono chiudendo la pagina: non usare la navigazione privata.</span></div>'),t.innerHTML=n.join("")}var st=t=>t===1?"1 ospite":`${t} ospiti`;function ct(t,n=!0){return`<span class="quando"><span class="giorno">${s(v(t.dataArrivo))}</span>${n?` <span class="distanza">${s(nn(t.giorniAllArrivo))}</span>`:""}</span>`}function $n(t){let n=[];return t.emailScatola&&t.scatolaSostituita?n.push(`<s title="Sostituito dall'email aggiunta a mano">${s(t.emailScatola)}</s>`):t.emailScatola&&n.push(`<span>${s(t.emailScatola)}</span>${t.relayOta?` <span class="badge" title="Indirizzo di inoltro ${s(t.relayOta)}: arriva solo se spedisci dall'indirizzo registrato nell'extranet">${s(t.relayOta)}</span>`:""}`),t.manuale?.email&&n.push(`<span>${s(t.manuale.email)}</span> <span class="badge badge-mano">a mano</span>`),n.join("<br>")}function Wt(t){return t.checkinUrl?'<span class="badge badge-ok" title="Il link personale di check-in online \xE8 gi\xE0 nel testo">check-in online</span>':t.tipo==="prenotazione"?'<span class="badge" title="Slope non ha fornito il link: il testo parte senza la frase del check-in">senza link check-in</span>':""}function Sn(t){let n=o.impostazioni,e=!!L(),i=Mt(t,n),a=o.aperte.has(t.id),r=t.tipo==="manuale"?"Modifica":t.manuale?"Cambia email":"Aggiungi email",l=!e||i.troppoLunga?`<button type="button" class="btn btn-piccolo btn-primario" disabled title="${i.troppoLunga?"Testo troppo lungo per aprirsi da solo: usa Copia testo":"Manca il link del gruppo WhatsApp"}">Apri email</button>`:`<a class="btn btn-piccolo${a?"":" btn-primario"}" href="${s(i.url)}" target="_blank" rel="noopener" data-azione="apri" data-id="${s(t.id)}">${a?"Riapri email":"Apri email"}</a>`;return`
+    <li class="ospite ospite-email${a?" aperta":""}">
+      <span class="ospite-nome"><span>${s(t.nome)}${t.tipo==="manuale"?' <span class="badge badge-mano">non in Slope</span>':""}</span></span>
+      ${ct(t)}
+      <span class="contatto">${$n(t)}<br><span class="codice" title="${wt[t.lingua]}">${t.lingua.toUpperCase()}</span> ${Wt(t)}${i.troppoLunga?' <span class="motivo">Testo troppo lungo: usa \xABCopia testo\xBB.</span>':""}</span>
+      <span class="azioni-riga">
+        ${l}
+        <button type="button" class="btn btn-piccolo${a?" btn-conferma":""}" data-azione="segna-uno" data-canale="email" data-id="${s(t.id)}" ${o.inScrittura?"disabled":""}>Segna inviata</button>
+        <button type="button" class="link link-piccolo" data-azione="copia-testo" data-id="${s(t.id)}">Copia testo</button>
+        <button type="button" class="link link-piccolo" data-azione="modifica-email" data-id="${s(t.id)}">${r}</button>
+      </span>
+    </li>`}function kn(){let t=G().filter(a=>o.aperte.has(a.id));if(!t.length)return"";let n=t.filter(a=>a.emails.length>0).length,e=t.length-n;return`<div class="barra-aperte"><span>${[n?n===1?"1 email":`${n} email`:"",e?e===1?"1 WhatsApp":`${e} WhatsApp`:""].filter(Boolean).join(" e ")} aperti: li hai spediti?</span><button type="button" class="btn btn-conferma" data-azione="segna-aperte" ${o.inScrittura?"disabled":""}>Segna inviati (${t.length})</button></div>`}function Tn(){let t=G().filter(i=>i.emails.length>0);if(t.length===0)return"";let n=t.filter(i=>o.aperte.has(i.id)),e=o.impostazioni.programma==="gmail"?"Gmail":"Outlook";return`
+    <section class="gruppo" aria-labelledby="titolo-email">
+      <header class="gruppo-testa">
+        <h3 id="titolo-email">Da avvisare via email</h3>
+        <span class="conta">${st(t.length)}${n.length?` \xB7 ${n.length} aperte`:""}</span>
+      </header>
+      <p class="nota">Ogni ospite riceve la sua email, nella sua lingua e con il suo link personale di check-in. Premi <b>Apri email</b>, controlla in ${e} e premi Invia.</p>
+      <ul class="ospiti">${t.map(Sn).join("")}</ul>
+    </section>`}function Ln(t){let n=o.impostazioni,e=t.telefono?k(t.telefono):null,i=L()?vn(t,n):null,a=o.aperte.has(t.id),r=e?`<span>WhatsApp ${s(un(e))}</span>${t.manuale?.telefono?' <span class="badge badge-mano">a mano</span>':""}`:`<span>${s(t.telefono??"Nessun numero in Slope")}</span>`,l=t.telefono?e?"":"Numero senza prefisso internazionale: correggilo.":"Aggiungi il numero WhatsApp o l'email.",u=i?`<a class="btn btn-piccolo${a?"":" btn-primario"}" href="${s(i)}" target="_blank" rel="noopener" data-azione="apri" data-id="${s(t.id)}">${a?"Riapri WhatsApp":"Apri WhatsApp"}</a>`:`<button type="button" class="btn btn-piccolo btn-primario" data-azione="modifica-email" data-id="${s(t.id)}">${t.telefono?"Correggi numero":"Aggiungi numero"}</button>`;return`
+    <li class="ospite ospite-email${a?" aperta":""}">
+      <span class="ospite-nome"><span>${s(t.nome)}${t.tipo==="manuale"?' <span class="badge badge-mano">non in Slope</span>':""}</span></span>
+      ${ct(t)}
+      <span class="contatto">${r}<br><span class="codice" title="${wt[t.lingua]}">${t.lingua.toUpperCase()}</span> ${Wt(t)}${l?` <span class="motivo">${s(l)}</span>`:""}</span>
+      <span class="azioni-riga">
+        ${u}
+        <button type="button" class="btn btn-piccolo${a?" btn-conferma":""}" data-azione="segna-uno" data-canale="whatsapp" data-id="${s(t.id)}" ${o.inScrittura?"disabled":""}>Segna inviato</button>
+        <button type="button" class="link link-piccolo" data-azione="copia-wa" data-id="${s(t.id)}">Copia testo</button>
+        <button type="button" class="link link-piccolo" data-azione="modifica-email" data-id="${s(t.id)}">${e?"Cambia numero o aggiungi email":"Aggiungi email"}</button>
+      </span>
+    </li>`}function zn(){let t=G().filter(e=>e.emails.length===0);if(t.length===0)return"";let n=t.filter(e=>e.telefono&&k(e.telefono)).length;return`
+    <section class="gruppo gruppo-senza" aria-labelledby="titolo-senza">
+      <header class="gruppo-testa"><h3 id="titolo-senza">Senza email: avviso su WhatsApp</h3><span class="conta">${st(t.length)} \xB7 ${n} con numero</span></header>
+      <p class="nota">Premi <b>Apri WhatsApp</b>: si apre la chat con l'ospite e il messaggio gi\xE0 scritto nella sua lingua, con il suo link personale di check-in. Controlla e premi Invia. Se manca il numero o non ha il prefisso internazionale, aggiungilo o correggilo.</p>
+      <ul class="ospiti">${t.map(Ln).join("")}</ul>
+    </section>`}function Mn(){let t=Dt();if(t.length===0)return"";let n=t.map(e=>`
+        <li class="ospite">
+          <span class="ospite-nome"><span>${s(e.nome??e.email??e.telefono??"")}</span></span>
+          <span class="quando"><span class="giorno">${s(v(e.arrivo))}</span> <span class="distanza">in lista dal ${s(v(M(e.arrivo,-o.impostazioni.giorniAnticipo)))}</span></span>
+          <span class="contatto">${s(e.email??`WhatsApp ${e.telefono??""}`)} <span class="codice">${e.lingua.toUpperCase()}</span></span>
+          <span class="azioni-riga"><button type="button" class="btn btn-piccolo" data-azione="modifica-email" data-id="${s(e.id)}">Modifica</button></span>
+        </li>`).join("");return`
+    <details class="gruppo gruppo-attesa">
+      <summary class="gruppo-testa"><h3>Aggiunti a mano, in arrivo pi\xF9 avanti</h3><span class="conta">${t.length}</span></summary>
+      <ul class="ospiti">${n}</ul>
+    </details>`}function Cn(){let t=$().filter(e=>o.registro.has(e.id));if(t.length===0)return"";let n=t.map(e=>{let i=o.registro.get(e.id),a=i.inviatoIl?et.format(new Date(i.inviatoIl)):"";return`
+        <li class="ospite fatto">
+          <span class="ospite-nome"><span>${s(e.nome)}</span></span>
+          ${ct(e,!1)}
+          <span class="contatto">${i.canale==="whatsapp"?"WhatsApp":"Email"} \xB7 ${s(a)}</span>
+          <span class="azioni-riga"><button type="button" class="btn btn-piccolo" data-azione="annulla" data-id="${s(e.id)}">Annulla</button></span>
+        </li>`}).join("");return`
+    <details class="gruppo gruppo-fatti">
+      <summary class="gruppo-testa"><h3>Gi\xE0 avvisati</h3><span class="conta">${st(t.length)}</span></summary>
+      <ul class="ospiti">${n}</ul>
+    </details>`}function Hn(){let t=m("#lista"),n=new Set([...t.querySelectorAll("details[data-chiave][open]")].map(r=>r.dataset.chiave));if(o.caricamento==="attesa"||o.caricamento==="in-corso"&&o.arrivi.length===0){t.innerHTML=`<div class="vuoto"><p class="vuoto-titolo">Scarico gli arrivi dello Chalet Hartmann\u2026</p><p>Qui compariranno gli ospiti dei prossimi ${o.impostazioni.giorniAnticipo} giorni, divisi per lingua, con il pulsante per aprire l'email.</p></div>`;return}if(o.caricamento==="bloccata"){t.innerHTML=`
+      <form class="vuoto sblocco" id="form-sblocco" autocomplete="on">
+        <p class="vuoto-titolo">Password reception</p>
+        <p>\xC8 la stessa della pagina delle lettere di benvenuto. Su questo computer basta inserirla una volta.</p>
+        <div class="riga-setup">
+          <label class="sr" for="sblocco-pw">Password reception</label>
+          <input id="sblocco-pw" type="password" autocomplete="current-password" required>
+          <button class="btn btn-primario" type="submit">Apri</button>
+        </div>
+        ${o.erroreSblocco?`<p class="errore" role="alert">${s(o.erroreSblocco)}</p>`:""}
+      </form>`,window.setTimeout(()=>document.getElementById("sblocco-pw")?.focus(),30);return}if(o.caricamento==="errore"&&o.errore){t.innerHTML=`<div class="vuoto vuoto-errore"><p class="vuoto-titolo">${s(o.errore.titolo)}</p><p>${s(o.errore.dettaglio)}</p>${o.errore.riprova?'<button type="button" class="btn btn-primario" data-azione="riprova">Riprova</button>':""}</div>`;return}let e=Tn(),i=zn(),a=$().length===0?`<div class="vuoto"><p class="vuoto-titolo">Nessun arrivo confermato tra ${s(v(o.finestra.da))} e ${s(v(o.finestra.a))}.</p><p>Non c'\xE8 nulla da inviare oggi. Se un ospite manca in Slope, usa <b>Aggiungi ospite a mano</b> qui sopra.</p></div>`:!e&&!i?'<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Tutti gli ospiti in arrivo sono gi\xE0 stati avvisati.</p><p>Torna domani: compariranno i nuovi arrivi.</p></div>':"";t.innerHTML=a+kn()+e+i+Mn()+Cn(),t.querySelector(".gruppo-attesa")?.setAttribute("data-chiave","attesa"),t.querySelector(".gruppo-fatti")?.setAttribute("data-chiave","fatti");for(let r of n){let l=t.querySelector(`details[data-chiave="${r}"]`);l&&(l.open=!0)}}function f(){An(),wn(),Hn()}function ut(){return document.getElementById("dialogo-email")}var N=null;function h(t){let n=m("#dlg-errore");n.textContent=t??"",n.hidden=!t}function Dn(t,n){let e=m("#dlg-errore");e.innerHTML=`Controlla l'indirizzo: forse \xE8 <b>${s(n)}</b>? <button type="button" class="btn btn-piccolo" id="dlg-usa-suggerimento">Usa ${s(n)}</button><span class="aiuto-inline">Se <b>${s(t)}</b> \xE8 giusto, premi di nuovo Salva.</span>`,e.hidden=!1,document.getElementById("dlg-usa-suggerimento")?.addEventListener("click",()=>{c("dlg-email").value=n,N=null,h(null),c("dlg-email").focus()})}function J(t){o.dialogo=t;let n=t.idEsistente?o.manuali.get(t.idEsistente)??null:null,e=t.prenotazione;m("#dlg-titolo").textContent=t.modo==="manuale"?n?"Modifica contatto":"Aggiungi un ospite che non \xE8 in Slope":n?"Cambia contatto":"Aggiungi email o WhatsApp";let i=m("#dlg-contesto");if(e){let u=e.telefono?` Telefono in Slope: ${e.telefono}.`:"",p=(e.email?`In Slope: ${e.email}${e.relayOta?` (${e.relayOta})`:""}.`:"In Slope non c'\xE8 un'email.")+u;i.textContent=`${e.nome} \xB7 arrivo ${v(e.arrivo)} \xB7 ${p}`}else i.textContent="L'ospite compare nella lista dai giorni di anticipo impostati e riceve il messaggio nella lingua scelta. Basta l'email oppure il numero WhatsApp.";m("#dlg-riga-nome").hidden=t.modo!=="manuale",m("#dlg-riga-arrivo").hidden=t.modo!=="manuale",m("#dlg-riga-sostituisci").hidden=!(e&&e.email),m("#dlg-rimuovi").hidden=!n,m("#dlg-email-scatola").textContent=e?.email??"",c("dlg-email").value=n?.email??"",c("dlg-telefono").value=n?.telefono??(e?.telefono&&!k(e.telefono)?e.telefono:""),c("dlg-nome").value=n?.nome??"";let a=c("dlg-arrivo");a.min=o.finestra.da,a.value=n?.arrivo??o.finestra.a,c("dlg-lingua").value=n?.lingua??e?.lingua??"",c("dlg-sostituisci").checked=n?n.sostituisce:!!e?.relayOta,N=null,h(null);let r=ut();typeof r.showModal=="function"?r.showModal():r.setAttribute("open","");let l=t.modo==="manuale"&&!n?"dlg-nome":e&&!e.email&&e.telefono&&!k(e.telefono)?"dlg-telefono":"dlg-email";window.setTimeout(()=>c(l).focus(),30)}function X(){o.dialogo=null;let t=ut();typeof t.close=="function"?t.close():t.removeAttribute("open")}function On(t,n){let e=t.toLowerCase();return $().find(i=>i.id!==n&&i.emails.includes(e))??Nn(e,n)}function Nn(t,n){let e=Dt().find(i=>i.id!==n&&(i.email??"").toLowerCase()===t);return e?{id:e.id,tipo:"manuale",prenotazione:null,manuale:e,nome:e.nome??t,dataArrivo:e.arrivo,giorniAllArrivo:0,lingua:e.lingua,emails:[t],emailScatola:null,scatolaSostituita:!1,relayOta:null,telefono:e.telefono,nomeSaluto:"",checkinUrl:null}:null}async function Pn(){let t=o.dialogo;if(!t)return;let n=c("dlg-email").value.trim(),e=c("dlg-telefono").value.trim(),i=n?at(n):null,a=c("dlg-lingua").value;if(n&&!i)return h("Scrivi un indirizzo email valido, per esempio nome@esempio.it.");if(e&&!k(e))return h("Scrivi il numero WhatsApp con il prefisso internazionale, per esempio +49 170 1234567.");let r=e||null;if(!i&&!r)return h("Scrivi l'email oppure il numero WhatsApp.");if(a!=="de"&&a!=="it"&&a!=="en")return h("Scegli la lingua del messaggio.");let l=a,u=i?rn(i):null;if(i&&u&&N!==i.toLowerCase()){N=i.toLowerCase(),Dn(i,u);return}let p=t.prenotazione?t.prenotazione.reservationId:t.idEsistente,g=i?On(i,p):null;if(g)return h(`Questo indirizzo \xE8 gi\xE0 nella lista (${g.nome}, arrivo ${v(g.dataArrivo)}).`);let b;if(t.modo==="prenotazione"&&t.prenotazione){let y=t.prenotazione;if(i&&y.email&&y.email.toLowerCase()===i.toLowerCase())return h("\xC8 gi\xE0 l'indirizzo presente in Slope.");b={id:y.reservationId,tipo:"prenotazione",reservationId:y.reservationId,email:i,telefono:r,lingua:l,arrivo:y.arrivo,nome:null,sostituisce:!!(y.email&&i)&&c("dlg-sostituisci").checked,creatoIl:o.manuali.get(y.reservationId)?.creatoIl||new Date().toISOString()}}else{let y=c("dlg-nome").value.trim(),W=c("dlg-arrivo").value;if(!y)return h("Scrivi il nome dell'ospite: serve alla reception per riconoscerlo nella lista.");if(!kt(W))return h("Scegli la data di arrivo.");if(W<o.finestra.da)return h(`La data di arrivo deve essere da ${v(o.finestra.da)} in poi.`);let mt=t.idEsistente?o.manuali.get(t.idEsistente):void 0;b={id:mt?.id??pn(),tipo:"manuale",reservationId:null,email:i,telefono:r,lingua:l,arrivo:W,nome:y,sostituisce:!1,creatoIl:mt?.creatoIl||new Date().toISOString()}}let pt=document.getElementById("dlg-salva");pt.disabled=!0;let Ut=await _t(b);pt.disabled=!1,Ut&&X()}function Bt(){let t=o.impostazioni;c("imp-link").value=t.linkWhatsapp,c("imp-programma").value=t.programma,c("imp-giorni").value=String(t.giorniAnticipo);for(let n of P)c(`imp-${n}-oggetto`).value=t.testi[n].oggetto,c(`imp-${n}-corpo`).value=t.testi[n].corpo,c(`imp-${n}-checkin`).value=t.testi[n].checkin,c(`imp-${n}-whatsapp`).value=t.testi[n].whatsapp}function _n(){let t={};for(let n of P)t[n]={oggetto:c(`imp-${n}-oggetto`).value.trim()||A[n].oggetto,corpo:c(`imp-${n}-corpo`).value.trim()||A[n].corpo,checkin:c(`imp-${n}-checkin`).value.trim()||A[n].checkin,whatsapp:c(`imp-${n}-whatsapp`).value.trim()||A[n].whatsapp};return Rt({linkWhatsapp:c("imp-link").value.trim(),programma:c("imp-programma").value==="gmail"?"gmail":"mailto",giorniAnticipo:Number(c("imp-giorni").value),testi:t})}function Rn(t){let n=o.arrivi.find(e=>e.reservationId===t);if(n){J({modo:"prenotazione",idEsistente:o.manuali.has(t)?t:null,prenotazione:n});return}o.manuali.get(t)?.tipo==="manuale"&&J({modo:"manuale",idEsistente:t,prenotazione:null})}function Gn(){m("#aggiorna").addEventListener("click",()=>{T()}),m("#aggiungi-email").addEventListener("click",()=>J({modo:"manuale",idEsistente:null,prenotazione:null})),m("#app").addEventListener("click",n=>{let e=n.target.closest("[data-azione]");if(!e)return;let i=e.dataset.azione,a=e.dataset.id;switch(i){case"apri":{a&&o.aperte.add(a),window.setTimeout(f,50);break}case"segna-aperte":{let r=G().filter(p=>o.aperte.has(p.id)),l=r.filter(p=>p.emails.length>0),u=r.filter(p=>p.emails.length===0);l.length&&Z(l,"email"),u.length&&Z(u,"whatsapp");break}case"copia-wa":{let r=$().find(l=>l.id===a);r&&It(Ct(r,o.impostazioni),e);break}case"segna-uno":{let r=$().find(l=>l.id===a);r&&Z([r],e.dataset.canale==="email"?"email":"whatsapp");break}case"modifica-email":{e.dataset.id&&Rn(e.dataset.id);break}case"annulla":{e.dataset.id&&Pt([e.dataset.id]);break}case"riprova":{T();break}case"copia-testo":{let r=$().find(l=>l.id===a);r&&It(Mt(r,o.impostazioni).corpo,e);break}default:break}}),m("#app").addEventListener("submit",n=>{let e=n.target;if(e.id==="form-sblocco"){n.preventDefault();let a=document.getElementById("sblocco-pw").value;a&&T(a);return}if(e.id!=="form-setup")return;n.preventDefault();let i=c("setup-link").value.trim();if(i){if(!D(i)){d("Il link deve iniziare con https://chat.whatsapp.com/ oppure https://whatsapp.com/channel/");return}bt({...o.impostazioni,linkWhatsapp:i}).then(a=>{a&&(c("imp-link").value=i,d("Link salvato."))})}}),document.getElementById("form-dialogo").addEventListener("submit",n=>{n.preventDefault(),Pn()}),m("#dlg-annulla").addEventListener("click",X),m("#dlg-rimuovi").addEventListener("click",()=>{let n=o.dialogo?.idEsistente;X(),n&&In(n)}),ut().addEventListener("close",()=>o.dialogo=null);let t=document.getElementById("form-impostazioni");t.addEventListener("input",()=>H=!0),t.addEventListener("submit",n=>{n.preventDefault();let e=_n();if(e.linkWhatsapp&&!D(e.linkWhatsapp)){d("Il link deve iniziare con https://chat.whatsapp.com/ oppure https://whatsapp.com/channel/");return}bt(e).then(i=>i&&d("Impostazioni salvate."))}),m("#blocca").addEventListener("click",()=>{Ot(null),C=null,O="",o.arrivi=[],o.erroreSblocco=null,o.caricamento="bloccata",document.getElementById("impostazioni").open=!1,f(),d("Pagina bloccata su questo computer.")}),window.addEventListener("storage",n=>{if(n.key===Q)_();else if(n.key===Y)R();else if(n.key===x)Gt(),H||Bt();else return;f()}),m("#ripristina-testi").addEventListener("click",()=>{for(let n of P)c(`imp-${n}-oggetto`).value=A[n].oggetto,c(`imp-${n}-corpo`).value=A[n].corpo,c(`imp-${n}-checkin`).value=A[n].checkin,c(`imp-${n}-whatsapp`).value=A[n].whatsapp;H=!0,d("Testi predefiniti ripristinati nel modulo: premi Salva impostazioni per confermare.")})}async function Wn(){Ht(),Gt(),_(),R(),Gn(),Bt(),f(),await T();let t=Date.now(),n=()=>{document.visibilityState!=="visible"||o.caricamento==="in-corso"||o.caricamento==="bloccata"||Date.now()-t<Qt||(t=Date.now(),T())};window.setInterval(n,6e4),document.addEventListener("visibilitychange",n)}typeof document<"u"&&Wn();})();
+
+</script>
+</body>
+</html>

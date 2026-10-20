@@ -13,8 +13,8 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { FEED_FILE, decryptJson, feedAad, isFeedEnvelope } from "../feed";
-import type { FeedPayload } from "../feed";
+import { FEED_FILE, avvisiAad, decryptJson, feedAad, isFeedEnvelope } from "../feed";
+import type { AvvisiPayload, FeedPayload } from "../feed";
 import { HARTMANN_ID, buildFeed, dm, feedDates, hartmannRows } from "../feed-build";
 import { FileError, checkPages, readBundle, splitPaths } from "./feed-files";
 import type { Bundle, Kind } from "./feed-files";
@@ -359,7 +359,13 @@ async function verify(args: string[]): Promise<void> {
   const total = Object.values(payload.days).reduce((n, d) => n + d.length, 0);
   const ok = Object.entries(env.counts).every(([d, n]) => (payload.days[d]?.length ?? -1) === n);
   if (!ok) fail("i conteggi in chiaro non corrispondono al contenuto cifrato");
-  out(`verifica OK: ${env.from} → ${env.to}, ${total} arrivi, scritto ${env.generated_at}`);
+  let avvisi = "senza contatti per le email";
+  if (env.avvisi) {
+    const a = await decryptJson<AvvisiPayload>(env.avvisi, password, avvisiAad(env.from)).catch(() => fail("contatti per le email: password errata o file alterato"));
+    if (a.items.length !== env.avvisi_count) fail("il numero di contatti in chiaro non corrisponde al contenuto cifrato");
+    avvisi = `${a.items.length} contatti per le email`;
+  }
+  out(`verifica OK: ${env.from} → ${env.to}, ${total} arrivi, ${avvisi}, scritto ${env.generated_at}`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2);

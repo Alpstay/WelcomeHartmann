@@ -10,6 +10,7 @@ var FEED_FILE = "arrivi.json";
 var FEED_DAYS = 7;
 var ITERATIONS = 25e4;
 var FEED_ITERATIONS = 6e5;
+var avvisiAad = (from) => `WelcomeHartmann|avvisi|${from}`;
 var feedAad = (from) => `WelcomeHartmann|${from}`;
 var subtle = () => {
   const c = globalThis.crypto;
@@ -457,6 +458,32 @@ function hartmannRows(arrivals) {
   );
 }
 var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
+var EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i;
+var CHECKIN = /^https:\/\/booking\.slope\.it\/g\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/reservations\/[0-9a-f-]{36}\/check-in$/i;
+var clean = (v) => typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+var titolo = (s) => s && s === s.toUpperCase() ? s.toLowerCase().replace(new RegExp("(^|[\\s'\u2019-])(\\p{L})", "gu"), (_, a, b2) => a + b2.toUpperCase()) : s;
+function avvisiItems(rows, contacts) {
+  const byId = new Map(contacts.map((c) => [c.reservation_id, c]));
+  return rows.filter((r) => !r.is_option && r.booking_status !== "OPTION" && r.booking_status !== "CANCELLED").map((r) => {
+    const c = byId.get(r.reservation_id);
+    const azienda = c?.booker_type === "COMPANY" ? clean(c.organization_name) : "";
+    const first = titolo(clean(c?.first_name));
+    const last = titolo(clean(c?.last_name));
+    const url = clean(c?.checkin_url);
+    const lang = azienda ? clean(c?.company_language) || clean(c?.language) : clean(c?.language) || clean(c?.company_language);
+    return {
+      reservationId: r.reservation_id,
+      arrival: r.arrival,
+      departure: r.departure,
+      name: azienda || [last, first].filter(Boolean).join(" "),
+      greetingName: azienda ? "" : [first, last].filter(Boolean).join(" "),
+      email: [c?.primary_email, c?.company_email].map(clean).find((e) => EMAIL.test(e)) ?? null,
+      phone: [c?.primary_phone_number, c?.company_phone].map(clean).find(Boolean) ?? null,
+      lang: lang || null,
+      checkinUrl: CHECKIN.test(url) ? url : null
+    };
+  }).sort((a, b2) => a.arrival.localeCompare(b2.arrival) || a.name.localeCompare(b2.name));
+}
 async function buildFeed(src, password) {
   const lookup = lookupFromRows(src.stays, src.contacts);
   const days = {};
@@ -470,6 +497,7 @@ async function buildFeed(src, password) {
   const times = src.freshness.flatMap((f) => f.sources).filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at).map((s) => Date.parse(s.last_success_at)).filter(Number.isFinite);
   const from = src.dates[0];
   const payload = { days };
+  const avvisi = { items: avvisiItems(src.rows, src.contacts) };
   const envelope = {
     format: 1,
     app: "WelcomeHartmann",
@@ -479,10 +507,14 @@ async function buildFeed(src, password) {
     from,
     to: src.dates[src.dates.length - 1],
     counts,
-    enc: await encryptJson(payload, password, feedAad(from), FEED_ITERATIONS)
+    enc: await encryptJson(payload, password, feedAad(from), FEED_ITERATIONS),
+    avvisi_count: avvisi.items.length,
+    avvisi: await encryptJson(avvisi, password, avvisiAad(from), FEED_ITERATIONS)
   };
   const back = await decryptJson(envelope.enc, password, feedAad(from));
   if (JSON.stringify(back) !== JSON.stringify(payload)) throw new Error("la verifica della cifratura non torna");
+  const backAvvisi = await decryptJson(envelope.avvisi, password, avvisiAad(from));
+  if (JSON.stringify(backAvvisi) !== JSON.stringify(avvisi)) throw new Error("la verifica della cifratura dei contatti non torna");
   const noRoom = src.rows.filter((r) => !r.room_name).length;
   const noName = Object.values(days).flat().filter((i) => !i.name).length;
   return {
@@ -490,7 +522,8 @@ async function buildFeed(src, password) {
     summary: [
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
-      `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`
+      `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`,
+      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in`
     ]
   };
 }
@@ -842,7 +875,13 @@ async function verify(args) {
   const total = Object.values(payload.days).reduce((n, d) => n + d.length, 0);
   const ok = Object.entries(env.counts).every(([d, n]) => (payload.days[d]?.length ?? -1) === n);
   if (!ok) fail("i conteggi in chiaro non corrispondono al contenuto cifrato");
-  out(`verifica OK: ${env.from} \u2192 ${env.to}, ${total} arrivi, scritto ${env.generated_at}`);
+  let avvisi = "senza contatti per le email";
+  if (env.avvisi) {
+    const a = await decryptJson(env.avvisi, password, avvisiAad(env.from)).catch(() => fail("contatti per le email: password errata o file alterato"));
+    if (a.items.length !== env.avvisi_count) fail("il numero di contatti in chiaro non corrisponde al contenuto cifrato");
+    avvisi = `${a.items.length} contatti per le email`;
+  }
+  out(`verifica OK: ${env.from} \u2192 ${env.to}, ${total} arrivi, ${avvisi}, scritto ${env.generated_at}`);
 }
 var [cmd, ...rest] = process.argv.slice(2);
 var run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : cmd === "build" ? () => build(rest) : null;
