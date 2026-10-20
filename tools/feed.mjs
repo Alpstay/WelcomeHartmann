@@ -481,7 +481,8 @@ function avvisiItems(rows, contacts) {
       phone: [c?.primary_phone_number, c?.company_phone].map(clean).find(Boolean) ?? null,
       lang: lang || null,
       checkinUrl: CHECKIN.test(url) ? url : null,
-      checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null
+      checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null,
+      room: clean(r.room_name) || null
     };
   }).sort((a, b2) => a.arrival.localeCompare(b2.arrival) || a.name.localeCompare(b2.name));
 }

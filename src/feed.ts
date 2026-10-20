@@ -59,6 +59,8 @@ export interface AvvisoItem {
   readonly checkinUrl: string | null;
   /** Check-in online già fatto (documento registrato in Slope). Assente nei file più vecchi. */
   readonly checkinFatto?: boolean;
+  /** Camera assegnata (room_name di Slope), per distinguere i link quando un intestatario ha più camere. */
+  readonly room?: string | null;
 }
 
 export interface AvvisiPayload {

@@ -67,6 +67,16 @@ interface Arrivo {
   checkinUrl: string | null;
   /** check-in online già fatto: il testo parte senza il blocco «Importante» */
   checkinFatto: boolean;
+  camera: string | null;
+}
+
+/** Una prenotazione coperta da un messaggio: più camere dello stesso intestatario diventano un solo invio. */
+interface Membro {
+  /** reservation_id Slope (o id dell'ospite a mano), chiave del registro */
+  id: string;
+  camera: string | null;
+  checkinUrl: string | null;
+  checkinFatto: boolean;
 }
 
 /** Contatto inserito a mano dalla reception: email e/o numero WhatsApp. */
@@ -107,6 +117,8 @@ interface Destinatario {
   nomeSaluto: string;
   checkinUrl: string | null;
   checkinFatto: boolean;
+  /** prenotazioni coperte da questo messaggio (almeno una: la stessa del destinatario) */
+  membri: Membro[];
 }
 
 interface RegistroInvio {
@@ -441,6 +453,7 @@ function versoArrivo(x: AvvisoItem, oggi: string): Arrivo {
     giorniAllArrivo: differenzaGiorni(oggi, x.arrival),
     checkinUrl: x.checkinFatto === true ? null : linkCheckin(x.checkinUrl),
     checkinFatto: x.checkinFatto === true,
+    camera: (x.room ?? "").trim() || null,
   };
 }
 
@@ -540,10 +553,24 @@ function linkArrivoPer(lingua: Lingua, checkinUrl: string | null): string {
   return m ? `${base}#ci=${m[1]}~${m[2]}~${m[3]}` : base;
 }
 
-function componi(modello: string, fraseCheckin: string, lingua: Lingua, nome: string, checkinUrl: string | null, linkGruppo: string): string {
-  const frase = checkinUrl ? fraseCheckin.split(SEGNAPOSTO_LINK_CHECKIN).join(checkinUrl) : "";
+const CAMERA: Readonly<Record<Lingua, string>> = { de: "Zimmer", it: "Camera", en: "Room" };
+
+/**
+ * Link di check-in da mettere al posto di {LINK_CHECKIN}: il link da solo per una camera; con più camere una riga
+ * per camera («Zimmer 105: https://…»). Le camere con il check-in già fatto non compaiono.
+ */
+function linkCheckinTesto(membri: readonly Membro[], lingua: Lingua): string {
+  const daFare = membri.map((m, i) => ({ m, n: i + 1 })).filter(({ m }) => m.checkinUrl && !m.checkinFatto);
+  if (membri.length === 1) return daFare[0]?.m.checkinUrl ?? "";
+  return daFare.map(({ m, n }) => `${CAMERA[lingua]} ${m.camera ?? n}: ${m.checkinUrl ?? ""}`).join("\n");
+}
+
+function componi(modello: string, fraseCheckin: string, lingua: Lingua, nome: string, membri: readonly Membro[], linkGruppo: string): string {
+  const link = linkCheckinTesto(membri, lingua);
+  const frase = link ? fraseCheckin.split(SEGNAPOSTO_LINK_CHECKIN).join(link) : "";
   let t = modello.includes(SEGNAPOSTO_CHECKIN) ? modello.split(SEGNAPOSTO_CHECKIN).join(frase) : frase ? `${modello}\n\n${frase}` : modello;
-  const arrivo = linkArrivoPer(lingua, checkinUrl);
+  // con più camere la pagina d'arrivo resta generica: il suo pulsante di check-in vale per una sola camera
+  const arrivo = linkArrivoPer(lingua, membri.length === 1 ? (membri[0]?.checkinUrl ?? null) : null);
   // anche i testi salvati prima del segnaposto, con il link scritto per intero
   t = t.split(LINK_ARRIVO).join(SEGNAPOSTO_LINK_ARRIVO).split(SEGNAPOSTO_LINK_ARRIVO).join(arrivo);
   t = t.split(SEGNAPOSTO_NOME).join(nome.trim() || NOME_MANCANTE[lingua]);
@@ -567,7 +594,7 @@ function linkEmail(programma: Programma, a: string[], oggetto: string, corpo: st
 
 function emailPer(x: Destinatario, imp: Impostazioni): EmailOspite {
   const testo = imp.testi[x.lingua];
-  const corpo = componi(testo.corpo, testo.checkin, x.lingua, x.nomeSaluto, x.checkinUrl, linkGruppo());
+  const corpo = componi(testo.corpo, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo());
   const url = linkEmail(imp.programma, x.emails, testo.oggetto, corpo);
   const max = imp.programma === "gmail" ? MAX_LUNGHEZZA_GMAIL : MAX_LUNGHEZZA_MAILTO;
   return { a: x.emails, oggetto: testo.oggetto, corpo, url, troppoLunga: url.length > max };
@@ -575,7 +602,7 @@ function emailPer(x: Destinatario, imp: Impostazioni): EmailOspite {
 
 function whatsappPer(x: Destinatario, imp: Impostazioni): string {
   const testo = imp.testi[x.lingua];
-  const t = componi(testo.whatsapp, testo.checkin, x.lingua, x.nomeSaluto, x.checkinUrl, linkGruppo());
+  const t = componi(testo.whatsapp, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo());
   const titolo = testo.checkin.split("\n")[0]?.trim() ?? "";
   return titolo && !titolo.includes("{") && !titolo.startsWith("*") ? t.replace(titolo, `*${titolo}*`) : t;
 }
@@ -651,6 +678,7 @@ function destinatari(): Destinatario[] {
       nomeSaluto: x.nomeSaluto,
       checkinUrl: x.checkinUrl,
       checkinFatto: x.checkinFatto,
+      membri: [{ id: x.reservationId, camera: x.camera, checkinUrl: x.checkinUrl, checkinFatto: x.checkinFatto }],
     };
   });
   for (const m of stato.manuali.values()) {
@@ -672,9 +700,45 @@ function destinatari(): Destinatario[] {
       nomeSaluto: maiuscoleNome(m.nome ?? ""),
       checkinUrl: null,
       checkinFatto: false,
+      membri: [{ id: m.id, camera: null, checkinUrl: null, checkinFatto: false }],
     });
   }
   return lista.sort((x, y) => x.dataArrivo.localeCompare(y.dataArrivo) || x.nome.localeCompare(y.nome));
+}
+
+/**
+ * Più camere dello stesso intestatario (stessa email, oppure stesso WhatsApp se manca l'email, e stesso giorno di
+ * arrivo) diventano un solo messaggio con un link di check-in per camera. Gli ID Slope restano quelli dei membri.
+ */
+function raggruppa(lista: readonly Destinatario[]): Destinatario[] {
+  const chiave = (x: Destinatario): string | null => {
+    if (x.tipo !== "prenotazione") return null;
+    if (x.emails.length) return `e|${x.dataArrivo}|${[...x.emails].sort().join(";")}`;
+    const n = x.telefono ? numeroWhatsapp(x.telefono) : null;
+    return n ? `w|${x.dataArrivo}|${n}` : null;
+  };
+  const perCamera = (a: Membro, b: Membro): number => (a.camera ?? "~").localeCompare(b.camera ?? "~", "it", { numeric: true });
+  const gruppi = new Map<string, Destinatario[]>();
+  const out: Destinatario[] = [];
+  for (const x of lista) {
+    const k = chiave(x);
+    const g = k ? gruppi.get(k) : undefined;
+    if (k && g) {
+      g.push(x);
+      continue;
+    }
+    const nuovo = [x];
+    if (k) gruppi.set(k, nuovo);
+    out.push(x);
+  }
+  return out.map((x) => {
+    const k = chiave(x);
+    const g = k ? gruppi.get(k) : undefined;
+    if (!g || g.length < 2) return x;
+    const membri = g.flatMap((d) => d.membri).sort(perCamera);
+    const primo = g.find((d) => d.membri.some((m) => m.id === membri[0]?.id)) ?? x;
+    return { ...primo, membri, checkinFatto: membri.every((m) => m.checkinFatto) };
+  });
 }
 
 /** Indirizzi liberi con arrivo oltre la finestra: compariranno più avanti. */
@@ -823,8 +887,11 @@ function salvaRegistro(): boolean {
 
 async function segnaInviati(lista: Destinatario[], canale: Canale): Promise<void> {
   const adesso = new Date().toISOString();
-  const voci: RegistroInvio[] = lista.map((x) => ({ id: x.id, tipo: x.tipo, arrival: x.dataArrivo, canale, lingua: x.lingua, inviatoIl: adesso }));
+  const voci: RegistroInvio[] = lista.flatMap((x) =>
+    x.membri.map((m) => ({ id: m.id, tipo: x.tipo, arrival: x.dataArrivo, canale, lingua: x.lingua, inviatoIl: adesso })),
+  );
   caricaRegistro();
+  for (const x of lista) stato.aperte.delete(x.id);
   for (const v of voci) {
     stato.registro.set(v.id, v);
     stato.aperte.delete(v.id);
@@ -835,7 +902,7 @@ async function segnaInviati(lista: Destinatario[], canale: Canale): Promise<void
     mostraToast("Segnati solo finché la pagina resta aperta: questo browser non salva i dati.");
     return;
   }
-  mostraToast(voci.length === 1 ? "1 ospite segnato come avvisato." : `${voci.length} ospiti segnati come avvisati.`, async () => {
+  mostraToast(voci.length === 1 ? "1 prenotazione segnata come avvisata." : `${voci.length} prenotazioni segnate come avvisate.`, async () => {
     await annullaInvii(voci.map((v) => v.id));
   });
 }
@@ -1000,8 +1067,14 @@ async function copia(testo: string, bottone: HTMLElement): Promise<void> {
 
 // ───────────────────────── Render ─────────────────────────
 
+/** Messaggi ancora da mandare: le prenotazioni non registrate, con le camere dello stesso intestatario unite. */
 function daAvvisare(): Destinatario[] {
-  return destinatari().filter((x) => !stato.registro.has(x.id));
+  return raggruppa(destinatari().filter((x) => !stato.registro.has(x.id)));
+}
+
+/** Il messaggio (anche di più camere) che ha questo id, oppure la singola prenotazione. */
+function trovaDestinatario(id: string | undefined): Destinatario | undefined {
+  return id ? (daAvvisare().find((a) => a.id === id) ?? destinatari().find((a) => a.id === id)) : undefined;
 }
 
 function renderTesta(): void {
@@ -1018,10 +1091,9 @@ function renderTesta(): void {
     riepilogo.innerHTML = "";
     return;
   }
-  const tutti = destinatari();
-  const aperti = tutti.filter((x) => !stato.registro.has(x.id));
+  const aperti = daAvvisare();
   const senza = aperti.filter((x) => x.emails.length === 0).length;
-  const fatti = tutti.length - aperti.length;
+  const fatti = destinatari().filter((x) => stato.registro.has(x.id)).length;
   riepilogo.innerHTML = [
     `<span class="chip ${aperti.length - senza > 0 ? "chip-da-fare" : "chip-ok"}"><b>${aperti.length - senza}</b> da avvisare via email</span>`,
     senza ? `<span class="chip chip-attenzione"><b>${senza}</b> senza email</span>` : "",
@@ -1095,7 +1167,20 @@ function contattoEmail(x: Destinatario): string {
   return parti.join("<br>");
 }
 
+/** «3 camere: 105 · 107 · 108» quando un messaggio copre più prenotazioni. */
+function badgeCamere(x: Destinatario): string {
+  if (x.membri.length < 2) return "";
+  const nomi = x.membri.map((m) => m.camera).filter((c): c is string => Boolean(c));
+  const dettaglio = nomi.length ? `: ${nomi.join(" · ")}` : "";
+  return ` <span class="badge" title="Stesso intestatario: un solo messaggio con un link di check-in per camera">${x.membri.length} camere${esc(dettaglio)}</span>`;
+}
+
 function badgeCheckin(x: Destinatario): string {
+  if (x.membri.length > 1) {
+    const daFare = x.membri.filter((m) => m.checkinUrl && !m.checkinFatto).length;
+    if (!daFare) return `<span class="badge badge-ok" title="Documenti già registrati in Slope: il testo parte senza il blocco sul check-in">check-in fatto</span>`;
+    return `<span class="badge badge-ok" title="Un link di check-in per ogni camera ancora da fare">${daFare === 1 ? "1 link check-in" : `${daFare} link check-in`}</span>`;
+  }
   if (x.checkinFatto) return `<span class="badge badge-ok" title="Documento già registrato in Slope: il testo parte senza il blocco sul check-in">check-in fatto</span>`;
   if (x.checkinUrl) return `<span class="badge badge-ok" title="Il link personale di check-in online è già nel testo">check-in online</span>`;
   return x.tipo === "prenotazione" ? `<span class="badge" title="Slope non ha fornito il link: il testo parte senza la frase del check-in">senza link check-in</span>` : "";
@@ -1113,7 +1198,7 @@ function rigaEmail(x: Destinatario): string {
       : `<a class="btn btn-piccolo${aperta ? "" : " btn-primario"}" href="${esc(email.url)}" target="_blank" rel="noopener" data-azione="apri" data-id="${esc(x.id)}">${aperta ? "Riapri email" : "Apri email"}</a>`;
   return `
     <li class="ospite ospite-email${aperta ? " aperta" : ""}">
-      <span class="ospite-nome"><span>${esc(x.nome)}${x.tipo === "manuale" ? ' <span class="badge badge-mano">non in Slope</span>' : ""}</span></span>
+      <span class="ospite-nome"><span>${esc(x.nome)}${x.tipo === "manuale" ? ' <span class="badge badge-mano">non in Slope</span>' : ""}${badgeCamere(x)}</span></span>
       ${quando(x)}
       <span class="contatto">${contattoEmail(x)}<br><span class="codice" title="${NOMI_LINGUA[x.lingua]}">${x.lingua.toUpperCase()}</span> ${badgeCheckin(x)}${
         email.troppoLunga ? ' <span class="motivo">Testo troppo lungo: usa «Copia testo».</span>' : ""
@@ -1148,7 +1233,7 @@ function renderDaAvvisare(): string {
         <h3 id="titolo-email">Da avvisare via email</h3>
         <span class="conta">${ospiti(lista.length)}${aperte.length ? ` · ${aperte.length} aperte` : ""}</span>
       </header>
-      <p class="nota">Ogni ospite riceve la sua email, nella sua lingua e con il suo link personale di check-in. Premi <b>Apri email</b>, controlla in ${nomeProgramma} e premi Invia.</p>
+      <p class="nota">Ogni ospite riceve la sua email, nella sua lingua e con il suo link personale di check-in (con più camere, un link per camera nella stessa email). Premi <b>Apri email</b>, controlla in ${nomeProgramma} e premi Invia.</p>
       <ul class="ospiti">${lista.map(rigaEmail).join("")}</ul>
     </section>`;
 }
@@ -1175,7 +1260,7 @@ function rigaWhatsapp(x: Destinatario): string {
     : `<button type="button" class="btn btn-piccolo${facoltativo ? "" : " btn-primario"}" data-azione="modifica-email" data-id="${esc(x.id)}">${x.telefono ? "Correggi numero" : "Aggiungi numero"}</button>`;
   return `
     <li class="ospite ospite-email${aperta ? " aperta" : ""}">
-      <span class="ospite-nome"><span>${esc(x.nome)}${x.tipo === "manuale" ? ' <span class="badge badge-mano">non in Slope</span>' : ""}</span></span>
+      <span class="ospite-nome"><span>${esc(x.nome)}${x.tipo === "manuale" ? ' <span class="badge badge-mano">non in Slope</span>' : ""}${badgeCamere(x)}</span></span>
       ${quando(x)}
       <span class="contatto">${contatto}<br><span class="codice" title="${NOMI_LINGUA[x.lingua]}">${x.lingua.toUpperCase()}</span> ${badgeCheckin(x)}${motivo ? ` <span class="motivo">${esc(motivo)}</span>` : ""}</span>
       <span class="azioni-riga">
@@ -1384,7 +1469,7 @@ function giaPresente(email: string, escludiId: string | null): Destinatario | nu
 function manualiInAttesaComeDest(email: string, escludiId: string | null): Destinatario | null {
   const m = manualiInAttesa().find((x) => x.id !== escludiId && (x.email ?? "").toLowerCase() === email);
   if (!m) return null;
-  return { id: m.id, tipo: "manuale", prenotazione: null, manuale: m, nome: m.nome ?? email, dataArrivo: m.arrivo, giorniAllArrivo: 0, lingua: m.lingua, emails: [email], emailScatola: null, scatolaSostituita: false, relayOta: null, telefono: m.telefono, nomeSaluto: "", checkinUrl: null, checkinFatto: false };
+  return { id: m.id, tipo: "manuale", prenotazione: null, manuale: m, nome: m.nome ?? email, dataArrivo: m.arrivo, giorniAllArrivo: 0, lingua: m.lingua, emails: [email], emailScatola: null, scatolaSostituita: false, relayOta: null, telefono: m.telefono, nomeSaluto: "", checkinUrl: null, checkinFatto: false, membri: [{ id: m.id, camera: null, checkinUrl: null, checkinFatto: false }] };
 }
 
 async function confermaDialogo(): Promise<void> {
@@ -1525,12 +1610,12 @@ function collegaEventi(): void {
         break;
       }
       case "copia-wa": {
-        const x = destinatari().find((a) => a.id === id);
+        const x = trovaDestinatario(id);
         if (x) void copia(whatsappPer(x, stato.impostazioni), el);
         break;
       }
       case "segna-uno": {
-        const x = destinatari().find((a) => a.id === id);
+        const x = trovaDestinatario(id);
         if (x) void segnaInviati([x], el.dataset.canale === "email" ? "email" : "whatsapp");
         break;
       }
@@ -1547,7 +1632,7 @@ function collegaEventi(): void {
         break;
       }
       case "copia-testo": {
-        const x = destinatari().find((a) => a.id === id);
+        const x = trovaDestinatario(id);
         if (x) void copia(emailPer(x, stato.impostazioni).corpo, el);
         break;
       }
@@ -1663,5 +1748,5 @@ async function avvia(): Promise<void> {
 
 if (typeof document !== "undefined") void avvia();
 
-export { numeroWhatsapp, suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
+export { numeroWhatsapp, raggruppa, linkCheckinTesto, suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
 

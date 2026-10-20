@@ -79,6 +79,7 @@ export function avvisiItems(rows: readonly ArrivalRow[], contacts: readonly Cont
         lang: lang || null,
         checkinUrl: CHECKIN.test(url) ? url : null,
         checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null,
+        room: clean(r.room_name) || null,
       };
     })
     .sort((a, b) => a.arrival.localeCompare(b.arrival) || a.name.localeCompare(b.name));
