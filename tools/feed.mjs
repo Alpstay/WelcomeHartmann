@@ -480,7 +480,8 @@ function avvisiItems(rows, contacts) {
       email: [c?.primary_email, c?.company_email].map(clean).find((e) => EMAIL.test(e)) ?? null,
       phone: [c?.primary_phone_number, c?.company_phone].map(clean).find(Boolean) ?? null,
       lang: lang || null,
-      checkinUrl: CHECKIN.test(url) ? url : null
+      checkinUrl: CHECKIN.test(url) ? url : null,
+      checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null
     };
   }).sort((a, b2) => a.arrival.localeCompare(b2.arrival) || a.name.localeCompare(b2.name));
 }
@@ -523,7 +524,7 @@ async function buildFeed(src, password) {
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`,
-      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in`
+      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in \xB7 ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in gi\xE0 fatto`
     ]
   };
 }

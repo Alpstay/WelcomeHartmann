@@ -42,8 +42,9 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    `reservation_id, guest_type, is_primary_guest, first_name, last_name, language` (ospiti) oppure
    `reservation_id, property_id, arrival, departure, booking_status, booker_type, first_name, last_name,
    language, company_language, organization_name, primary_email, primary_phone_number, company_email,
-   company_phone, checkin_url` (intestatari: email, telefono e link di check-in servono alla pagina
-   `avvisi/` delle email pre-arrivo e finiscono solo cifrati). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
+   company_phone, checkin_url, is_privacy_policy_acknowledged, identity_document` (intestatari: email,
+   telefono e link di check-in servono alla pagina `avvisi/` delle email pre-arrivo e finiscono solo cifrati;
+   del documento il programma usa solo il sì/no «check-in online già fatto», il documento non viene pubblicato). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
 4. **Costruisci**, dalla cartella del repository:
    `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <file ospiti…> <file intestatari…>`
    (percorsi separati da spazi o da virgole). Una riga `ATTENZIONE` indica quasi sempre un

@@ -78,6 +78,7 @@ export function avvisiItems(rows: readonly ArrivalRow[], contacts: readonly Cont
         phone: [c?.primary_phone_number, c?.company_phone].map(clean).find(Boolean) ?? null,
         lang: lang || null,
         checkinUrl: CHECKIN.test(url) ? url : null,
+        checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null,
       };
     })
     .sort((a, b) => a.arrival.localeCompare(b.arrival) || a.name.localeCompare(b.name));
@@ -128,7 +129,7 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" · ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} · senza nome: ${noName}`,
-      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate · ${avvisi.items.filter((i) => i.email).length} con email · ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in`,
+      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate · ${avvisi.items.filter((i) => i.email).length} con email · ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in · ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in già fatto`,
     ],
   };
 }

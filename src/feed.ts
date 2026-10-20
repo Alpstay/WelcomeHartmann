@@ -57,6 +57,8 @@ export interface AvvisoItem {
   readonly lang: string | null;
   /** Link personale di check-in online di Slope (solo https://booking.slope.it/…). */
   readonly checkinUrl: string | null;
+  /** Check-in online già fatto (documento registrato in Slope). Assente nei file più vecchi. */
+  readonly checkinFatto?: boolean;
 }
 
 export interface AvvisiPayload {

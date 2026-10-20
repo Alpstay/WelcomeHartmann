@@ -65,6 +65,8 @@ interface Arrivo {
   relayOta: string | null;
   giorniAllArrivo: number;
   checkinUrl: string | null;
+  /** check-in online già fatto: il testo parte senza il blocco «Importante» */
+  checkinFatto: boolean;
 }
 
 /** Contatto inserito a mano dalla reception: email e/o numero WhatsApp. */
@@ -104,6 +106,7 @@ interface Destinatario {
   telefono: string | null;
   nomeSaluto: string;
   checkinUrl: string | null;
+  checkinFatto: boolean;
 }
 
 interface RegistroInvio {
@@ -436,7 +439,8 @@ function versoArrivo(x: AvvisoItem, oggi: string): Arrivo {
     lingua: mappaLingua(x.lang),
     relayOta: relayOta(email),
     giorniAllArrivo: differenzaGiorni(oggi, x.arrival),
-    checkinUrl: linkCheckin(x.checkinUrl),
+    checkinUrl: x.checkinFatto === true ? null : linkCheckin(x.checkinUrl),
+    checkinFatto: x.checkinFatto === true,
   };
 }
 
@@ -459,7 +463,21 @@ function numeroWhatsapp(telefono: string): string | null {
   if (!/^\d+$/.test(cifre)) return null;
   const pref = cifre.slice(0, 2);
   if (PREFISSI_SENZA_ZERO.has(pref) && cifre[2] === "0") cifre = pref + cifre.slice(3);
-  return cifre.length >= 8 && cifre.length <= 15 ? cifre : null;
+  if (cifre.length < 8 || cifre.length > 15) return null;
+  return numeroPlausibile(cifre) ? cifre : null;
+}
+
+/**
+ * Scarta i numeri segnaposto dei portali (Expedia scrive «+1111111111» o il proprio servizio clienti
+ * «+118662597766»): meglio «Correggi numero» che un WhatsApp a uno sconosciuto.
+ */
+function numeroPlausibile(cifre: string): boolean {
+  if (/^(\d)\1+$/.test(cifre.slice(1)) || /(\d)\1{6,}/.test(cifre)) return false;
+  // Nord America (+1): 10 cifre dopo l'1, prefisso di zona che non inizia con 0 o 1
+  if (cifre.startsWith("1")) return cifre.length === 11 && /^[2-9]/.test(cifre.slice(1));
+  // Italia (+39): cellulari 3…, fissi 0…
+  if (cifre.startsWith("39")) return /^39[03]/.test(cifre);
+  return true;
 }
 
 /** «+49 1701234567» per mostrarlo alla reception: si vede subito quale numero apre WhatsApp. */
@@ -632,6 +650,7 @@ function destinatari(): Destinatario[] {
       telefono: manuale?.telefono ?? x.telefono,
       nomeSaluto: x.nomeSaluto,
       checkinUrl: x.checkinUrl,
+      checkinFatto: x.checkinFatto,
     };
   });
   for (const m of stato.manuali.values()) {
@@ -652,6 +671,7 @@ function destinatari(): Destinatario[] {
       telefono: m.telefono,
       nomeSaluto: maiuscoleNome(m.nome ?? ""),
       checkinUrl: null,
+      checkinFatto: false,
     });
   }
   return lista.sort((x, y) => x.dataArrivo.localeCompare(y.dataArrivo) || x.nome.localeCompare(y.nome));
@@ -1076,6 +1096,7 @@ function contattoEmail(x: Destinatario): string {
 }
 
 function badgeCheckin(x: Destinatario): string {
+  if (x.checkinFatto) return `<span class="badge badge-ok" title="Documento già registrato in Slope: il testo parte senza il blocco sul check-in">check-in fatto</span>`;
   if (x.checkinUrl) return `<span class="badge badge-ok" title="Il link personale di check-in online è già nel testo">check-in online</span>`;
   return x.tipo === "prenotazione" ? `<span class="badge" title="Slope non ha fornito il link: il testo parte senza la frase del check-in">senza link check-in</span>` : "";
 }
@@ -1140,10 +1161,18 @@ function rigaWhatsapp(x: Destinatario): string {
   const contatto = numero
     ? `<span>WhatsApp ${esc(mostraNumero(numero))}</span>${x.manuale?.telefono ? ' <span class="badge badge-mano">a mano</span>' : ""}`
     : `<span>${esc(x.telefono ?? "Nessun numero in Slope")}</span>`;
-  const motivo = !x.telefono ? "Aggiungi il numero WhatsApp o l'email." : !numero ? "Numero senza prefisso internazionale: correggilo." : "";
+  // check-in già fatto e nessun contatto: manca solo il gruppo WhatsApp, l'azione è facoltativa
+  const facoltativo = x.checkinFatto && !url;
+  const motivo = facoltativo
+    ? "Check-in online già fatto: manca solo il gruppo WhatsApp. Aggiungi il numero se ce l'hai, altrimenti «Segna fatto»."
+    : !x.telefono
+      ? "Aggiungi il numero WhatsApp o l'email."
+      : !numero
+        ? "Numero non utilizzabile per WhatsApp (manca il prefisso internazionale o è un numero fittizio del portale): correggilo."
+        : "";
   const apri = url
     ? `<a class="btn btn-piccolo${aperta ? "" : " btn-primario"}" href="${esc(url)}" target="_blank" rel="noopener" data-azione="apri" data-id="${esc(x.id)}">${aperta ? "Riapri WhatsApp" : "Apri WhatsApp"}</a>`
-    : `<button type="button" class="btn btn-piccolo btn-primario" data-azione="modifica-email" data-id="${esc(x.id)}">${x.telefono ? "Correggi numero" : "Aggiungi numero"}</button>`;
+    : `<button type="button" class="btn btn-piccolo${facoltativo ? "" : " btn-primario"}" data-azione="modifica-email" data-id="${esc(x.id)}">${x.telefono ? "Correggi numero" : "Aggiungi numero"}</button>`;
   return `
     <li class="ospite ospite-email${aperta ? " aperta" : ""}">
       <span class="ospite-nome"><span>${esc(x.nome)}${x.tipo === "manuale" ? ' <span class="badge badge-mano">non in Slope</span>' : ""}</span></span>
@@ -1151,7 +1180,7 @@ function rigaWhatsapp(x: Destinatario): string {
       <span class="contatto">${contatto}<br><span class="codice" title="${NOMI_LINGUA[x.lingua]}">${x.lingua.toUpperCase()}</span> ${badgeCheckin(x)}${motivo ? ` <span class="motivo">${esc(motivo)}</span>` : ""}</span>
       <span class="azioni-riga">
         ${apri}
-        <button type="button" class="btn btn-piccolo${aperta ? " btn-conferma" : ""}" data-azione="segna-uno" data-canale="whatsapp" data-id="${esc(x.id)}" ${stato.inScrittura ? "disabled" : ""}>Segna inviato</button>
+        <button type="button" class="btn btn-piccolo${aperta ? " btn-conferma" : ""}" data-azione="segna-uno" data-canale="whatsapp" data-id="${esc(x.id)}" ${stato.inScrittura ? "disabled" : ""}>${facoltativo ? "Segna fatto" : "Segna inviato"}</button>
         <button type="button" class="link link-piccolo" data-azione="copia-wa" data-id="${esc(x.id)}">Copia testo</button>
         <button type="button" class="link link-piccolo" data-azione="modifica-email" data-id="${esc(x.id)}">${numero ? "Cambia numero o aggiungi email" : "Aggiungi email"}</button>
       </span>
@@ -1159,7 +1188,11 @@ function rigaWhatsapp(x: Destinatario): string {
 }
 
 function renderSenzaEmail(): string {
-  const senza = daAvvisare().filter((x) => x.emails.length === 0);
+  // prima chi si può avvisare subito, poi chi ha bisogno del numero, in fondo chi ha già fatto il check-in
+  const peso = (x: Destinatario): number => (x.telefono && numeroWhatsapp(x.telefono) ? 0 : x.checkinFatto ? 2 : 1);
+  const senza = daAvvisare()
+    .filter((x) => x.emails.length === 0)
+    .sort((a, b) => peso(a) - peso(b));
   if (senza.length === 0) return "";
   const conNumero = senza.filter((x) => x.telefono && numeroWhatsapp(x.telefono)).length;
   return `
@@ -1351,7 +1384,7 @@ function giaPresente(email: string, escludiId: string | null): Destinatario | nu
 function manualiInAttesaComeDest(email: string, escludiId: string | null): Destinatario | null {
   const m = manualiInAttesa().find((x) => x.id !== escludiId && (x.email ?? "").toLowerCase() === email);
   if (!m) return null;
-  return { id: m.id, tipo: "manuale", prenotazione: null, manuale: m, nome: m.nome ?? email, dataArrivo: m.arrivo, giorniAllArrivo: 0, lingua: m.lingua, emails: [email], emailScatola: null, scatolaSostituita: false, relayOta: null, telefono: m.telefono, nomeSaluto: "", checkinUrl: null };
+  return { id: m.id, tipo: "manuale", prenotazione: null, manuale: m, nome: m.nome ?? email, dataArrivo: m.arrivo, giorniAllArrivo: 0, lingua: m.lingua, emails: [email], emailScatola: null, scatolaSostituita: false, relayOta: null, telefono: m.telefono, nomeSaluto: "", checkinUrl: null, checkinFatto: false };
 }
 
 async function confermaDialogo(): Promise<void> {
@@ -1362,7 +1395,7 @@ async function confermaDialogo(): Promise<void> {
   const email = emailGrezza ? pulisciEmail(emailGrezza) : null;
   const linguaGrezza = campo<HTMLSelectElement>("dlg-lingua").value;
   if (emailGrezza && !email) return mostraErroreDialogo("Scrivi un indirizzo email valido, per esempio nome@esempio.it.");
-  if (telGrezzo && !numeroWhatsapp(telGrezzo)) return mostraErroreDialogo("Scrivi il numero WhatsApp con il prefisso internazionale, per esempio +49 170 1234567.");
+  if (telGrezzo && !numeroWhatsapp(telGrezzo)) return mostraErroreDialogo("Numero non valido: scrivi il cellulare con il prefisso internazionale, per esempio +49 170 1234567.");
   const telefono = telGrezzo ? telGrezzo : null;
   if (!email && !telefono) return mostraErroreDialogo("Scrivi l'email oppure il numero WhatsApp.");
   if (linguaGrezza !== "de" && linguaGrezza !== "it" && linguaGrezza !== "en") return mostraErroreDialogo("Scegli la lingua del messaggio.");
@@ -1630,5 +1663,5 @@ async function avvia(): Promise<void> {
 
 if (typeof document !== "undefined") void avvia();
 
-export { suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
+export { numeroWhatsapp, suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
 

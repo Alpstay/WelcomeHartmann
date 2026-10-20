@@ -181,6 +181,9 @@ export interface ContactFields extends BookerFields {
   readonly company_phone?: string | null;
   /** Link personale di check-in online di Slope: dà accesso ai dati dell'ospite, solo cifrato. */
   readonly checkin_url?: string | null;
+  /** Con il documento registrato il check-in online è fatto. Del documento si usa solo il sì/no. */
+  readonly identity_document?: unknown;
+  readonly is_privacy_policy_acknowledged?: boolean | null;
 }
 
 /** Da dove arriva la lingua proposta. */
