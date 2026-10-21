@@ -38,13 +38,12 @@ Sorgente TypeScript in `src/`; build con `npm install && node build.mjs` (scrive
 
 Pagina: https://alpstay.github.io/WelcomeHartmann/avvisi/ — stessa password reception delle lettere.
 
-- Ospiti confermati da domani a +5 giorni (configurabile fino a 6): un'email personale per ospite,
-  nella sua lingua, con il link personale di check-in online di Slope in evidenza, la pagina d'arrivo
-  (5DAYTO-ARRIVAL) e il gruppo WhatsApp della mobilità. Chi non ha l'email riceve lo stesso testo su
-  WhatsApp (pulsante «Apri WhatsApp», numero con prefisso internazionale).
+- Ospiti confermati da domani a +5 giorni (configurabile fino a 6): un messaggio per ospite, nella sua
+  lingua, con il link personale alla pagina d'arrivo (5DAYTO-ARRIVAL) che contiene check-in online,
+  parcheggio e indicazioni. Email con «Apri email»; chi non ha l'email lo riceve su WhatsApp («Apri
+  WhatsApp», grassetto mantenuto). Testi in `src/avvisi/testi.ts`.
 - I contatti arrivano nel blocco `avvisi` di `arrivi.json`, cifrato con la stessa password; in chiaro
-  solo `avvisi_count`. Il link del gruppo WhatsApp è cifrato in `src/avvisi/gruppo.enc.json`
-  (`node tools/avvisi-gruppo.mjs "<PASSWORD>" "<link>"` per cambiarlo).
+  solo `avvisi_count`.
 - Registro degli invii, contatti aggiunti a mano e testi restano nel browser del computer della
   reception (cancellati 30 giorni dopo l'arrivo).
 

@@ -118,18 +118,6 @@ console.log("ok", Math.round(full.length / 1024), "KB");
   writeFileSync("avvisi/index.html", pagina);
   console.log("ok avvisi/index.html", Math.round(pagina.length / 1024), "KB");
 }
-// Cifratura del link del gruppo WhatsApp per avvisi/ (si usa solo quando il gruppo cambia)
-await build({
-  entryPoints: ["src/avvisi/cifra-gruppo.ts"],
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  target: "node20",
-  outfile: "tools/avvisi-gruppo.mjs",
-  banner: { js: "// Generato da src/avvisi/cifra-gruppo.ts con build.mjs: non modificare a mano." },
-  legalComments: "none",
-});
-
 // Pagina collega.html (collegamento una tantum di GitHub a La Scatola)
 {
   const c = await build({ entryPoints: ["src/collega.ts"], bundle: true, format: "iife", target: "es2020", minify: true, write: false, legalComments: "none" });
