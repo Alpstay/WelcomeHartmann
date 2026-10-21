@@ -283,9 +283,11 @@ textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
           <span class="etichetta-segnaposti">Parti che la pagina compila per ogni ospite</span>
           <dl>
             <div><dt><code>{NOME}</code></dt><dd>nome dell'ospite nel saluto</dd></div>
-            <div><dt><code>{CHECKIN}</code></dt><dd>il blocco «Importante: check-in online»; sparisce se Slope non ha il link</dd></div>
-            <div><dt><code>{LINK_CHECKIN}</code></dt><dd>il link personale di check-in, da usare dentro la frase</dd></div>
-            <div><dt><code>{LINK_ARRIVO}</code></dt><dd>la pagina d'arrivo nella lingua dell'ospite, con il suo check-in già dentro</dd></div>
+            <div><dt><code>{LINK_ARRIVO}</code></dt><dd>il link personale: pagina d'arrivo nella lingua dell'ospite con check-in online, parcheggio e indicazioni; con più camere una riga per camera</dd></div>
+            <div><dt><code>{CHECKIN}</code></dt><dd>la frase su Guest Pass e self check-in; compare solo se l'ospite deve ancora fare il check-in online</dd></div>
+            <div><dt><code>*testo*</code></dt><dd>grassetto su WhatsApp; nell'email esce senza asterischi (le email aperte da un link sono solo testo)</dd></div>
+            <div><dt><code>{NOME}</code></dt><dd>nome dell'ospite, se si vuole un saluto personale</dd></div>
+            <div><dt><code>{LINK_CHECKIN}</code></dt><dd>il link diretto di check-in di Slope, da usare dentro la frase {CHECKIN}</dd></div>
             <div><dt><code>{LINK_WHATSAPP}</code></dt><dd>il link del gruppo WhatsApp</dd></div>
           </dl>
         </div>
@@ -296,22 +298,22 @@ textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
           <legend>Deutsch</legend>
           <div class="campo"><label for="imp-de-oggetto">Betreff</label><input id="imp-de-oggetto" type="text"></div>
           <div class="campo"><label for="imp-de-corpo">E-Mail</label><textarea id="imp-de-corpo" rows="12"></textarea></div>
-          <div class="campo"><label for="imp-de-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-de-checkin" rows="8"></textarea></div>
-          <div class="campo"><label for="imp-de-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-de-whatsapp" rows="6"></textarea></div>
+          <div class="campo"><label for="imp-de-checkin">Frase Guest Pass e self check-in · va al posto di {CHECKIN}</label><textarea id="imp-de-checkin" rows="4"></textarea></div>
+          <div class="campo"><label for="imp-de-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-de-whatsapp" rows="12"></textarea></div>
         </fieldset>
         <fieldset>
           <legend>Italiano</legend>
           <div class="campo"><label for="imp-it-oggetto">Oggetto</label><input id="imp-it-oggetto" type="text"></div>
           <div class="campo"><label for="imp-it-corpo">Email</label><textarea id="imp-it-corpo" rows="12"></textarea></div>
-          <div class="campo"><label for="imp-it-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-it-checkin" rows="8"></textarea></div>
-          <div class="campo"><label for="imp-it-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-it-whatsapp" rows="6"></textarea></div>
+          <div class="campo"><label for="imp-it-checkin">Frase Guest Pass e self check-in · va al posto di {CHECKIN}</label><textarea id="imp-it-checkin" rows="4"></textarea></div>
+          <div class="campo"><label for="imp-it-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-it-whatsapp" rows="12"></textarea></div>
         </fieldset>
         <fieldset>
           <legend>English · tutte le altre lingue</legend>
           <div class="campo"><label for="imp-en-oggetto">Subject</label><input id="imp-en-oggetto" type="text"></div>
           <div class="campo"><label for="imp-en-corpo">Email</label><textarea id="imp-en-corpo" rows="12"></textarea></div>
-          <div class="campo"><label for="imp-en-checkin">Blocco «Importante: check-in online» · va al posto di {CHECKIN}</label><textarea id="imp-en-checkin" rows="8"></textarea></div>
-          <div class="campo"><label for="imp-en-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-en-whatsapp" rows="6"></textarea></div>
+          <div class="campo"><label for="imp-en-checkin">Frase Guest Pass e self check-in · va al posto di {CHECKIN}</label><textarea id="imp-en-checkin" rows="4"></textarea></div>
+          <div class="campo"><label for="imp-en-whatsapp">Messaggio WhatsApp per chi non ha email</label><textarea id="imp-en-whatsapp" rows="12"></textarea></div>
         </fieldset>
       </div>
 

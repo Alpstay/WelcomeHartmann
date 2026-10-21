@@ -148,6 +148,8 @@ interface EmailOspite {
 }
 
 interface Impostazioni {
+  /** versione dei testi predefiniti da cui partono i testi salvati */
+  versioneTesti: number;
   linkWhatsapp: string;
   programma: Programma;
   giorniAnticipo: number;
@@ -193,119 +195,91 @@ interface Stato {
 const NOMI_LINGUA: Record<Lingua, string> = { de: "Deutsch", it: "Italiano", en: "English" };
 const ORDINE_LINGUE: Lingua[] = ["de", "it", "en"];
 
+/** Cambia quando cambiano i testi predefiniti: i testi salvati prima su un computer vengono sostituiti. */
+const VERSIONE_TESTI = 2;
+
+/**
+ * Testi del 21/10/2026. *Parola* = grassetto su WhatsApp; nell'email (mailto, solo testo) gli asterischi spariscono.
+ * {LINK_ARRIVO} porta alla pagina d'arrivo personale, con dentro check-in online, parcheggio e indicazioni.
+ * {CHECKIN} (Guest Pass e self check-in) compare solo se l'ospite deve ancora fare il check-in online.
+ */
 const TESTI_PREDEFINITI: Record<Lingua, TestoLingua> = {
   it: {
     oggetto: "Importante: check-in online prima del vostro arrivo · Chalet Hotel Hartmann",
     corpo: [
-      "Gentile " + SEGNAPOSTO_NOME + ",",
+      "Che bello: tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!",
       "",
-      "che bello: tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!",
+      "Prima di mettervi in viaggio, basta un clic sul vostro *link personale* qui sotto. Trovate tutto in un unico posto: il *check-in online*, il parcheggio e le indicazioni stradali:",
+      SEGNAPOSTO_LINK_ARRIVO,
       "",
       SEGNAPOSTO_CHECKIN,
       "",
-      "Parcheggio, indicazioni e tutto per il vostro arrivo:",
-      SEGNAPOSTO_LINK_ARRIVO,
+      "Buon viaggio, a presto in Val Gardena!",
       "",
-      "Bus, taxi e il nostro shuttle per gli impianti nel gruppo WhatsApp:",
-      SEGNAPOSTO_LINK,
-      "",
-      "A presto in Val Gardena!",
+      "Ezio Prinoth",
       "Il team dello Chalet Hotel Hartmann",
     ].join("\n"),
     checkin: [
-      "⚠️ IMPORTANTE · CHECK-IN ONLINE",
-      "Vi chiediamo di completarlo prima della partenza: è indispensabile per ricevere",
-      "• il Guest Pass per i mezzi pubblici, che vi inviamo via email solo dopo il check-in online",
-      "• le istruzioni per il self check-in, se arrivate dopo le 18:00",
-      "Bastano pochi minuti con il vostro link personale (vi preghiamo di non inoltrarlo):",
-      SEGNAPOSTO_LINK_CHECKIN,
+      "Se lo fate subito, possiamo inviarvi immediatamente:",
+      "• *il vostro Guest Pass digitale* per i mezzi pubblici;",
+      "• *le istruzioni per il self check-in* (se arrivate dopo le 18:00).",
     ].join("\n"),
-    whatsapp: [
-      "Gentile " + SEGNAPOSTO_NOME + ", tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!",
-      "",
-      SEGNAPOSTO_CHECKIN,
-      "",
-      "Tutto per il vostro arrivo: " + SEGNAPOSTO_LINK_ARRIVO,
-      "Bus, taxi e shuttle per gli impianti: " + SEGNAPOSTO_LINK,
-    ].join("\n"),
+    whatsapp: "",
   },
   de: {
     oggetto: "Wichtig: Online-Check-in vor Ihrer Anreise · Chalet Hotel Hartmann",
     corpo: [
-      "Guten Tag " + SEGNAPOSTO_NOME + ",",
+      "Wie schön: In wenigen Tagen sind Sie unsere Gäste im Chalet Hotel Hartmann in St. Ulrich!",
       "",
-      "wie schön: In wenigen Tagen sind Sie bei uns im Chalet Hotel Hartmann in St. Ulrich zu Gast!",
+      "Bevor Sie losfahren, klicken Sie einfach auf Ihren *persönlichen Link* unten. Dort finden Sie alles an einem Ort: Ihren *Online-Check-in*, Parkmöglichkeiten und die Anfahrt:",
+      SEGNAPOSTO_LINK_ARRIVO,
       "",
       SEGNAPOSTO_CHECKIN,
       "",
-      "Parkplatz, Anfahrt und alles für Ihre Ankunft:",
-      SEGNAPOSTO_LINK_ARRIVO,
+      "Gute Reise und bis bald in Gröden!",
       "",
-      "Bus, Taxi und unser Shuttle zu den Liften in der WhatsApp-Gruppe:",
-      SEGNAPOSTO_LINK,
-      "",
-      "Bis bald in Gröden!",
+      "Ezio Prinoth",
       "Ihr Team vom Chalet Hotel Hartmann",
     ].join("\n"),
     checkin: [
-      "⚠️ WICHTIG · ONLINE-CHECK-IN",
-      "Bitte erledigen Sie ihn vor der Abreise: Er ist unbedingt nötig, damit Sie Folgendes erhalten:",
-      "• den Guest Pass für die öffentlichen Verkehrsmittel, den wir Ihnen erst nach dem Online-Check-in per E-Mail schicken",
-      "• die Anleitung zum Self-Check-in, falls Sie nach 18:00 Uhr ankommen",
-      "Es dauert nur wenige Minuten mit Ihrem persönlichen Link (bitte nicht weiterleiten):",
-      SEGNAPOSTO_LINK_CHECKIN,
+      "Wenn Sie das jetzt erledigen, können wir Ihnen sofort zusenden:",
+      "• *Ihren digitalen Guest Pass* für die öffentlichen Verkehrsmittel,",
+      "• *Ihre Anleitung für den Self-Check-in* (falls Sie nach 18:00 Uhr ankommen).",
     ].join("\n"),
-    whatsapp: [
-      "Guten Tag " + SEGNAPOSTO_NOME + ", in wenigen Tagen sind Sie bei uns im Chalet Hotel Hartmann in St. Ulrich zu Gast!",
-      "",
-      SEGNAPOSTO_CHECKIN,
-      "",
-      "Alles für Ihre Ankunft: " + SEGNAPOSTO_LINK_ARRIVO,
-      "Bus, Taxi und Shuttle zu den Liften: " + SEGNAPOSTO_LINK,
-    ].join("\n"),
+    whatsapp: "",
   },
   en: {
     oggetto: "Important: online check-in before your arrival · Chalet Hotel Hartmann",
     corpo: [
-      "Dear " + SEGNAPOSTO_NOME + ",",
+      "How lovely: in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!",
       "",
-      "how lovely: in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!",
+      "Before you hit the road, just click your *personal link* below. It has everything you need in one place: your *online check-in*, parking, and directions:",
+      SEGNAPOSTO_LINK_ARRIVO,
       "",
       SEGNAPOSTO_CHECKIN,
       "",
-      "Parking, directions and everything for your arrival:",
-      SEGNAPOSTO_LINK_ARRIVO,
+      "Have a safe trip, see you soon in Val Gardena!",
       "",
-      "Bus, taxi and our shuttle to the ski lifts in our WhatsApp group:",
-      SEGNAPOSTO_LINK,
-      "",
-      "See you soon in Val Gardena!",
+      "Ezio Prinoth",
       "The Chalet Hotel Hartmann team",
     ].join("\n"),
     checkin: [
-      "⚠️ IMPORTANT · ONLINE CHECK-IN",
-      "Please complete it before you travel: it is essential to receive",
-      "• the Guest Pass for public transport, which we email to you only after your online check-in",
-      "• the self check-in instructions, if you arrive after 6 pm",
-      "It only takes a few minutes with your personal link (please do not forward it):",
-      SEGNAPOSTO_LINK_CHECKIN,
+      "Doing this now allows us to send you right away:",
+      "• *Your digital Guest Pass* for public transport.",
+      "• *Your self check-in instructions* (if you arrive after 6:00 pm).",
     ].join("\n"),
-    whatsapp: [
-      "Dear " + SEGNAPOSTO_NOME + ", in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!",
-      "",
-      SEGNAPOSTO_CHECKIN,
-      "",
-      "Everything for your arrival: " + SEGNAPOSTO_LINK_ARRIVO,
-      "Bus, taxi and shuttle to the lifts: " + SEGNAPOSTO_LINK,
-    ].join("\n"),
+    whatsapp: "",
   },
 };
+// Il messaggio WhatsApp parte uguale all'email (con il grassetto): si può cambiare a parte nelle impostazioni.
+for (const l of ["it", "de", "en"] as const) TESTI_PREDEFINITI[l].whatsapp = TESTI_PREDEFINITI[l].corpo;
 
 /** Se manca il nome, il saluto resta corretto: «Gentile ospite», «Guten Tag», «Dear guest». */
 const NOME_MANCANTE: Record<Lingua, string> = { it: "ospite", de: "", en: "guest" };
 
 function impostazioniPredefinite(): Impostazioni {
   return {
+    versioneTesti: VERSIONE_TESTI,
     linkWhatsapp: "",
     programma: "mailto",
     giorniAnticipo: 5,
@@ -531,10 +505,22 @@ function leggiManuale(id: string, v: Record<string, unknown> | undefined): Email
 
 // ───────────────────────── Composizione messaggi ─────────────────────────
 
+/** Il link del gruppo WhatsApp entra solo dove il testo ha {LINK_WHATSAPP}. */
 function conLink(testo: string, link: string): string {
-  if (testo.includes(SEGNAPOSTO_LINK)) return testo.split(SEGNAPOSTO_LINK).join(link);
-  if (link && testo.includes(link)) return testo;
-  return `${testo}\n\n${link}`;
+  return testo.split(SEGNAPOSTO_LINK).join(link);
+}
+
+/** *grassetto* di WhatsApp: nell'email (solo testo) gli asterischi spariscono. */
+function senzaGrassetto(testo: string): string {
+  return testo.replace(/\*([^*\n]+)\*/g, "$1");
+}
+
+/** true se un testo in uso contiene il link del gruppo WhatsApp: solo allora serve averlo. */
+function serveGruppo(): boolean {
+  return ORDINE_LINGUE.some((l) => {
+    const t = stato.impostazioni.testi[l];
+    return t.corpo.includes(SEGNAPOSTO_LINK) || t.whatsapp.includes(SEGNAPOSTO_LINK);
+  });
 }
 
 /** Nei testi salvati il link va tenuto come {LINK_WHATSAPP}: così, se il gruppo cambia, basta aggiornare il link una volta. */
@@ -565,12 +551,21 @@ function linkCheckinTesto(membri: readonly Membro[], lingua: Lingua): string {
   return daFare.map(({ m, n }) => `${CAMERA[lingua]} ${m.camera ?? n}: ${m.checkinUrl ?? ""}`).join("\n");
 }
 
+/**
+ * Pagina d'arrivo al posto di {LINK_ARRIVO}: per una camera il suo link (con il check-in dentro, se è da fare); con
+ * più camere una riga per camera da fare («Zimmer 105: https://…»), altrimenti la pagina generica.
+ */
+function linkArrivoTesto(membri: readonly Membro[], lingua: Lingua): string {
+  const daFare = membri.map((m, i) => ({ m, n: i + 1 })).filter(({ m }) => m.checkinUrl && !m.checkinFatto);
+  if (membri.length === 1 || daFare.length === 0) return linkArrivoPer(lingua, daFare[0]?.m.checkinUrl ?? null);
+  return daFare.map(({ m, n }) => `${CAMERA[lingua]} ${m.camera ?? n}: ${linkArrivoPer(lingua, m.checkinUrl)}`).join("\n");
+}
+
 function componi(modello: string, fraseCheckin: string, lingua: Lingua, nome: string, membri: readonly Membro[], linkGruppo: string): string {
   const link = linkCheckinTesto(membri, lingua);
   const frase = link ? fraseCheckin.split(SEGNAPOSTO_LINK_CHECKIN).join(link) : "";
   let t = modello.includes(SEGNAPOSTO_CHECKIN) ? modello.split(SEGNAPOSTO_CHECKIN).join(frase) : frase ? `${modello}\n\n${frase}` : modello;
-  // con più camere la pagina d'arrivo resta generica: il suo pulsante di check-in vale per una sola camera
-  const arrivo = linkArrivoPer(lingua, membri.length === 1 ? (membri[0]?.checkinUrl ?? null) : null);
+  const arrivo = linkArrivoTesto(membri, lingua);
   // anche i testi salvati prima del segnaposto, con il link scritto per intero
   t = t.split(LINK_ARRIVO).join(SEGNAPOSTO_LINK_ARRIVO).split(SEGNAPOSTO_LINK_ARRIVO).join(arrivo);
   t = t.split(SEGNAPOSTO_NOME).join(nome.trim() || NOME_MANCANTE[lingua]);
@@ -594,17 +589,16 @@ function linkEmail(programma: Programma, a: string[], oggetto: string, corpo: st
 
 function emailPer(x: Destinatario, imp: Impostazioni): EmailOspite {
   const testo = imp.testi[x.lingua];
-  const corpo = componi(testo.corpo, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo());
-  const url = linkEmail(imp.programma, x.emails, testo.oggetto, corpo);
+  const corpo = senzaGrassetto(componi(testo.corpo, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo()));
+  const oggetto = senzaGrassetto(testo.oggetto);
+  const url = linkEmail(imp.programma, x.emails, oggetto, corpo);
   const max = imp.programma === "gmail" ? MAX_LUNGHEZZA_GMAIL : MAX_LUNGHEZZA_MAILTO;
-  return { a: x.emails, oggetto: testo.oggetto, corpo, url, troppoLunga: url.length > max };
+  return { a: x.emails, oggetto, corpo, url, troppoLunga: url.length > max };
 }
 
 function whatsappPer(x: Destinatario, imp: Impostazioni): string {
   const testo = imp.testi[x.lingua];
-  const t = componi(testo.whatsapp, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo());
-  const titolo = testo.checkin.split("\n")[0]?.trim() ?? "";
-  return titolo && !titolo.includes("{") && !titolo.startsWith("*") ? t.replace(titolo, `*${titolo}*`) : t;
+  return componi(testo.whatsapp, testo.checkin, x.lingua, x.nomeSaluto, x.membri, linkGruppo());
 }
 
 function linkWhatsappPer(x: Destinatario, imp: Impostazioni): string | null {
@@ -968,18 +962,21 @@ function normalizzaImpostazioni(v: Partial<Impostazioni> | undefined): Impostazi
   if (!v) return base;
   const link = typeof v.linkWhatsapp === "string" ? v.linkWhatsapp.trim() : "";
   const testi = { ...base.testi };
+  // testi salvati con i predefiniti di una versione precedente: si riparte da quelli nuovi
+  const testiValidi = v.versioneTesti === VERSIONE_TESTI;
   for (const l of ORDINE_LINGUE) {
-    const t = v.testi?.[l];
+    const t = testiValidi ? v.testi?.[l] : undefined;
     if (t) {
       testi[l] = {
         oggetto: t.oggetto || base.testi[l].oggetto,
         corpo: conSegnaposto(t.corpo || base.testi[l].corpo, link),
-        checkin: t.checkin && t.checkin.includes(SEGNAPOSTO_LINK_CHECKIN) ? t.checkin : base.testi[l].checkin,
+        checkin: t.checkin || base.testi[l].checkin,
         whatsapp: conSegnaposto(t.whatsapp || base.testi[l].whatsapp, link),
       };
     }
   }
   return {
+    versioneTesti: VERSIONE_TESTI,
     linkWhatsapp: link,
     programma: v.programma === "gmail" ? "gmail" : "mailto",
     giorniAnticipo: Number.isFinite(v.giorniAnticipo) ? Math.min(MAX_ANTICIPO, Math.max(1, Number(v.giorniAnticipo))) : 5,
@@ -1124,7 +1121,7 @@ function renderAvvisi(): void {
   if (vecchi) avvisi.push(`<div class="avviso"><strong>${esc(vecchi.titolo)}</strong> <span>${esc(vecchi.dettaglio)}</span></div>`);
   if (stato.caricamento !== "ok") {
     /* il link del gruppo si conosce solo dopo la password */
-  } else if (!linkGruppo()) {
+  } else if (serveGruppo() && !linkGruppo()) {
     avvisi.push(`
       <div class="avviso avviso-setup">
         <div class="avviso-testo">
@@ -1137,7 +1134,7 @@ function renderAvvisi(): void {
           <button class="btn btn-primario" type="submit">Salva link</button>
         </form>
       </div>`);
-  } else if (!linkValido(linkGruppo())) {
+  } else if (serveGruppo() && !linkValido(linkGruppo())) {
     avvisi.push(`<div class="avviso"><strong>Il link salvato non sembra un link WhatsApp.</strong> <span>Controllalo nelle impostazioni in fondo alla pagina.</span></div>`);
   }
   if (!stato.archivioOk) {
@@ -1188,7 +1185,7 @@ function badgeCheckin(x: Destinatario): string {
 
 function rigaEmail(x: Destinatario): string {
   const imp = stato.impostazioni;
-  const pronto = Boolean(linkGruppo());
+  const pronto = !serveGruppo() || Boolean(linkGruppo());
   const email = emailPer(x, imp);
   const aperta = stato.aperte.has(x.id);
   const etichettaModifica = x.tipo === "manuale" ? "Modifica" : x.manuale ? "Cambia email" : "Aggiungi email";
@@ -1241,7 +1238,7 @@ function renderDaAvvisare(): string {
 function rigaWhatsapp(x: Destinatario): string {
   const imp = stato.impostazioni;
   const numero = x.telefono ? numeroWhatsapp(x.telefono) : null;
-  const url = linkGruppo() ? linkWhatsappPer(x, imp) : null;
+  const url = !serveGruppo() || linkGruppo() ? linkWhatsappPer(x, imp) : null;
   const aperta = stato.aperte.has(x.id);
   const contatto = numero
     ? `<span>WhatsApp ${esc(mostraNumero(numero))}</span>${x.manuale?.telefono ? ' <span class="badge badge-mano">a mano</span>' : ""}`
@@ -1567,6 +1564,7 @@ function leggiModulo(): Impostazioni {
     };
   }
   return normalizzaImpostazioni({
+    versioneTesti: VERSIONE_TESTI,
     linkWhatsapp: campo<HTMLInputElement>("imp-link").value.trim(),
     programma: campo<HTMLSelectElement>("imp-programma").value === "gmail" ? "gmail" : "mailto",
     giorniAnticipo: Number(campo<HTMLInputElement>("imp-giorni").value),
@@ -1748,5 +1746,5 @@ async function avvia(): Promise<void> {
 
 if (typeof document !== "undefined") void avvia();
 
-export { numeroWhatsapp, raggruppa, linkCheckinTesto, suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
+export { numeroWhatsapp, raggruppa, linkCheckinTesto, linkArrivoTesto, senzaGrassetto, suggerisciEmail, conLink, conSegnaposto, linkEmail, componi, maiuscoleNome, linkCheckin, linkArrivoPer, versoArrivo, TESTI_PREDEFINITI };
 
