@@ -12,6 +12,20 @@ import { avvisiAad, decryptJson, isFeedEnvelope } from "../feed";
 import type { AvvisiPayload, AvvisoItem, FeedEnvelope } from "../feed";
 import { VERSIONE_TESTI, TESTI_PREDEFINITI, numeroWhatsapp, mostraNumero, senzaGrassetto, componi, linkEmail } from "./testi";
 import type { Lingua, Programma, TestoLingua, Membro } from "./testi";
+import {
+  TESTI_GUESTPASS,
+  emailGuestPassValide,
+  guestpassAad,
+  isGuestPassEnvelope,
+  linguaEmail,
+  linkGuestPass,
+  passDaHtml,
+  passDaTesto,
+  prenotazioneProposta,
+  testoGuestPass,
+  unisciPass,
+} from "./guestpass";
+import type { EmailGuestPass, PassTrovato } from "./guestpass";
 
 // ───────────────────────── Costanti ─────────────────────────
 
@@ -21,6 +35,18 @@ const PW_KEY = "welcomeHartmann.password";
 const K_INVII = "avvisiHartmann.invii";
 const K_MANUALI = "avvisiHartmann.manuali";
 const K_IMPOSTAZIONI = "avvisiHartmann.impostazioni";
+/** Registro «Guest Pass inviato» (solo id Slope, canale, data: mai i link dei pass). */
+const K_GUESTPASS = "avvisiHartmann.guestpass";
+/** Email del Guest Pass già gestite (inviate o nascoste) su questo computer: solo l'impronta dell'email, mai i link. */
+const K_GUESTPASS_EMAIL = "avvisiHartmann.guestpassEmail";
+/** Guest Pass letti dalla casella dedicata (workflow «Guest Pass dalla casella», ogni 15 minuti). */
+const GUESTPASS_URL = "../guestpass.json";
+const STATO_GUESTPASS_URL = "../stato-guestpass.txt";
+/** La casella tiene 8 giorni di email: il registro delle email gestite qualche giorno in più. */
+const GIORNI_CONSERVAZIONE_EMAIL_GP = 12;
+const AGGIORNA_GP_OGNI_MS = 5 * 60_000;
+/** Valore della scelta «ospite non in lista» nel riquadro Guest Pass. */
+const GP_ALTRO = "__altro";
 const TZ = "Europe/Rome";
 /** Chrome ed Edge su Windows non aprono link mailto più lunghi di 2083 caratteri: si resta sotto con margine. */
 const MAX_LUNGHEZZA_MAILTO = 2000;
@@ -141,6 +167,45 @@ interface Dialogo {
   prenotazione: Arrivo | null;
 }
 
+/** Guest Pass inviato a una prenotazione (registro su questo computer, senza i link dei pass). */
+interface InvioGuestPass {
+  /** reservation_id Slope, invariato */
+  id: string;
+  arrival: string;
+  canale: Canale;
+  pass: number;
+  inviatoIl: string;
+  /** impronta dell'email della casella da cui venivano i pass (null se incollati a mano) */
+  emailId: string | null;
+}
+
+/** Guest Pass arrivati nella casella dedicata, decifrati con la password reception: solo in memoria. */
+interface CasellaGuestPass {
+  /** false finché il workflow non ha pubblicato guestpass.json: il riquadro resta come prima */
+  attiva: boolean;
+  email: EmailGuestPass[];
+  /** problema da mostrare alla reception (casella o file), null se va tutto bene */
+  problema: string | null;
+}
+
+/** Riquadro «Guest Pass»: i link restano solo in memoria, in questa finestra. */
+interface StatoGuestPass {
+  pass: PassTrovato[];
+  /** email della casella da cui vengono i pass, null se incollati */
+  emailId: string | null;
+  /** reservation_id Slope della prenotazione scelta, GP_ALTRO per un ospite non in lista, null se da scegliere */
+  sceltaId: string | null;
+  proposta: "sicura" | "probabile" | null;
+  linguaEmail: Lingua | null;
+  /** lingua scelta a mano (altrimenti quella della prenotazione) */
+  lingua: Lingua | null;
+  /** solo per GP_ALTRO */
+  email: string;
+  telefono: string;
+  aperto: Canale | null;
+  avviso: string | null;
+}
+
 interface Stato {
   caricamento: "attesa" | "in-corso" | "ok" | "errore" | "bloccata";
   errore: ErroreVista | null;
@@ -158,6 +223,13 @@ interface Stato {
   aperte: Set<string>;
   inScrittura: boolean;
   dialogo: Dialogo | null;
+  /** tutti gli arrivi del file (da oggi a +6), per abbinare i Guest Pass anche a chi arriva oggi */
+  tuttiArrivi: Arrivo[];
+  gp: StatoGuestPass;
+  inviiGuestPass: Map<string, InvioGuestPass>;
+  casella: CasellaGuestPass;
+  /** impronta email → quando è stata gestita (inviata o nascosta) */
+  emailGestite: Map<string, string>;
 }
 
 // ───────────────────────── Testi predefiniti ─────────────────────────
@@ -385,6 +457,11 @@ const stato: Stato = {
   aperte: new Set(),
   inScrittura: false,
   dialogo: null,
+  tuttiArrivi: [],
+  gp: gpVuoto(),
+  inviiGuestPass: new Map(),
+  casella: casellaVuota(),
+  emailGestite: new Map(),
 };
 
 let password: string | null = null;
@@ -564,6 +641,12 @@ async function caricaArrivi(pwNuova?: string): Promise<void> {
       .filter((x) => (visti.has(x.reservationId) ? false : (visti.add(x.reservationId), true)))
       .map((x) => versoArrivo(x, oggi))
       .sort((x, y) => x.arrivo.localeCompare(y.arrivo) || x.nome.localeCompare(y.nome));
+    const vistiGp = new Set<string>();
+    stato.tuttiArrivi = dati.items
+      .filter((x) => x.arrival >= oggi)
+      .filter((x) => (vistiGp.has(x.reservationId) ? false : (vistiGp.add(x.reservationId), true)))
+      .map((x) => versoArrivo(x, oggi))
+      .sort((x, y) => x.arrivo.localeCompare(y.arrivo) || x.nome.localeCompare(y.nome));
     stato.aggiornatoAlle = env.scatola_updated_at ?? env.generated_at;
     stato.erroreSblocco = null;
     stato.caricamento = "ok";
@@ -573,6 +656,7 @@ async function caricaArrivi(pwNuova?: string): Promise<void> {
     stato.caricamento = "bloccata";
   }
   render();
+  if (stato.caricamento === "ok") await aggiornaCasella();
 }
 
 // ───────────────────────── Archivio su questo computer ─────────────────────────
@@ -1099,7 +1183,440 @@ function renderLista(): void {
 function render(): void {
   renderTesta();
   renderAvvisi();
+  renderGuestPass();
   renderLista();
+}
+
+// ───────────────────────── Guest Pass personale ─────────────────────────
+
+function gpVuoto(): StatoGuestPass {
+  return { pass: [], emailId: null, sceltaId: null, proposta: null, linguaEmail: null, lingua: null, email: "", telefono: "", aperto: null, avviso: null };
+}
+
+function caricaInviiGuestPass(): void {
+  const dal = aggiungiGiorni(oggiRoma(), -GIORNI_CONSERVAZIONE_INVII);
+  const voci = leggiJson<Partial<InvioGuestPass>[]>(K_GUESTPASS, []);
+  const mappa = new Map<string, InvioGuestPass>();
+  for (const v of Array.isArray(voci) ? voci : []) {
+    if (!v || typeof v.id !== "string" || String(v.arrival ?? "") < dal) continue;
+    mappa.set(v.id, {
+      id: v.id,
+      arrival: String(v.arrival ?? ""),
+      canale: v.canale === "whatsapp" ? "whatsapp" : "email",
+      pass: Number(v.pass) || 0,
+      inviatoIl: String(v.inviatoIl ?? ""),
+      emailId: typeof v.emailId === "string" ? v.emailId : null,
+    });
+  }
+  stato.inviiGuestPass = mappa;
+}
+
+function casellaVuota(): CasellaGuestPass {
+  return { attiva: false, email: [], problema: null };
+}
+
+function caricaEmailGestite(): void {
+  const dal = Date.now() - GIORNI_CONSERVAZIONE_EMAIL_GP * 864e5;
+  const voci = leggiJson<unknown>(K_GUESTPASS_EMAIL, []);
+  const mappa = new Map<string, string>();
+  for (const v of Array.isArray(voci) ? voci : []) {
+    if (!Array.isArray(v) || typeof v[0] !== "string" || typeof v[1] !== "string") continue;
+    const t = Date.parse(v[1]);
+    if (!Number.isNaN(t) && t >= dal) mappa.set(v[0], v[1]);
+  }
+  stato.emailGestite = mappa;
+}
+
+function salvaEmailGestite(): boolean {
+  return scriviJson(K_GUESTPASS_EMAIL, [...stato.emailGestite.entries()]);
+}
+
+/** Segna come gestita (o di nuovo da gestire) un'email della casella, rileggendo prima il registro di altre schede. */
+function segnaEmailGestita(id: string, gestita: boolean): void {
+  caricaEmailGestite();
+  if (gestita) stato.emailGestite.set(id, new Date().toISOString());
+  else stato.emailGestite.delete(id);
+  salvaEmailGestite();
+}
+
+/** Testo di stato-guestpass.txt → avviso per la reception (il file contiene solo «ok» o il tipo di errore). */
+function problemaCasella(testo: string): string | null {
+  if (!testo.startsWith("errore")) return null;
+  return testo.includes("rifiutato")
+    ? "La casella Guest Pass non si apre: la password per le app è stata cambiata o revocata. Va rifatta e aggiornata su GitHub (segreto GUESTPASS_APP_PASSWORD). Intanto incolla l'email qui sotto."
+    : "La casella Guest Pass non ha risposto all'ultimo controllo: riprovo da solo. Se serve subito, incolla l'email qui sotto.";
+}
+
+/** Scarica guestpass.json e lo decifra con la password reception. Senza file (404) il riquadro resta come prima. */
+async function caricaCasella(pw: string): Promise<CasellaGuestPass> {
+  let problema: string | null = null;
+  try {
+    const r = await fetch(`${STATO_GUESTPASS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (r.ok) problema = problemaCasella((await r.text()).trim());
+  } catch {
+    /* stato non disponibile: non è un problema */
+  }
+  let env: unknown;
+  try {
+    const r = await fetch(`${GUESTPASS_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) return { attiva: problema !== null, email: [], problema };
+    env = await r.json();
+  } catch {
+    return { attiva: problema !== null, email: [], problema };
+  }
+  if (!isGuestPassEnvelope(env)) return { attiva: true, email: [], problema: problema ?? "Il file dei Guest Pass arrivati non è nel formato atteso." };
+  try {
+    const dati = await decryptJson<unknown>(env.enc, pw, guestpassAad(env.from));
+    return { attiva: true, email: emailGuestPassValide(dati), problema };
+  } catch {
+    return {
+      attiva: true,
+      email: [],
+      problema: "I Guest Pass arrivati non si aprono con la password reception: su GitHub il segreto ARRIVI_PASSWORD deve essere la stessa password. Intanto incolla l'email qui sotto.",
+    };
+  }
+}
+
+async function aggiornaCasella(): Promise<void> {
+  const pw = password;
+  if (!pw) return;
+  const nuova = await caricaCasella(pw);
+  if (password !== pw || stato.caricamento !== "ok") return; // bloccata nel frattempo
+  stato.casella = nuova;
+  renderGuestPass();
+}
+
+/** Email della casella ancora da gestire su questo computer, dalla più recente. */
+function emailDaGestire(): EmailGuestPass[] {
+  return stato.casella.email.filter((e) => !stato.emailGestite.has(e.id) && e.id !== stato.gp.emailId);
+}
+
+/** Prenotazione proposta per dei pass, dal nome (tra gli arrivi da oggi in poi). */
+function propostaPer(pass: readonly PassTrovato[]): { id: string; sicura: boolean } | null {
+  const nomi = pass.map((p) => p.nome).filter(Boolean);
+  return prenotazioneProposta(nomi, stato.tuttiArrivi.map((a) => ({ id: a.reservationId, nome: `${a.nome} ${a.nomeSaluto}` })));
+}
+
+function proponiPrenotazione(gp: StatoGuestPass): void {
+  if (gp.sceltaId) return;
+  const proposta = propostaPer(gp.pass);
+  if (proposta) {
+    gp.sceltaId = proposta.id;
+    gp.proposta = proposta.sicura ? "sicura" : "probabile";
+  }
+}
+
+/** «Prepara»: i pass dell'email della casella passano nel riquadro, con la prenotazione già proposta. */
+function preparaDaEmail(id: string): void {
+  const e = stato.casella.email.find((x) => x.id === id);
+  if (!e) return;
+  const gp = gpVuoto();
+  gp.pass = [...e.pass];
+  gp.emailId = e.id;
+  gp.linguaEmail = e.lingua;
+  proponiPrenotazione(gp);
+  stato.gp = gp;
+  renderGuestPass();
+  const box = document.getElementById("guestpass");
+  box?.scrollIntoView({ block: "start" });
+  window.setTimeout(() => document.getElementById("gp-prenotazione")?.focus({ preventScroll: true }), 30);
+}
+
+function renderCasella(): string {
+  const c = stato.casella;
+  if (!c.attiva) return "";
+  const problema = c.problema ? `<p class="errore" role="alert">${esc(c.problema)}</p>` : "";
+  const lista = emailDaGestire();
+  if (lista.length === 0) {
+    return `${problema}<p class="aiuto gp-casella-vuota">Nessun Guest Pass nuovo dalla casella. Si controlla da sola ogni 15 minuti.</p>`;
+  }
+  const righe = lista
+    .map((e) => {
+      const nomi = e.pass.map((p, i) => p.nome || `Ospite ${i + 1}`).join(", ");
+      const proposta = propostaPer(e.pass);
+      const a = proposta ? stato.tuttiArrivi.find((x) => x.reservationId === proposta.id) : undefined;
+      const camera = a?.camera ? ` · camera ${a.camera}` : "";
+      const prenotazione = a
+        ? `${esc(a.nome)} · ${esc(etichettaGiorno(a.arrivo))}${esc(camera)}${proposta && !proposta.sicura ? " (da controllare)" : ""}`
+        : "prenotazione da scegliere";
+      const giaInviato = a && stato.inviiGuestPass.has(a.reservationId) ? ' <span class="badge">già inviato a questa prenotazione</span>' : "";
+      const firma = e.firmata ? "" : ' <span class="badge badge-errore">mittente non verificato: controlla l\'email originale</span>';
+      return `
+        <li>
+          <div class="gp-email-testo">
+            <span class="gp-nome">${esc(nomi)}</span>
+            <span class="aiuto">${e.pass.length === 1 ? "1 pass" : `${e.pass.length} pass`} · arrivato ${esc(fmtOra.format(new Date(e.ricevuta)))} · ${prenotazione}${giaInviato}${firma}</span>
+          </div>
+          <button type="button" class="btn btn-primario" data-azione="gp-prepara" data-email="${esc(e.id)}">Prepara</button>
+          <button type="button" class="link link-piccolo" data-azione="gp-nascondi" data-email="${esc(e.id)}">Nascondi</button>
+        </li>`;
+    })
+    .join("");
+  return `${problema}
+    <div class="gp-arrivati">
+      <h4>Guest Pass arrivati <span class="conta">${lista.length}</span></h4>
+      <ul class="gp-email">${righe}</ul>
+    </div>`;
+}
+
+/** Destinatario del Guest Pass: la prenotazione scelta (contatti Slope o a mano) oppure l'ospite non in lista. */
+interface DestinatarioGuestPass {
+  id: string | null;
+  nome: string;
+  arrivo: string | null;
+  emails: string[];
+  relayOta: string | null;
+  telefono: string | null;
+  lingua: Lingua;
+}
+
+function destinatarioGuestPass(): DestinatarioGuestPass | null {
+  const gp = stato.gp;
+  if (gp.sceltaId === GP_ALTRO) {
+    const email = pulisciEmail(gp.email);
+    return { id: null, nome: "Ospite non in lista", arrivo: null, emails: email ? [email.toLowerCase()] : [], relayOta: relayOta(email), telefono: gp.telefono.trim() || null, lingua: gp.lingua ?? gp.linguaEmail ?? "en" };
+  }
+  const a = gp.sceltaId ? stato.tuttiArrivi.find((x) => x.reservationId === gp.sceltaId) : undefined;
+  if (!a) return null;
+  const m = stato.manuali.get(a.reservationId);
+  const manuale = m && m.tipo === "prenotazione" ? m : null;
+  const usaScatola = Boolean(a.email) && !(manuale && manuale.email && manuale.sostituisce);
+  const emails = [...new Set([usaScatola ? a.email : null, manuale?.email ?? null].filter((e): e is string => Boolean(e)).map((e) => e.toLowerCase()))];
+  return {
+    id: a.reservationId,
+    nome: a.nome,
+    arrivo: a.arrivo,
+    emails,
+    relayOta: usaScatola ? a.relayOta : null,
+    telefono: manuale?.telefono ?? a.telefono,
+    lingua: gp.lingua ?? manuale?.lingua ?? a.lingua,
+  };
+}
+
+function gestisciIncollaGuestPass(html: string, testo: string): void {
+  const trovati = unisciPass(html ? passDaHtml(html, new DOMParser()) : [], passDaTesto(testo));
+  if (trovati.length === 0) {
+    stato.gp.avviso = "Nessun Guest Pass trovato. Apri l'email del Guest Pass, seleziona tutto (Ctrl+A), copia (Ctrl+C) e incolla qui.";
+    renderGuestPass();
+    return;
+  }
+  const gp = stato.gp;
+  gp.pass = unisciPass(gp.pass, trovati);
+  gp.avviso = null;
+  const testoEmail = testo || new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+  gp.linguaEmail = linguaEmail(testoEmail) ?? gp.linguaEmail;
+  proponiPrenotazione(gp);
+  renderGuestPass();
+}
+
+function opzioniPrenotazioni(): string {
+  const scelta = stato.gp.sceltaId;
+  const voci = stato.tuttiArrivi.map((a) => {
+    const inviato = stato.inviiGuestPass.has(a.reservationId) ? " · Guest Pass già inviato" : "";
+    const camera = a.camera ? ` · camera ${a.camera}` : "";
+    return `<option value="${esc(a.reservationId)}"${a.reservationId === scelta ? " selected" : ""}>${esc(a.nome)} · ${esc(etichettaGiorno(a.arrivo))}${esc(camera)}${esc(inviato)}</option>`;
+  });
+  return [
+    `<option value=""${scelta ? "" : " selected"}>Scegli la prenotazione…</option>`,
+    ...voci,
+    `<option value="${GP_ALTRO}"${scelta === GP_ALTRO ? " selected" : ""}>Ospite non in lista (già arrivato o non in Slope)</option>`,
+  ].join("");
+}
+
+function renderGuestPass(): void {
+  const box = document.getElementById("guestpass");
+  if (!box) return;
+  box.hidden = stato.caricamento !== "ok";
+  if (box.hidden) return;
+  const gp = stato.gp;
+  const zona = `
+    <div id="gp-zona" class="gp-zona" contenteditable="true" role="textbox" aria-label="Incolla qui l'email del Guest Pass" tabindex="0">
+      <b>Clicca qui e premi Ctrl+V</b>
+      <span>Nell'email del Guest Pass: seleziona tutto (Ctrl+A) e copia (Ctrl+C). Vanno bene anche solo i link.</span>
+    </div>`;
+  const avviso = gp.avviso ? `<p class="errore" role="alert">${esc(gp.avviso)}</p>` : "";
+  const testa = `
+    <header class="gruppo-testa"><h3 id="gp-titolo">Guest Pass</h3><span class="conta">${stato.inviiGuestPass.size ? `${stato.inviiGuestPass.size} inviati` : ""}</span></header>
+    <p class="nota">${
+      stato.casella.attiva
+        ? "I Guest Pass inviati alla casella dedicata compaiono qui da soli: premi «Prepara», controlla la prenotazione e invia. Gli altri si possono ancora incollare."
+        : "Incolla l'email del Guest Pass: trovo la prenotazione dal nome e preparo il messaggio nella lingua dell'ospite, con un pulsante per ogni pass nella sua pagina d'arrivo."
+    }</p>`;
+  if (gp.pass.length === 0) {
+    box.innerHTML = testa + renderCasella() + zona + avviso;
+    return;
+  }
+
+  const elenco = gp.pass
+    .map((p, i) => `<li><span class="gp-nome">${esc(p.nome || `Ospite ${i + 1}`)}</span><span class="badge badge-ok">pass valido</span><button type="button" class="link link-piccolo" data-azione="gp-togli" data-indice="${i}">Togli</button></li>`)
+    .join("");
+  const d = destinatarioGuestPass();
+  const etichettaProposta =
+    gp.sceltaId === GP_ALTRO ? "Scrivi email o WhatsApp dell'ospite." :
+    gp.proposta === "sicura" ? "Trovata dal nome nell'email del Guest Pass." :
+    gp.proposta === "probabile" ? "Trovata da una parte del nome: controlla che sia giusta." :
+    gp.sceltaId ? "" : "Nessuna prenotazione con questo nome tra oggi e i prossimi giorni: sceglila dall'elenco.";
+
+  let contatti = "";
+  if (gp.sceltaId === GP_ALTRO) {
+    contatti = `
+      <div class="campo"><label for="gp-email">Email</label><input id="gp-email" type="email" inputmode="email" autocomplete="off" placeholder="nome@esempio.it" value="${esc(gp.email)}"></div>
+      <div class="campo"><label for="gp-telefono">WhatsApp</label><input id="gp-telefono" type="tel" inputmode="tel" autocomplete="off" placeholder="+49 170 1234567" value="${esc(gp.telefono)}"></div>`;
+  } else if (d) {
+    const wa = d.telefono ? numeroWhatsapp(d.telefono) : null;
+    const email = d.emails.length ? esc(d.emails.join(", ")) + (d.relayOta ? ` <span class="badge">${esc(d.relayOta)}</span>` : "") : '<span class="motivo">Nessuna email</span>';
+    const tel = wa ? esc(mostraNumero(wa)) : d.telefono ? `<span class="motivo">${esc(d.telefono)}: numero non utilizzabile</span>` : '<span class="motivo">Nessun cellulare</span>';
+    contatti = `<p class="contatto campo-largo">Email: ${email}<br>WhatsApp: ${tel}<br><span class="aiuto">Per correggere un contatto usa «Cambia email» sulla riga dell'ospite qui sotto.</span></p>`;
+  }
+  const lingua = d ? d.lingua : gp.lingua ?? gp.linguaEmail ?? "en";
+  const scelte = `
+    <div class="campi">
+      <div class="campo campo-largo"><label for="gp-prenotazione">Prenotazione</label><select id="gp-prenotazione">${opzioniPrenotazioni()}</select>${etichettaProposta ? `<p class="aiuto">${esc(etichettaProposta)}</p>` : ""}</div>
+      ${contatti}
+      <div class="campo"><label for="gp-lingua">Lingua del messaggio</label><select id="gp-lingua">${ORDINE_LINGUE.map((l) => `<option value="${l}"${l === lingua ? " selected" : ""}>${NOMI_LINGUA[l]}</option>`).join("")}</select></div>
+    </div>`;
+
+  let azioni = "";
+  if (d) {
+    const corpo = testoGuestPass(d.lingua, gp.pass);
+    const oggetto = TESTI_GUESTPASS[d.lingua].oggetto;
+    const urlEmail = d.emails.length ? linkEmail(stato.impostazioni.programma, d.emails, oggetto, senzaGrassetto(corpo)) : null;
+    const max = stato.impostazioni.programma === "gmail" ? MAX_LUNGHEZZA_GMAIL : MAX_LUNGHEZZA_MAILTO;
+    const wa = d.telefono ? numeroWhatsapp(d.telefono) : null;
+    const giaInviato = d.id ? stato.inviiGuestPass.get(d.id) : undefined;
+    const aperto = gp.aperto !== null;
+    const bottoneEmail = !urlEmail
+      ? ""
+      : urlEmail.length > max
+        ? `<button type="button" class="btn btn-primario" disabled title="Testo troppo lungo: usa Copia testo">Apri email</button>`
+        : `<a class="btn${gp.aperto === "email" ? "" : " btn-primario"}" href="${esc(urlEmail)}" target="_blank" rel="noopener" data-azione="gp-apri" data-canale="email">${gp.aperto === "email" ? "Riapri email" : "Apri email"}</a>`;
+    const bottoneWa = wa
+      ? `<a class="btn${gp.aperto === "whatsapp" ? "" : " btn-primario"}" href="https://wa.me/${wa}?text=${esc(encodeURIComponent(corpo))}" target="_blank" rel="noopener" data-azione="gp-apri" data-canale="whatsapp">${gp.aperto === "whatsapp" ? "Riapri WhatsApp" : "Apri WhatsApp"}</a>`
+      : "";
+    const nessunContatto = !urlEmail && !wa ? `<p class="motivo">Manca un contatto: usa «Copia testo» o «Copia link» e invialo come preferisci.</p>` : "";
+    const nota = giaInviato ? `<p class="nota">Guest Pass già inviato a questa prenotazione il ${esc(new Date(giaInviato.inviatoIl).toLocaleString("it-IT", { timeZone: TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))} (${giaInviato.canale === "whatsapp" ? "WhatsApp" : "email"}).</p>` : "";
+    azioni = `
+      ${nota}${nessunContatto}
+      <div class="gruppo-azioni">
+        ${bottoneEmail}${bottoneWa}
+        <button type="button" class="btn${aperto ? " btn-conferma" : ""}" data-azione="gp-segna" ${stato.inScrittura ? "disabled" : ""}>Segna inviato</button>
+        <button type="button" class="link link-piccolo" data-azione="gp-copia-testo">Copia testo</button>
+        <button type="button" class="link link-piccolo" data-azione="gp-copia-link">Copia link</button>
+        <button type="button" class="link link-piccolo" data-azione="gp-svuota">Svuota</button>
+      </div>
+      <p class="aiuto">L'email parte da Outlook: inviala da info@alpstay.eu. Non aprire il link dell'ospite da questo computer, altrimenti i suoi pass restano memorizzati qui.</p>`;
+  } else {
+    azioni = `<div class="gruppo-azioni"><button type="button" class="link link-piccolo" data-azione="gp-svuota">Svuota</button></div>`;
+  }
+
+  const daEmail = gp.emailId ? stato.casella.email.find((e) => e.id === gp.emailId) : undefined;
+  const origine = daEmail
+    ? `<p class="aiuto">Dalla casella Guest Pass, arrivato ${esc(fmtOra.format(new Date(daEmail.ricevuta)))}.${daEmail.firmata ? "" : ' <span class="badge badge-errore">mittente non verificato: controlla l\'email originale prima di inviare</span>'}</p>`
+    : "";
+  // pass presi dalla casella: la zona per incollare non serve e distrae
+  box.innerHTML = testa + (daEmail ? "" : zona) + avviso + origine + `<ul class="gp-pass">${elenco}</ul>` + scelte + azioni;
+}
+
+async function segnaGuestPassInviato(): Promise<void> {
+  const d = destinatarioGuestPass();
+  const gp = stato.gp;
+  const canale: Canale = gp.aperto ?? (d && d.emails.length ? "email" : "whatsapp");
+  if (d?.id) {
+    caricaInviiGuestPass();
+    stato.inviiGuestPass.set(d.id, { id: d.id, arrival: d.arrivo ?? oggiRoma(), canale, pass: gp.pass.length, inviatoIl: new Date().toISOString(), emailId: gp.emailId });
+    scriviJson(K_GUESTPASS, [...stato.inviiGuestPass.values()]);
+  }
+  if (gp.emailId) segnaEmailGestita(gp.emailId, true);
+  const quanti = gp.pass.length;
+  stato.gp = gpVuoto();
+  renderGuestPass();
+  mostraToast(quanti === 1 ? "Guest Pass segnato come inviato." : `${quanti} Guest Pass segnati come inviati.`);
+  window.setTimeout(() => document.getElementById("gp-zona")?.focus(), 30);
+}
+
+function collegaGuestPass(): void {
+  const app = $("#app");
+  const inZona = (t: EventTarget | null): boolean => t instanceof Node && Boolean((t instanceof Element ? t : t.parentElement)?.closest("#gp-zona"));
+  app.addEventListener("paste", (ev) => {
+    if (!inZona(ev.target)) return;
+    ev.preventDefault();
+    gestisciIncollaGuestPass(ev.clipboardData?.getData("text/html") ?? "", ev.clipboardData?.getData("text/plain") ?? "");
+  });
+  app.addEventListener("drop", (ev) => {
+    if (!inZona(ev.target)) return;
+    ev.preventDefault();
+    gestisciIncollaGuestPass(ev.dataTransfer?.getData("text/html") ?? "", ev.dataTransfer?.getData("text/plain") ?? "");
+  });
+  // la zona serve solo a incollare: niente testo scritto a mano
+  app.addEventListener("beforeinput", (ev) => {
+    if (inZona(ev.target) && ev.inputType !== "insertFromPaste" && ev.inputType !== "insertFromDrop") ev.preventDefault();
+  });
+  app.addEventListener("change", (ev) => {
+    const el = ev.target as HTMLInputElement | HTMLSelectElement;
+    const gp = stato.gp;
+    if (el.id === "gp-prenotazione") {
+      gp.sceltaId = el.value || null;
+      gp.proposta = null;
+      gp.lingua = null;
+      gp.aperto = null;
+    } else if (el.id === "gp-lingua") {
+      const v = el.value;
+      if (v === "de" || v === "it" || v === "en") gp.lingua = v;
+    } else if (el.id === "gp-email") {
+      gp.email = el.value.trim();
+    } else if (el.id === "gp-telefono") {
+      gp.telefono = el.value.trim();
+    } else return;
+    renderGuestPass();
+  });
+  app.addEventListener("click", (ev) => {
+    const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-azione^='gp-']");
+    if (!el) return;
+    const gp = stato.gp;
+    const d = destinatarioGuestPass();
+    switch (el.dataset.azione) {
+      case "gp-apri":
+        gp.aperto = el.dataset.canale === "whatsapp" ? "whatsapp" : "email";
+        window.setTimeout(renderGuestPass, 50);
+        break;
+      case "gp-segna":
+        void segnaGuestPassInviato();
+        break;
+      case "gp-copia-testo":
+        if (d) void copia(testoGuestPass(d.lingua, gp.pass), el);
+        break;
+      case "gp-copia-link":
+        if (d) void copia(linkGuestPass(d.lingua, gp.pass), el);
+        break;
+      case "gp-togli": {
+        const i = Number(el.dataset.indice);
+        if (Number.isInteger(i)) gp.pass.splice(i, 1);
+        if (gp.pass.length === 0) stato.gp = gpVuoto();
+        renderGuestPass();
+        break;
+      }
+      case "gp-svuota":
+        stato.gp = gpVuoto();
+        renderGuestPass();
+        break;
+      case "gp-prepara":
+        if (el.dataset.email) preparaDaEmail(el.dataset.email);
+        break;
+      case "gp-nascondi": {
+        const id = el.dataset.email;
+        if (!id) break;
+        segnaEmailGestita(id, true);
+        renderGuestPass();
+        mostraToast("Guest Pass nascosto.", async () => {
+          segnaEmailGestita(id, false);
+          renderGuestPass();
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  });
 }
 
 // ───────────────────────── Dialogo email a mano ─────────────────────────
@@ -1390,6 +1907,9 @@ function collegaEventi(): void {
     salvaPassword(null);
     password = null;
     stato.arrivi = [];
+    stato.tuttiArrivi = [];
+    stato.gp = gpVuoto();
+    stato.casella = casellaVuota();
     stato.erroreSblocco = null;
     stato.caricamento = "bloccata";
     (document.getElementById("impostazioni") as HTMLDetailsElement).open = false;
@@ -1400,6 +1920,8 @@ function collegaEventi(): void {
   window.addEventListener("storage", (e) => {
     if (e.key === K_INVII) caricaRegistro();
     else if (e.key === K_MANUALI) caricaManuali();
+    else if (e.key === K_GUESTPASS) caricaInviiGuestPass();
+    else if (e.key === K_GUESTPASS_EMAIL) caricaEmailGestite();
     else if (e.key === K_IMPOSTAZIONI) {
       caricaImpostazioni();
       if (!impostazioniModificate) riempiModulo();
@@ -1424,17 +1946,26 @@ async function avvia(): Promise<void> {
   caricaImpostazioni();
   caricaRegistro();
   caricaManuali();
+  caricaInviiGuestPass();
+  caricaEmailGestite();
   collegaEventi();
+  collegaGuestPass();
   riempiModulo();
   render();
   await caricaArrivi();
   // Ogni 10 minuti, e al ritorno sulla scheda, si rilegge arrivi.json (l'attività lo aggiorna ogni ora alle :40).
   let ultimo = Date.now();
+  let ultimoGp = Date.now();
   const aggiorna = (): void => {
     if (document.visibilityState !== "visible" || stato.caricamento === "in-corso" || stato.caricamento === "bloccata") return;
-    if (Date.now() - ultimo < AGGIORNA_OGNI_MS) return;
-    ultimo = Date.now();
-    void caricaArrivi();
+    if (Date.now() - ultimo >= AGGIORNA_OGNI_MS) {
+      ultimo = ultimoGp = Date.now();
+      void caricaArrivi();
+    } else if (stato.caricamento === "ok" && Date.now() - ultimoGp >= AGGIORNA_GP_OGNI_MS) {
+      // i Guest Pass si controllano più spesso degli arrivi
+      ultimoGp = Date.now();
+      void aggiornaCasella();
+    }
   };
   window.setInterval(aggiorna, 60_000);
   document.addEventListener("visibilitychange", aggiorna);

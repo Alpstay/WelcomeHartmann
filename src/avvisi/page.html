@@ -53,6 +53,8 @@ body {
 }
 #app { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
 h1, h2, h3 { font-family: var(--font-title); font-weight: 400; text-wrap: balance; margin: 0; }
+/* elementi nascosti (toast, campi del dialogo, riquadro Guest Pass): restano nascosti anche se hanno display:flex */
+[hidden] { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -159,6 +161,32 @@ textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
 .vuoto-errore .vuoto-titolo { color: var(--danger); }
 .vuoto-ok .vuoto-titolo { color: var(--ok); }
 
+/* Guest Pass personale: incolla l'email, la prenotazione si trova dal nome */
+.gruppo-gp { border-color: var(--gold); }
+.gruppo-gp .gruppo-testa h3 { color: var(--gold); }
+.gp-zona {
+  display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; min-height: 84px;
+  border: 2px dashed var(--gold); border-radius: var(--r); background: var(--gold-soft);
+  cursor: text; caret-color: transparent; outline: none;
+}
+.gp-zona:focus-visible { border-style: solid; }
+.gp-zona b { color: var(--gold); font-size: 15px; }
+.gp-zona span { font-size: 13px; color: var(--muted); }
+.gp-pass { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.gp-pass li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+.gp-pass li:first-child { border-top: 0; }
+.gp-nome { font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gruppo-gp .contatto { margin: 0; font-size: 14px; color: var(--fg); }
+/* Guest Pass arrivati dalla casella dedicata */
+.gp-arrivati { display: flex; flex-direction: column; gap: 6px; }
+.gp-arrivati h4 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.gp-email { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.gp-email li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.gp-email li:first-child { border-top: 0; }
+.gp-email-testo { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.gp-email-testo .gp-nome { flex: none; }
+.badge-errore { color: var(--danger); background: transparent; border: 1px solid var(--danger); }
+
 /* Impostazioni */
 #impostazioni { border-top: 1px solid var(--line); padding-top: 16px; }
 #impostazioni > summary { cursor: pointer; font-family: var(--font-title); font-size: 20px; color: var(--gold); }
@@ -255,6 +283,7 @@ textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
 
   <div id="riepilogo" aria-live="polite"></div>
   <div id="avvisi"></div>
+  <section id="guestpass" class="gruppo gruppo-gp" aria-labelledby="gp-titolo" hidden></section>
   <div id="lista"></div>
 
   <details id="impostazioni">
