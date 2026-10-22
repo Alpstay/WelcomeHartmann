@@ -37,6 +37,20 @@ await build({
   },
   legalComments: "none",
 });
+// Lettura della casella Gmail dei Guest Pass (GitHub Actions «Guest Pass dalla casella»): guestpass.json cifrato
+await build({
+  entryPoints: ["src/cli/guestpass-feed.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  outfile: "tools/guestpass-feed.mjs",
+  minify: true,
+  banner: {
+    js: "// Generato da src/cli/guestpass-feed.ts con build.mjs: non modificare a mano.\nimport { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
+  },
+  legalComments: "none",
+});
 // Programma «Hotel oggi» per l'AlpStay App Hub (gira in Node nella sessione pianificata)
 await build({
   entryPoints: ["src/hotel-oggi/cli.ts"],
