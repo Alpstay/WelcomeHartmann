@@ -1,0 +1,48 @@
+# Guest Pass dalla casella: legge la Gmail dedicata ai Guest Pass (email di sgp01@feratel.tv) e pubblica
+# guestpass.json, cifrato con la password reception, per il riquadro «Guest Pass» della pagina avvisi/.
+# Ogni 15 minuti dalle 6 alle 20 circa (orari GitHub in UTC) e a mano con "Run workflow".
+# Segreti: GUESTPASS_GMAIL, GUESTPASS_APP_PASSWORD (password per le app di Google), ARRIVI_PASSWORD.
+# Il registro di un repository pubblico è pubblico: il programma stampa solo conteggi, mai nomi, link o indirizzi.
+name: Guest Pass dalla casella
+on:
+  schedule:
+    - cron: "*/15 4-18 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: guestpass
+  cancel-in-progress: false
+jobs:
+  casella:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Azioni fissate a un commit preciso (non a un'etichetta che può essere spostata): il lavoro ha accesso ai segreti.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+      - name: Leggi la casella Guest Pass
+        env:
+          GUESTPASS_GMAIL: ${{ secrets.GUESTPASS_GMAIL }}
+          GUESTPASS_APP_PASSWORD: ${{ secrets.GUESTPASS_APP_PASSWORD }}
+          ARRIVI_PASSWORD: ${{ secrets.ARRIVI_PASSWORD }}
+        run: node tools/guestpass-feed.mjs guestpass.json stato-guestpass.txt
+      - name: Pubblica
+        id: pubblica
+        if: always()
+        run: |
+          prima=$(git rev-parse HEAD)
+          bash tools/github-commit.sh "Guest Pass $(TZ=Europe/Rome date '+%Y-%m-%d %H:%M') (GitHub)" guestpass.json stato-guestpass.txt
+          if [ "$(git rev-parse HEAD)" != "$prima" ]; then echo "nuovo=1" >> "$GITHUB_OUTPUT"; fi
+      # I commit fatti con GITHUB_TOKEN non ripubblicano GitHub Pages: la pubblicazione si chiede a parte,
+      # altrimenti il file nuovo andrebbe online solo con il prossimo aggiornamento degli arrivi.
+      - name: Aggiorna il sito
+        if: always() && steps.pubblica.outputs.nuovo == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" --silent \
+            || echo "Pubblicazione non richiesta: il file andrà online con il prossimo aggiornamento del sito."
