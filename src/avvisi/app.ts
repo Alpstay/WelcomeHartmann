@@ -1362,6 +1362,8 @@ function renderCasella(): string {
 /** Destinatario del Guest Pass: la prenotazione scelta (contatti Slope o a mano) oppure l'ospite non in lista. */
 interface DestinatarioGuestPass {
   id: string | null;
+  /** reservation_id Slope a cui legare i pass nel link: la prenotazione scelta e le altre camere dello stesso intestatario */
+  prenotazioni: string[];
   nome: string;
   arrivo: string | null;
   emails: string[];
@@ -1374,7 +1376,7 @@ function destinatarioGuestPass(): DestinatarioGuestPass | null {
   const gp = stato.gp;
   if (gp.sceltaId === GP_ALTRO) {
     const email = pulisciEmail(gp.email);
-    return { id: null, nome: "Ospite non in lista", arrivo: null, emails: email ? [email.toLowerCase()] : [], relayOta: relayOta(email), telefono: gp.telefono.trim() || null, lingua: gp.lingua ?? gp.linguaEmail ?? "en" };
+    return { id: null, prenotazioni: [], nome: "Ospite non in lista", arrivo: null, emails: email ? [email.toLowerCase()] : [], relayOta: relayOta(email), telefono: gp.telefono.trim() || null, lingua: gp.lingua ?? gp.linguaEmail ?? "en" };
   }
   const a = gp.sceltaId ? stato.tuttiArrivi.find((x) => x.reservationId === gp.sceltaId) : undefined;
   if (!a) return null;
@@ -1382,8 +1384,15 @@ function destinatarioGuestPass(): DestinatarioGuestPass | null {
   const manuale = m && m.tipo === "prenotazione" ? m : null;
   const usaScatola = Boolean(a.email) && !(manuale && manuale.email && manuale.sostituisce);
   const emails = [...new Set([usaScatola ? a.email : null, manuale?.email ?? null].filter((e): e is string => Boolean(e)).map((e) => e.toLowerCase()))];
+  // altre camere dello stesso intestatario (stessa email o stesso numero, stesso giorno): stessi pass, stesso link
+  const chiaveContatto = (x: Arrivo): string | null => (x.email ? x.email.toLowerCase() : x.telefono ? x.telefono.replace(/\D/g, "") : null);
+  const mio = chiaveContatto(a);
+  const camere = mio
+    ? stato.tuttiArrivi.filter((x) => x.reservationId !== a.reservationId && x.arrivo === a.arrivo && chiaveContatto(x) === mio).map((x) => x.reservationId)
+    : [];
   return {
     id: a.reservationId,
+    prenotazioni: [a.reservationId, ...camere],
     nome: a.nome,
     arrivo: a.arrivo,
     emails,
@@ -1478,7 +1487,7 @@ function renderGuestPass(): void {
 
   let azioni = "";
   if (d) {
-    const corpo = testoGuestPass(d.lingua, gp.pass);
+    const corpo = testoGuestPass(d.lingua, gp.pass, d.prenotazioni);
     const oggetto = TESTI_GUESTPASS[d.lingua].oggetto;
     const urlEmail = d.emails.length ? linkEmail(stato.impostazioni.programma, d.emails, oggetto, senzaGrassetto(corpo)) : null;
     const max = stato.impostazioni.programma === "gmail" ? MAX_LUNGHEZZA_GMAIL : MAX_LUNGHEZZA_MAILTO;
@@ -1583,10 +1592,10 @@ function collegaGuestPass(): void {
         void segnaGuestPassInviato();
         break;
       case "gp-copia-testo":
-        if (d) void copia(testoGuestPass(d.lingua, gp.pass), el);
+        if (d) void copia(testoGuestPass(d.lingua, gp.pass, d.prenotazioni), el);
         break;
       case "gp-copia-link":
-        if (d) void copia(linkGuestPass(d.lingua, gp.pass), el);
+        if (d) void copia(linkGuestPass(d.lingua, gp.pass, d.prenotazioni), el);
         break;
       case "gp-togli": {
         const i = Number(el.dataset.indice);

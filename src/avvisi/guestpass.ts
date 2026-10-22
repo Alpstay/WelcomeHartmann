@@ -189,11 +189,19 @@ export function prenotazioneProposta(nomiPass: readonly string[], candidati: rea
 
 // ───────────────────────── Link e testi ─────────────────────────
 
-/** Link personale alla pagina d'arrivo con i pass (nel frammento #: non arriva a nessun server). */
-export function linkGuestPass(lingua: Lingua, pass: readonly PassTrovato[]): string {
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Link personale alla pagina d'arrivo con i pass (nel frammento #: non arriva a nessun server).
+ * `prenotazioni` = reservation_id Slope a cui appartengono i pass (&gr=…, copiati identici): la Directory mostra i
+ * pass solo con il link di quella prenotazione, così su un dispositivo condiviso un ospite non vede quelli di un altro.
+ */
+export function linkGuestPass(lingua: Lingua, pass: readonly PassTrovato[], prenotazioni: readonly string[] = []): string {
   const gp = pass.map((p) => p.codice).join("~");
   const gn = pass.some((p) => p.nome) ? "&gn=" + pass.map((p) => encodeURIComponent(p.nome)).join("~") : "";
-  return `${LINK_ARRIVO}?lang=${lingua}#gp=${gp}${gn}`;
+  const ids = prenotazioni.filter((id) => RE_UUID.test(id)).slice(0, 12);
+  const gr = ids.length ? "&gr=" + ids.join("~") : "";
+  return `${LINK_ARRIVO}?lang=${lingua}#gp=${gp}${gn}${gr}`;
 }
 
 /** Testi del 22/10/2026 (bozza, modificabile nel riquadro prima dell'invio). Firma come gli avvisi pre-arrivo. */
@@ -245,8 +253,8 @@ export const TESTI_GUESTPASS: Readonly<Record<Lingua, TestoGuestPass>> = {
   },
 };
 
-export function testoGuestPass(lingua: Lingua, pass: readonly PassTrovato[]): string {
-  return TESTI_GUESTPASS[lingua].corpo.split(SEGNAPOSTO_LINK_GUESTPASS).join(linkGuestPass(lingua, pass));
+export function testoGuestPass(lingua: Lingua, pass: readonly PassTrovato[], prenotazioni: readonly string[] = []): string {
+  return TESTI_GUESTPASS[lingua].corpo.split(SEGNAPOSTO_LINK_GUESTPASS).join(linkGuestPass(lingua, pass, prenotazioni));
 }
 
 // ───────────────────────── File guestpass.json (casella Guest Pass) ─────────────────────────
