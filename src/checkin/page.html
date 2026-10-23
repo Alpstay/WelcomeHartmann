@@ -1,0 +1,264 @@
+<title>Check-in online Hartmann</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Belleza&family=Lato:wght@400;700&display=swap">
+<style>
+/* Banco reception, anche da telefono. Testata, quattro tessere di stato (filtri), ricerca, poi le prenotazioni divise per
+   stato nell'ordine in cui vanno lavorate. Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
+:root {
+  --bg: #ffffff;
+  --surface: #f8f6f1;
+  --fg: #161512;
+  --muted: #69645a;
+  --line: #e5dfd2;
+  --gold: #94752f;
+  --gold-soft: #f4eddc;
+  --ok: #2c7549;
+  --ok-soft: #e4f1e8;
+  --warn: #8f5400;
+  --warn-soft: #fbefd9;
+  --rust: #a2401a;
+  --rust-soft: #fbe7dd;
+  --danger: #b42318;
+  --danger-soft: #fce8e6;
+  --btn-bg: #161512;
+  --btn-fg: #ffffff;
+  --focus: #94752f;
+  --font-title: "Belleza", "Gill Sans", "Trebuchet MS", sans-serif;
+  --font-body: "Lato", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+    --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+    --rust: #ef9a72; --rust-soft: #2e1c14; --danger: #f08a7f; --danger-soft: #2e1715;
+    --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+  --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+  --rust: #ef9a72; --rust-soft: #2e1c14; --danger: #f08a7f; --danger-soft: #2e1715;
+  --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 72px;
+}
+#app { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--font-title); font-weight: 400; text-wrap: balance; margin: 0; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+a { color: inherit; }
+
+/* Testata */
+.testata { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.testata-titolo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.occhiello { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
+#finestra { font-size: 15px; }
+.testata-stato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#freschezza { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Pulsanti */
+.btn {
+  font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 42px; padding: 10px 16px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--fg); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primario { background: var(--btn-bg); color: var(--btn-fg); border-color: var(--btn-bg); }
+.btn-primario:hover:not(:disabled) { background: var(--gold); border-color: var(--gold); color: #fff; }
+.btn-piccolo { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.link { font: inherit; font-weight: 700; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.link-piccolo { font-size: 13px; color: var(--muted); min-height: 36px; }
+.link-piccolo:hover { color: var(--fg); }
+
+/* Avvisi sui dati */
+#avvisi { display: flex; flex-direction: column; gap: 10px; }
+#avvisi:empty { display: none; }
+.avviso { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 12px 16px; border-radius: var(--r); background: var(--warn-soft); }
+.avviso strong { color: var(--warn); }
+.avviso-prova { background: var(--gold-soft); }
+.avviso-prova strong { color: var(--fg); }
+
+/* Tessere di stato (filtri) */
+#stati:empty { display: none; }
+.tessere { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tessera {
+  font: inherit; color: var(--fg); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; padding: 14px 16px 12px;
+  border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: var(--r); background: var(--bg);
+}
+.tessera:hover { border-color: var(--c); }
+.tessera.attiva { background: var(--c-soft); border-color: var(--c); }
+.tessera-numero { font-family: var(--font-title); font-size: 34px; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+.tessera-titolo { font-size: 13px; font-weight: 700; }
+.tessera-checkin-da-fare, .gruppo-checkin-da-fare { --c: var(--danger); --c-soft: var(--danger-soft); }
+.tessera-email-da-correggere, .gruppo-email-da-correggere { --c: var(--warn); --c-soft: var(--warn-soft); }
+.tessera-email-mancante, .gruppo-email-mancante { --c: var(--rust); --c-soft: var(--rust-soft); }
+.tessera-tutto-ok, .gruppo-tutto-ok { --c: var(--ok); --c-soft: var(--ok-soft); }
+.sintesi { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: 14px; color: var(--muted); }
+.sintesi b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* Ricerca */
+.strumenti { display: flex; gap: 10px; }
+input[type="search"], input[type="password"] {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; min-height: 44px; width: 100%;
+}
+
+/* Gruppi */
+#lista { display: flex; flex-direction: column; gap: 18px; }
+.gruppo { border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: var(--r); padding: 14px 18px 6px; }
+.gruppo-testa { display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; }
+.gruppo-testa h2 { font-size: 22px; display: flex; align-items: center; gap: 10px; }
+.pallino { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.conta { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--c); background: var(--c-soft); border-radius: 999px; padding: 1px 9px; font-variant-numeric: tabular-nums; }
+.nota { margin: 0; font-size: 13px; color: var(--muted); max-width: 75ch; }
+
+/* Righe */
+.righe { list-style: none; margin: 0; padding: 0; }
+.riga {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1.05fr) minmax(0, 1.45fr) 190px;
+  grid-template-areas:
+    "camera ospite contatti checkin"
+    "camera azioni azioni azioni"
+    "camera contattato contattato contattato";
+  gap: 6px 18px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line);
+}
+.riga:first-child { border-top: 0; }
+.col-camera { grid-area: camera; }
+.col-ospite { grid-area: ospite; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.col-contatti { grid-area: contatti; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; }
+.col-checkin { grid-area: checkin; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.azioni { grid-area: azioni; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.contattato { grid-area: contattato; margin: 0; font-size: 13px; color: var(--ok); }
+.camera {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 8px;
+  border: 1px solid var(--gold); color: var(--gold); font-family: var(--font-title); font-size: 21px; font-variant-numeric: tabular-nums;
+}
+.nome { font-weight: 700; overflow-wrap: anywhere; }
+.date { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tra { font-weight: 700; color: var(--fg); }
+.tra-0 { color: var(--danger); }
+.campo-riga { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
+.etichetta { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); min-width: 40px; }
+.col-checkin .etichetta { width: 100%; }
+.email { overflow-wrap: anywhere; }
+.tel { text-decoration: none; font-variant-numeric: tabular-nums; }
+.tel:hover { text-decoration: underline; }
+.vuoto-campo { color: var(--muted); font-style: italic; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.badge-ok { color: var(--ok); background: var(--ok-soft); }
+.badge-portale { color: var(--warn); background: var(--warn-soft); }
+.badge-no { color: var(--rust); background: var(--rust-soft); }
+.codice { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 0 5px; }
+.esito { font-weight: 700; font-size: 14px; }
+.esito-ok { color: var(--ok); }
+.esito-no { color: var(--danger); }
+.link-checkin { display: inline-flex; gap: 6px; }
+.riga.contattata .azioni .btn-primario { background: var(--bg); color: var(--fg); border-color: var(--line); }
+
+/* Vuoto, errore, password */
+.vuoto { border: 1px dashed var(--line); border-radius: var(--r); padding: 28px 22px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.vuoto p { margin: 0; max-width: 60ch; }
+.vuoto-titolo { font-family: var(--font-title); font-size: 22px; color: var(--fg); }
+.vuoto-ok .vuoto-titolo { color: var(--ok); }
+.sblocco { text-align: left; align-items: stretch; max-width: 520px; margin: 0 auto; width: 100%; }
+.riga-sblocco { display: flex; gap: 8px; }
+.errore { color: var(--danger); font-weight: 700; }
+
+/* Legenda */
+#legenda { border-top: 1px solid var(--line); padding-top: 14px; font-size: 14px; }
+#legenda summary { cursor: pointer; font-weight: 700; }
+#legenda dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0; }
+#legenda dt { font-weight: 700; }
+#legenda dd { margin: 0; color: var(--muted); }
+#legenda p { color: var(--muted); max-width: 80ch; }
+
+#toast {
+  position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  display: flex; gap: 14px; align-items: center; max-width: calc(100vw - 32px);
+  background: var(--btn-bg); color: var(--btn-fg); padding: 12px 18px; border-radius: 10px; font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); z-index: 10;
+}
+#toast .link { color: inherit; }
+
+@media (max-width: 760px) {
+  body { padding-top: 18px; }
+  .tessere { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tessera-numero { font-size: 28px; }
+  .gruppo { padding: 12px 12px 4px; }
+  .riga {
+    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-areas: "camera ospite" "contatti contatti" "checkin checkin" "azioni azioni" "contattato contattato";
+    gap: 8px 12px;
+  }
+  .camera { width: 48px; height: 48px; font-size: 19px; }
+  .azioni .btn { flex: 1 1 auto; }
+  #legenda dl { grid-template-columns: 1fr; gap: 2px; }
+  #legenda dd { margin-bottom: 8px; }
+}
+</style>
+
+<div id="app">
+  <header class="testata">
+    <div class="testata-titolo">
+      <span class="occhiello">Chalet Hotel Hartmann · Ortisei · reception</span>
+      <h1>Check-in online &amp; email</h1>
+      <span id="finestra">Arrivi dei prossimi giorni</span>
+    </div>
+    <div class="testata-stato">
+      <span id="freschezza" aria-live="polite"></span>
+      <button type="button" class="btn" id="aggiorna">Aggiorna</button>
+    </div>
+  </header>
+
+  <div id="avvisi"></div>
+  <div id="stati" aria-live="polite"></div>
+  <div class="strumenti" id="strumenti" hidden>
+    <label class="sr" for="cerca">Cerca ospite</label>
+    <input id="cerca" type="search" placeholder="Cerca nome, camera, email o telefono" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="lista"></div>
+
+  <details id="legenda">
+    <summary>Come si legge questa pagina</summary>
+    <dl>
+      <dt>Check-in online da fare</dt>
+      <dd>In Slope manca il documento: l'ospite non ha fatto il check-in online. Mandagli il link personale (WhatsApp o email): nel modulo inserisce la sua email.</dd>
+      <dt>Email da correggere</dt>
+      <dd>Check-in fatto, ma nella scheda cliente c'è ancora l'indirizzo di inoltro del portale (Booking.com, Expedia) oppure un indirizzo con un errore di battitura.</dd>
+      <dt>Email mancante</dt>
+      <dd>Check-in fatto senza email. Chiedila all'ospite (WhatsApp, extranet o al banco).</dd>
+      <dt>Tutto a posto</dt>
+      <dd>Check-in fatto e indirizzo diretto dell'ospite in Slope.</dd>
+    </dl>
+    <p>L'email che l'ospite ti manda va scritta nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. Con l'aggiornamento orario la prenotazione passa da sola a «Tutto a posto».</p>
+    <p>«Contattato» resta solo su questo computer (id della prenotazione, canale e ora, nessun dato dell'ospite) e si cancella 14 giorni dopo l'arrivo. Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
+    <button type="button" class="btn btn-piccolo" data-azione="blocca" title="Toglie la password reception da questo browser: servirà di nuovo anche per lettere di benvenuto e avvisi">Blocca questo computer</button>
+  </details>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+/*__APP__*/
+</script>

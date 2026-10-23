@@ -62,6 +62,23 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/avvisi/ — stessa password re
 - Registro degli invii, contatti aggiunti a mano e testi restano nel browser del computer della
   reception (cancellati 30 giorni dopo l'arrivo).
 
+## Check-in online & email (piattaforma reception)
+
+Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password reception di lettere e avvisi.
+
+- Scopo: avere nella scheda cliente di Slope l'email diretta dell'ospite. Chi prenota dai portali ha in Slope solo
+  l'indirizzo di inoltro (…@guest.booking.com, …@m.expediapartnercentral.com); l'indirizzo vero entra con il check-in
+  online.
+- Una riga per prenotazione confermata (oggi → +6 giorni): nome, camera, arrivo, partenza, link di check-in online,
+  email, telefono. Quattro stati: check-in online da fare · fatto con email da correggere (portale o dominio scritto
+  male) · fatto con email mancante · tutto a posto. Check-in fatto = documento e privacy registrati in Slope.
+- Azioni: WhatsApp o email nella lingua dell'ospite (DE, IT, EN per le altre) con il link di check-in, oppure, a
+  check-in fatto, la sola richiesta dell'email; «Copia testo» per la chat dell'extranet; «Segna contattato».
+- Dati: lo stesso blocco `avvisi` di `arrivi.json` (nessun cambio all'aggiornamento orario). Nel browser resta solo il
+  registro «contattato» (id Slope, canale, ora), cancellato 14 giorni dopo l'arrivo.
+- Sorgente in `src/checkin/` (regole pure in `regole.ts`), test in `test/checkin.test.ts`; `dist/checkin-prova.html`
+  è l'anteprima con ospiti inventati.
+
 ## Hotel oggi (AlpStay App Hub)
 
 Lo stesso repository pubblica anche `hotel-oggi.json`: arrivi, partenze, fermate, pickup e
