@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ty7CAPP7iAA6Z5DCYa5L/pmNEVKdxuUmySdYd3S2RoY='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Check-in online Hartmann</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Belleza&family=Lato:wght@400;700&display=swap">
+<style>
+/* Banco reception, anche da telefono. Testata, quattro tessere di stato (filtri), ricerca, poi le prenotazioni divise per
+   stato nell'ordine in cui vanno lavorate. Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
+:root {
+  --bg: #ffffff;
+  --surface: #f8f6f1;
+  --fg: #161512;
+  --muted: #69645a;
+  --line: #e5dfd2;
+  --gold: #94752f;
+  --gold-soft: #f4eddc;
+  --ok: #2c7549;
+  --ok-soft: #e4f1e8;
+  --warn: #8f5400;
+  --warn-soft: #fbefd9;
+  --rust: #a2401a;
+  --rust-soft: #fbe7dd;
+  --danger: #b42318;
+  --danger-soft: #fce8e6;
+  --btn-bg: #161512;
+  --btn-fg: #ffffff;
+  --focus: #94752f;
+  --font-title: "Belleza", "Gill Sans", "Trebuchet MS", sans-serif;
+  --font-body: "Lato", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+    --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+    --rust: #ef9a72; --rust-soft: #2e1c14; --danger: #f08a7f; --danger-soft: #2e1715;
+    --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131211; --surface: #1c1b18; --fg: #f1ede4; --muted: #a39d90; --line: #302d27;
+  --gold: #d3b46c; --gold-soft: #2a2417; --ok: #72c495; --ok-soft: #16271d; --warn: #e3ab55; --warn-soft: #2c2314;
+  --rust: #ef9a72; --rust-soft: #2e1c14; --danger: #f08a7f; --danger-soft: #2e1715;
+  --btn-bg: #f1ede4; --btn-fg: #131211; --focus: #d3b46c; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 72px;
+}
+#app { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--font-title); font-weight: 400; text-wrap: balance; margin: 0; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+a { color: inherit; }
+
+/* Testata */
+.testata { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.testata-titolo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.occhiello { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
+#finestra { font-size: 15px; }
+.testata-stato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#freschezza { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Pulsanti */
+.btn {
+  font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 42px; padding: 10px 16px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--fg); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primario { background: var(--btn-bg); color: var(--btn-fg); border-color: var(--btn-bg); }
+.btn-primario:hover:not(:disabled) { background: var(--gold); border-color: var(--gold); color: #fff; }
+.btn-piccolo { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.link { font: inherit; font-weight: 700; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.link-piccolo { font-size: 13px; color: var(--muted); min-height: 36px; }
+.link-piccolo:hover { color: var(--fg); }
+
+/* Avvisi sui dati */
+#avvisi { display: flex; flex-direction: column; gap: 10px; }
+#avvisi:empty { display: none; }
+.avviso { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 12px 16px; border-radius: var(--r); background: var(--warn-soft); }
+.avviso strong { color: var(--warn); }
+.avviso-prova { background: var(--gold-soft); }
+.avviso-prova strong { color: var(--fg); }
+
+/* Tessere di stato (filtri) */
+#stati:empty { display: none; }
+.tessere { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tessera {
+  font: inherit; color: var(--fg); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; padding: 14px 16px 12px;
+  border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: var(--r); background: var(--bg);
+}
+.tessera:hover { border-color: var(--c); }
+.tessera.attiva { background: var(--c-soft); border-color: var(--c); }
+.tessera-numero { font-family: var(--font-title); font-size: 34px; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+.tessera-titolo { font-size: 13px; font-weight: 700; }
+.tessera-checkin-da-fare, .gruppo-checkin-da-fare { --c: var(--danger); --c-soft: var(--danger-soft); }
+.tessera-email-da-correggere, .gruppo-email-da-correggere { --c: var(--warn); --c-soft: var(--warn-soft); }
+.tessera-email-mancante, .gruppo-email-mancante { --c: var(--rust); --c-soft: var(--rust-soft); }
+.tessera-tutto-ok, .gruppo-tutto-ok { --c: var(--ok); --c-soft: var(--ok-soft); }
+.sintesi { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: 14px; color: var(--muted); }
+.sintesi b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* Ricerca */
+.strumenti { display: flex; gap: 10px; }
+input[type="search"], input[type="password"] {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; min-height: 44px; width: 100%;
+}
+
+/* Gruppi */
+#lista { display: flex; flex-direction: column; gap: 18px; }
+.gruppo { border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: var(--r); padding: 14px 18px 6px; }
+.gruppo-testa { display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; }
+.gruppo-testa h2 { font-size: 22px; display: flex; align-items: center; gap: 10px; }
+.pallino { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.conta { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--c); background: var(--c-soft); border-radius: 999px; padding: 1px 9px; font-variant-numeric: tabular-nums; }
+.nota { margin: 0; font-size: 13px; color: var(--muted); max-width: 75ch; }
+
+/* Righe */
+.righe { list-style: none; margin: 0; padding: 0; }
+.riga {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1.05fr) minmax(0, 1.45fr) 190px;
+  grid-template-areas:
+    "camera ospite contatti checkin"
+    "camera azioni azioni azioni"
+    "camera contattato contattato contattato";
+  gap: 6px 18px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line);
+}
+.riga:first-child { border-top: 0; }
+.col-camera { grid-area: camera; }
+.col-ospite { grid-area: ospite; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.col-contatti { grid-area: contatti; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; }
+.col-checkin { grid-area: checkin; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.azioni { grid-area: azioni; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.contattato { grid-area: contattato; margin: 0; font-size: 13px; color: var(--ok); }
+.camera {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 8px;
+  border: 1px solid var(--gold); color: var(--gold); font-family: var(--font-title); font-size: 21px; font-variant-numeric: tabular-nums;
+}
+.nome { font-weight: 700; overflow-wrap: anywhere; }
+.date { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tra { font-weight: 700; color: var(--fg); }
+.tra-0 { color: var(--danger); }
+.campo-riga { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
+.etichetta { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); min-width: 40px; }
+.col-checkin .etichetta { width: 100%; }
+.email { overflow-wrap: anywhere; }
+.tel { text-decoration: none; font-variant-numeric: tabular-nums; }
+.tel:hover { text-decoration: underline; }
+.vuoto-campo { color: var(--muted); font-style: italic; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.badge-ok { color: var(--ok); background: var(--ok-soft); }
+.badge-portale { color: var(--warn); background: var(--warn-soft); }
+.badge-no { color: var(--rust); background: var(--rust-soft); }
+.codice { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 0 5px; }
+.esito { font-weight: 700; font-size: 14px; }
+.esito-ok { color: var(--ok); }
+.esito-no { color: var(--danger); }
+.link-checkin { display: inline-flex; gap: 6px; }
+.riga.contattata .azioni .btn-primario { background: var(--bg); color: var(--fg); border-color: var(--line); }
+
+/* Vuoto, errore, password */
+.vuoto { border: 1px dashed var(--line); border-radius: var(--r); padding: 28px 22px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.vuoto p { margin: 0; max-width: 60ch; }
+.vuoto-titolo { font-family: var(--font-title); font-size: 22px; color: var(--fg); }
+.vuoto-ok .vuoto-titolo { color: var(--ok); }
+.sblocco { text-align: left; align-items: stretch; max-width: 520px; margin: 0 auto; width: 100%; }
+.riga-sblocco { display: flex; gap: 8px; }
+.errore { color: var(--danger); font-weight: 700; }
+
+/* Legenda */
+#legenda { border-top: 1px solid var(--line); padding-top: 14px; font-size: 14px; }
+#legenda summary { cursor: pointer; font-weight: 700; }
+#legenda dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0; }
+#legenda dt { font-weight: 700; }
+#legenda dd { margin: 0; color: var(--muted); }
+#legenda p { color: var(--muted); max-width: 80ch; }
+
+#toast {
+  position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  display: flex; gap: 14px; align-items: center; max-width: calc(100vw - 32px);
+  background: var(--btn-bg); color: var(--btn-fg); padding: 12px 18px; border-radius: 10px; font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); z-index: 10;
+}
+#toast .link { color: inherit; }
+
+@media (max-width: 760px) {
+  body { padding-top: 18px; }
+  .tessere { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tessera-numero { font-size: 28px; }
+  .gruppo { padding: 12px 12px 4px; }
+  .riga {
+    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-areas: "camera ospite" "contatti contatti" "checkin checkin" "azioni azioni" "contattato contattato";
+    gap: 8px 12px;
+  }
+  .camera { width: 48px; height: 48px; font-size: 19px; }
+  .azioni .btn { flex: 1 1 auto; }
+  #legenda dl { grid-template-columns: 1fr; gap: 2px; }
+  #legenda dd { margin-bottom: 8px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="testata">
+    <div class="testata-titolo">
+      <span class="occhiello">Chalet Hotel Hartmann · Ortisei · reception</span>
+      <h1>Check-in online &amp; email</h1>
+      <span id="finestra">Arrivi dei prossimi giorni</span>
+    </div>
+    <div class="testata-stato">
+      <span id="freschezza" aria-live="polite"></span>
+      <button type="button" class="btn" id="aggiorna">Aggiorna</button>
+    </div>
+  </header>
+
+  <div id="avvisi"></div>
+  <div id="stati" aria-live="polite"></div>
+  <div class="strumenti" id="strumenti" hidden>
+    <label class="sr" for="cerca">Cerca ospite</label>
+    <input id="cerca" type="search" placeholder="Cerca nome, camera, email o telefono" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="lista"></div>
+
+  <details id="legenda">
+    <summary>Come si legge questa pagina</summary>
+    <dl>
+      <dt>Check-in online da fare</dt>
+      <dd>In Slope manca il documento: l'ospite non ha fatto il check-in online. Mandagli il link personale (WhatsApp o email): nel modulo inserisce la sua email.</dd>
+      <dt>Email da correggere</dt>
+      <dd>Check-in fatto, ma nella scheda cliente c'è ancora l'indirizzo di inoltro del portale (Booking.com, Expedia) oppure un indirizzo con un errore di battitura.</dd>
+      <dt>Email mancante</dt>
+      <dd>Check-in fatto senza email. Chiedila all'ospite (WhatsApp, extranet o al banco).</dd>
+      <dt>Tutto a posto</dt>
+      <dd>Check-in fatto e indirizzo diretto dell'ospite in Slope.</dd>
+    </dl>
+    <p>L'email che l'ospite ti manda va scritta nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. Con l'aggiornamento orario la prenotazione passa da sola a «Tutto a posto».</p>
+    <p>«Contattato» resta solo su questo computer (id della prenotazione, canale e ora, nessun dato dell'ospite) e si cancella 14 giorni dopo l'arrivo. Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
+    <button type="button" class="btn btn-piccolo" data-azione="blocca" title="Toglie la password reception da questo browser: servirà di nuovo anche per lettere di benvenuto e avvisi">Blocca questo computer</button>
+  </details>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+"use strict";(()=>{var G=e=>`WelcomeHartmann|avvisi|${e}`;var H=()=>{let e=globalThis.crypto;if(!e?.subtle)throw new Error("WebCrypto non disponibile");return e.subtle};function z(e){let t=atob(e),n=new Uint8Array(new ArrayBuffer(t.length));for(let o=0;o<t.length;o++)n[o]=t.charCodeAt(o);return n}async function he(e,t,n,o){let i=await H().importKey("raw",new TextEncoder().encode(e),"PBKDF2",!1,["deriveKey"]);return H().deriveKey({name:"PBKDF2",salt:t,iterations:n,hash:"SHA-256"},i,{name:"AES-GCM",length:256},!1,[o])}async function U(e,t,n){let o=await he(t,z(e.salt),e.iter,"decrypt"),i=await H().decrypt({name:"AES-GCM",iv:z(e.iv),additionalData:new TextEncoder().encode(n)},o,z(e.ct));return JSON.parse(new TextDecoder().decode(i))}function B(e){let t=e;return!!t&&t.format===1&&t.app==="WelcomeHartmann"&&typeof t.from=="string"&&typeof t.to=="string"&&!!t.enc}var x="{LINK_ARRIVO}";var L="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",j=new RegExp(`^https://booking\\.slope\\.it/g/(${L})/(${L})/reservations/(${L})/check-in$`,"i");var p={it:["Che bello: tra pochi giorni sarete nostri ospiti allo Chalet Hotel Hartmann a Ortisei!","Prima di mettervi in viaggio, basta un clic sul vostro *link personale* qui sotto. Trovate tutto in un unico posto: il *check-in online*, il parcheggio e le indicazioni stradali:",x,"Farlo subito ci permette di inviarvi immediatamente:","","* *Il vostro Guest Pass digitale* per i mezzi pubblici.","* *Le istruzioni per il self check-in* (se arrivate dopo le 18:00).","","Buon viaggio, a presto in Val Gardena!","Ezio Prinoth","Il team dello Chalet Hotel Hartmann"].join(`
+`),de:["Wie sch\xF6n: In wenigen Tagen sind Sie unsere G\xE4ste im Chalet Hotel Hartmann in St. Ulrich!","Bevor Sie losfahren, klicken Sie einfach auf Ihren *pers\xF6nlichen Link* unten. Dort finden Sie alles an einem Ort: Ihren *Online-Check-in*, Parkm\xF6glichkeiten und die Anfahrt:",x,"Wenn Sie das jetzt erledigen, k\xF6nnen wir Ihnen sofort zusenden:","","* *Ihren digitalen Guest Pass* f\xFCr die \xF6ffentlichen Verkehrsmittel.","* *Ihre Anleitung f\xFCr den Self-Check-in* (falls Sie nach 18:00 Uhr ankommen).","","Gute Reise und bis bald in Gr\xF6den!","Ezio Prinoth","Ihr Team vom Chalet Hotel Hartmann"].join(`
+`),en:["How lovely: in a few days you will be our guests at Chalet Hotel Hartmann in Ortisei!","Before you hit the road, just click your *personal link* below. It has everything you need in one place: your *online check-in*, parking, and directions:",x,"Doing this now allows us to send you right away:","","* *Your digital Guest Pass* for public transport.","* *Your self check-in instructions* (if you arrive after 6:00 pm).","","Have a safe trip, see you soon in Val Gardena!","Ezio Prinoth","The Chalet Hotel Hartmann team"].join(`
+`)},nt={it:{oggetto:"Importante: check-in online prima del vostro arrivo \xB7 Chalet Hotel Hartmann",corpo:p.it,whatsapp:p.it},de:{oggetto:"Wichtig: Online-Check-in vor Ihrer Anreise \xB7 Chalet Hotel Hartmann",corpo:p.de,whatsapp:p.de},en:{oggetto:"Important: online check-in before your arrival \xB7 Chalet Hotel Hartmann",corpo:p.en,whatsapp:p.en}};var W=new Set(["20","27","30","31","32","33","34","36","40","41","43","44","45","46","47","48","49","61","64","90","91"]);function K(e){let t=e.trim().replace(/[\s().\/-]/g,""),n;if(t.startsWith("+"))n=t.slice(1);else if(t.startsWith("00"))n=t.slice(2);else if(/^3\d{8,9}$/.test(t))n=`39${t}`;else return null;if(!/^\d+$/.test(n))return null;let o=n.slice(0,2);return W.has(o)&&n[2]==="0"&&(n=o+n.slice(3)),n.length<8||n.length>15?null:fe(n)?n:null}function fe(e){return/^(\d)\1+$/.test(e.slice(1))||/(\d)\1{6,}/.test(e)?!1:e.startsWith("1")?e.length===11&&/^[2-9]/.test(e.slice(1)):e.startsWith("39")?/^39[03]/.test(e):!0}function V(e){let t=e.startsWith("39")||W.has(e.slice(0,2))?2:e.length>11?3:2;return`+${e.slice(0,t)} ${e.slice(t)}`}function q(e,t,n,o){let i=encodeURIComponent;return e==="gmail"?`https://mail.google.com/mail/?view=cm&fs=1&to=${i(t.join(","))}&su=${i(n)}&body=${i(o)}`:`mailto:${t.map(l=>i(l).replace(/%40/g,"@")).join(";")}?subject=${i(n)}&body=${i(o.replace(/\r?\n/g,`\r
+`))}`}var f=["checkin-da-fare","email-da-correggere","email-mancante","tutto-ok"],y={"checkin-da-fare":{titolo:"Check-in online da fare",breve:"Check-in da fare",spiegazione:"Mandare il link personale di check-in: nel modulo l'ospite inserisce la sua email."},"email-da-correggere":{titolo:"Check-in fatto \xB7 email da correggere",breve:"Email da correggere",spiegazione:"Ha fatto il check-in ma in Slope c'\xE8 ancora l'indirizzo del portale o un indirizzo con un errore."},"email-mancante":{titolo:"Check-in fatto \xB7 email mancante",breve:"Email mancante",spiegazione:"Ha fatto il check-in senza lasciare l'email: chiederla e scriverla nella scheda cliente in Slope."},"tutto-ok":{titolo:"Check-in fatto \xB7 email diretta",breve:"Tutto a posto",spiegazione:"Check-in online fatto e indirizzo diretto dell'ospite in Slope."}},ve=14,ye=/^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i,ke=[[/(^|\.)guest\.booking\.com$/,"Booking.com"],[/(^|\.)expediapartnercentral\.com$/,"Expedia"],[/(^|\.)(guest|reply)\.airbnb\.com$/,"Airbnb"],[/(^|\.)agoda-messaging\.com$/,"Agoda"]],O=["gmail.com","googlemail.com","hotmail.com","hotmail.it","hotmail.de","outlook.com","outlook.it","outlook.de","live.com","live.it","live.de","yahoo.com","yahoo.it","yahoo.de","icloud.com","me.com","libero.it","virgilio.it","alice.it","tim.it","tiscali.it","fastwebnet.it","gmx.de","gmx.at","gmx.net","gmx.ch","web.de","t-online.de","aon.at","bluewin.ch","orange.fr","wp.pl","seznam.cz"],be=new Set(["com","net","org","eu","it","de","at","ch","fr","es","nl","be","lu","li","pl","cz","sk","si","hr","hu","dk","se","no","fi","pt","ie","uk","gr","ro","bg","us","ca","au","ru","il","ar","br","mx","jp","cn"]),I=e=>Date.parse(`${e}T12:00:00Z`);function C(e=new Date){return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Rome",year:"numeric",month:"2-digit",day:"2-digit"}).format(e)}function P(e,t){return new Date(I(e)+t*864e5).toISOString().slice(0,10)}function Z(e,t){return Math.round((I(t)-I(e))/864e5)}var we={it:"it-IT",de:"de-DE",en:"en-GB"};function Ie(e,t){return new Intl.DateTimeFormat(we[t],{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"}).format(new Date(I(e)))}function Ce(e,t){let n=Array.from({length:t.length+1},(o,i)=>i);for(let o=1;o<=e.length;o++){let i=n[0];n[0]=o;for(let r=1;r<=t.length;r++){let l=n[r];n[r]=Math.min(n[r]+1,n[r-1]+1,i+(e[o-1]===t[r-1]?0:1)),i=l}}return n[t.length]}function $e(e){let[t,n]=e.toLowerCase().split("@");if(!t||!n||O.includes(n))return null;let o=n.split("."),i=o.slice(1).join("."),r=O.filter(w=>w.split(".")[0]===o[0]);if(r.length>0)return be.has(i)?null:`${t}@${r[0]}`;let l=n.length>=8?2:1,c=null,d=l+1;for(let w of O){let D=Ce(n,w);D<d&&(d=D,c=w)}return c?`${t}@${c}`:null}function Ee(e){let t=e.split("@")[1]?.toLowerCase()??"";for(let[n,o]of ke)if(n.test(t))return o;return null}function Se(e){let t=(e??"").trim();if(!t||!ye.test(t))return{tipo:"mancante",portale:null,suggerita:null};let n=Ee(t);if(n)return{tipo:"portale",portale:n,suggerita:null};let o=$e(t);return o?{tipo:"sospetta",portale:null,suggerita:o}:{tipo:"diretta",portale:null,suggerita:null}}function Ae(e,t){return e?t.tipo==="mancante"?"email-mancante":t.tipo==="diretta"?"tutto-ok":"email-da-correggere":"checkin-da-fare"}function Te(e){let t=(e??"").trim().toLowerCase().slice(0,2);return t==="de"?"de":t==="it"?"it":"en"}function J(e){let t=e.trim().replace(/\s+/g," ");return t!==t.toUpperCase()?t:t.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu,(n,o,i)=>o+i.toUpperCase())}function Re(e,t){let n=Se(e.email),o=e.checkinFatto===!0,i=(e.checkinUrl??"").trim(),r=(e.phone??"").trim()||null;return{reservationId:e.reservationId,camera:(e.room??"").trim()||null,nome:J(e.name||"")||"Ospite senza nome",nomeSaluto:J(e.greetingName??""),arrivo:e.arrival,partenza:e.departure,giorniAllArrivo:Z(t,e.arrival),notti:Math.max(0,Z(e.arrival,e.departure)),lingua:Te(e.lang),linguaSlope:(e.lang??"").trim().toLowerCase()||null,email:n.tipo==="mancante"?null:(e.email??"").trim(),controlloEmail:n,telefono:r,whatsapp:r?K(r):null,checkinUrl:j.test(i)?i:null,checkinFatto:o,stato:Ae(o,n)}}function Q(e,t){let n=new Set;return e.filter(o=>typeof o.reservationId=="string"&&o.arrival>=t).filter(o=>n.has(o.reservationId)?!1:(n.add(o.reservationId),!0)).map(o=>Re(o,t)).sort(ze)}function ze(e,t){return f.indexOf(e.stato)-f.indexOf(t.stato)||e.arrivo.localeCompare(t.arrivo)||(e.camera??"~").localeCompare(t.camera??"~","it",{numeric:!0})||e.nome.localeCompare(t.nome)}function X(e){let t={"checkin-da-fare":0,"email-da-correggere":0,"email-mancante":0,"tutto-ok":0};for(let n of e)t[n.stato]++;return t}var Y=e=>e.normalize("NFD").replace(/\p{M}/gu,"").toLowerCase();function ee(e,t){let n=Y(t).split(/\s+/).filter(Boolean);return n.length?e.filter(o=>{let i=Y([o.nome,o.camera??"",o.email??"",o.telefono??"",o.whatsapp??""].join(" "));return n.every(r=>i.includes(r))}):[...e]}function M(e){return e.stato==="tutto-ok"?null:e.stato==="checkin-da-fare"&&e.checkinUrl?"checkin":"email"}var m={it:"Reception Chalet Hotel Hartmann",de:"Rezeption Chalet Hotel Hartmann",en:"Reception Chalet Hotel Hartmann"};function h(e,t){return e==="de"?t?`Guten Tag ${t},`:"Guten Tag,":e==="it"?t?`Gentile ${t},`:"Gentile ospite,":t?`Hello ${t},`:"Hello,"}function $(e,t){let n=e.lingua,o=Ie(e.arrivo,n),i=e.checkinUrl??"";return{it:{checkin:{oggetto:"Il suo check-in online \xB7 Chalet Hotel Hartmann",testo:[h("it",e.nomeSaluto),`la aspettiamo allo Chalet Hotel Hartmann ${o}. Per arrivare senza attese, completi il check-in online qui:`,i,"Nel modulo inserisca il suo indirizzo email personale: \xE8 l\xEC che le inviamo il Guest Pass per i mezzi pubblici e le informazioni per il soggiorno.","A presto!",m.it].join(`
+
+`)},email:{oggetto:"Il suo indirizzo email \xB7 Chalet Hotel Hartmann",testo:[h("it",e.nomeSaluto),e.checkinFatto?"grazie per aver completato il check-in online! Ci manca solo il suo indirizzo email personale: ce lo pu\xF2 scrivere in risposta a questo messaggio?":`la aspettiamo allo Chalet Hotel Hartmann ${o}. Ci pu\xF2 scrivere in risposta a questo messaggio il suo indirizzo email personale?`,"Ci serve per inviarle il Guest Pass per i mezzi pubblici e le informazioni per il soggiorno.","Grazie e a presto!",m.it].join(`
+
+`)}},de:{checkin:{oggetto:"Ihr Online-Check-in \xB7 Chalet Hotel Hartmann",testo:[h("de",e.nomeSaluto),`wir freuen uns, Sie am ${o} im Chalet Hotel Hartmann zu begr\xFC\xDFen. Damit Sie ohne Wartezeit ankommen, erledigen Sie bitte hier Ihren Online-Check-in:`,i,"Bitte geben Sie im Formular Ihre pers\xF6nliche E-Mail-Adresse an: Dorthin senden wir Ihnen den Guest Pass f\xFCr die \xF6ffentlichen Verkehrsmittel und die Infos zu Ihrem Aufenthalt.","Bis bald!",m.de].join(`
+
+`)},email:{oggetto:"Ihre E-Mail-Adresse \xB7 Chalet Hotel Hartmann",testo:[h("de",e.nomeSaluto),e.checkinFatto?"vielen Dank f\xFCr Ihren Online-Check-in! Uns fehlt nur noch Ihre pers\xF6nliche E-Mail-Adresse: K\xF6nnten Sie sie uns als Antwort auf diese Nachricht schicken?":`wir freuen uns, Sie am ${o} im Chalet Hotel Hartmann zu begr\xFC\xDFen. K\xF6nnten Sie uns als Antwort auf diese Nachricht Ihre pers\xF6nliche E-Mail-Adresse schicken?`,"Wir brauchen sie, um Ihnen den Guest Pass f\xFCr die \xF6ffentlichen Verkehrsmittel und die Infos zu Ihrem Aufenthalt zu senden.","Vielen Dank und bis bald!",m.de].join(`
+
+`)}},en:{checkin:{oggetto:"Your online check-in \xB7 Chalet Hotel Hartmann",testo:[h("en",e.nomeSaluto),`we look forward to welcoming you at Chalet Hotel Hartmann on ${o}. To arrive without waiting, please complete your online check-in here:`,i,"Please enter your personal email address in the form: that is where we send your Guest Pass for public transport and the information for your stay.","See you soon!",m.en].join(`
+
+`)},email:{oggetto:"Your email address \xB7 Chalet Hotel Hartmann",testo:[h("en",e.nomeSaluto),e.checkinFatto?"thank you for completing your online check-in! We are only missing your personal email address: could you reply to this message with it?":`we look forward to welcoming you at Chalet Hotel Hartmann on ${o}. Could you reply to this message with your personal email address?`,"We need it to send you the Guest Pass for public transport and the information for your stay.","Thank you and see you soon!",m.en].join(`
+
+`)}}}[n][t]}function te(e,t){return e.whatsapp?`https://wa.me/${e.whatsapp}?text=${encodeURIComponent($(e,t).testo)}`:null}function ne(e,t,n){if(!e.email)return null;let o=$(e,t);return q(n,[e.email],o.oggetto,o.testo)}function oe(e,t){let n=P(t,-ve),o=["whatsapp","email","testo","altro"],i=new Map;for(let r of Array.isArray(e)?e:[])!r||typeof r.id!="string"||typeof r.arrivo!="string"||r.arrivo<n||r.motivo!=="checkin"&&r.motivo!=="email"||!o.includes(r.canale)||typeof r.quando!="string"||i.set(r.id,{id:r.id,motivo:r.motivo,canale:r.canale,quando:r.quando,arrivo:r.arrivo});return i}function E(e,t){let n=t.get(e.reservationId),o=M(e);return n&&o&&n.motivo===o?n:null}var le="checkinHartmann.contatti",ce="checkinHartmann.filtro",He="avvisiHartmann.impostazioni",xe=10*6e4,Le=180*6e4,_="Europe/Rome",a={caricamento:"attesa",errore:null,erroreSblocco:null,dati:null,righe:[],oggi:C(),filtro:"tutti",cerca:"",registro:new Map,archivioOk:!0},b;function de(e,t){try{let n=localStorage.getItem(e);return n?JSON.parse(n):t}catch{return a.archivioOk=!1,t}}function Oe(e,t){try{localStorage.setItem(e,JSON.stringify(t))}catch{a.archivioOk=!1}}function ae(){a.registro=oe(de(le,[]),a.oggi)}function S(){Oe(le,[...a.registro.values()])}function Pe(){return de(He,null)?.programma==="gmail"?"gmail":"mailto"}async function v(e=null){a.oggi=C(),a.caricamento="in-corso",a.errore=null,u();let t=await b.leggi(e);t.esito==="ok"?(a.dati=t.dati,a.righe=Q(t.dati.righe,a.oggi),a.erroreSblocco=null,a.caricamento="ok"):t.esito==="password"?(a.erroreSblocco=t.errore,a.caricamento="password"):(a.errore={titolo:t.titolo,dettaglio:t.dettaglio},a.caricamento="errore"),u()}var Me=new Intl.DateTimeFormat("it-IT",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"}),ie=new Intl.DateTimeFormat("it-IT",{hour:"2-digit",minute:"2-digit",timeZone:_}),Fe=new Intl.DateTimeFormat("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",timeZone:_}),A=e=>Me.format(new Date(`${e}T12:00:00Z`));function _e(e){return e<=0?"oggi":e===1?"domani":`tra ${e} giorni`}function k(e){if(!e)return"";let t=new Date(e);if(!Number.isFinite(t.getTime()))return"";let n=C(t);return n===a.oggi?`alle ${ie.format(t)}`:n===P(a.oggi,-1)?`ieri alle ${ie.format(t)}`:`il ${Fe.format(t)}`}var ue={whatsapp:"WhatsApp",email:"email",testo:"testo copiato",altro:"a voce o altro"};function s(e){return e.replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[t])}function g(e){let t=document.querySelector(e);if(!t)throw new Error(`Elemento mancante: ${e}`);return t}var re;function T(e,t){let n=g("#toast");n.innerHTML=`<span>${s(e)}</span>${t?'<button type="button" class="link" id="toast-annulla">Annulla</button>':""}`,n.hidden=!1,document.getElementById("toast-annulla")?.addEventListener("click",()=>{n.hidden=!0,t?.()}),window.clearTimeout(re),re=window.setTimeout(()=>n.hidden=!0,t?1e4:4e3)}async function se(e){try{return await navigator.clipboard.writeText(e),!0}catch{let t=document.createElement("textarea");t.value=e,t.setAttribute("readonly",""),t.style.position="fixed",t.style.opacity="0",document.body.appendChild(t),t.select();let n=!1;try{n=document.execCommand("copy")}catch{n=!1}return t.remove(),n}}function F(e,t,n){let o=a.registro.get(e.reservationId)??null;a.registro.set(e.reservationId,{id:e.reservationId,motivo:t,canale:n,quando:new Date().toISOString(),arrivo:e.arrivo}),S(),u(),T(`${e.camera?`Camera ${e.camera}`:e.nome}: segnato come contattato (${ue[n]}).`,()=>{o?a.registro.set(e.reservationId,o):a.registro.delete(e.reservationId),S(),u()})}function Ne(e){let t=a.registro.get(e);t&&(a.registro.delete(e),S(),u(),T("Contatto tolto dal registro.",()=>{a.registro.set(e,t),S(),u()}))}function De(){let e=a.dati;g("#finestra").textContent=e?`Arrivi da ${A(a.oggi>e.da?a.oggi:e.da)} a ${A(e.a)}`:"Arrivi dei prossimi giorni";let t=g("#freschezza");a.caricamento==="in-corso"?t.textContent="lettura dei dati\u2026":e&&a.caricamento==="ok"?t.textContent=b.prova?"dati di prova, inventati":`Prenotazioni Slope aggiornate ${k(e.aggiornatoAlle??e.generatoAlle)}`:t.textContent="",document.getElementById("aggiorna").disabled=a.caricamento==="in-corso"||a.caricamento==="password"}function Ge(){let e=g("#avvisi"),t=[],n=a.dati;if(n&&a.caricamento==="ok"){n.freschezza==="failing"?t.push(`<div class="avviso"><strong>L'ultimo aggiornamento non \xE8 riuscito; sono mostrati gli ultimi dati disponibili.</strong> <span>Prenotazioni lette da Slope ${s(k(n.aggiornatoAlle))}: check-in ed email fatti dopo non sono ancora qui.</span></div>`):n.freschezza==="stale"&&t.push(`<div class="avviso"><strong>I dati potrebbero non essere aggiornati.</strong> <span>Prenotazioni lette da Slope ${s(k(n.aggiornatoAlle))}.</span></div>`);let o=Date.parse(n.generatoAlle),i=Number(new Intl.DateTimeFormat("en-GB",{timeZone:_,hour:"2-digit",hour12:!1}).format(new Date));!b.prova&&Number.isFinite(o)&&Date.now()-o>Le&&i>=9&&i<=19&&t.push(`<div class="avviso"><strong>File fermo ${s(k(n.generatoAlle))}.</strong> <span>L'aggiornamento orario non \xE8 passato: le ultime modifiche in Slope potrebbero mancare.</span></div>`)}a.archivioOk||t.push('<div class="avviso"><strong>Questo browser non salva i dati.</strong> <span>Il registro \xABcontattato\xBB si perde chiudendo la pagina: non usare la navigazione privata.</span></div>'),e.innerHTML=t.join("")}function Ue(){let e=g("#stati"),t=g("#strumenti");if(a.caricamento!=="ok"&&!(a.caricamento==="in-corso"&&a.dati)){e.innerHTML="",t.hidden=!0;return}t.hidden=!1;let n=X(a.righe),o=a.righe.filter(c=>c.stato!=="tutto-ok"),i=o.filter(c=>E(c,a.registro)).length,r=f.map(c=>{let d=a.filtro===c;return`<button type="button" class="tessera tessera-${c}${d?" attiva":""}" data-azione="filtro" data-stato="${c}" aria-pressed="${d}">
+      <span class="tessera-numero">${n[c]}</span>
+      <span class="tessera-titolo">${s(y[c].breve)}</span>
+    </button>`}).join(""),l=a.righe.length;e.innerHTML=`
+    <div class="tessere">${r}</div>
+    <p class="sintesi">
+      <span><b>${l}</b> ${l===1?"prenotazione":"prenotazioni"} in arrivo \xB7 <b>${o.length}</b> da sistemare${i?` (${i} gi\xE0 contattate)`:""}</span>
+      ${a.filtro!=="tutti"?'<button type="button" class="link" data-azione="filtro" data-stato="tutti">Mostra tutti</button>':""}
+    </p>`}function Be(e){let t=e.controlloEmail;return t.tipo==="mancante"?'<span class="badge badge-no">nessuna email</span>':t.tipo==="portale"?`<span class="badge badge-portale" title="Indirizzo di inoltro del portale: non \xE8 l'email dell'ospite">${s(t.portale??"portale")}</span>`:t.tipo==="sospetta"?`<span class="badge badge-portale" title="Il dominio sembra scritto male">forse ${s(t.suggerita??"")}</span>`:'<span class="badge badge-ok">diretta</span>'}function je(e){if(!e.telefono)return'<span class="vuoto-campo">nessun telefono</span>';let t=e.whatsapp?V(e.whatsapp):e.telefono,n=e.whatsapp?`+${e.whatsapp}`:e.telefono.replace(/[^\d+]/g,"");return`<a class="tel" href="tel:${s(n)}">${s(t)}</a>${e.whatsapp?"":' <span class="badge badge-portale" title="Numero segnaposto del portale o senza prefisso internazionale: WhatsApp non disponibile">da controllare</span>'}`}function We(e){return e.checkinFatto?'<span class="esito esito-ok">\u2713 fatto</span>':e.checkinUrl?`<span class="esito esito-no">da fare</span>
+    <span class="link-checkin">
+      <button type="button" class="btn btn-piccolo" data-azione="copia-link" data-id="${s(e.reservationId)}">Copia link</button>
+      <a class="btn btn-piccolo" href="${s(e.checkinUrl)}" target="_blank" rel="noopener noreferrer" title="Apre il check-in online di Slope (anche sul tablet della reception, con l'ospite al banco)">Apri</a>
+    </span>`:'<span class="esito esito-no">da fare</span> <span class="badge badge-no" title="Slope non ha fornito il link personale">senza link</span>'}function Ke(e){let t=M(e);if(!t)return"";let n=s(e.reservationId),o=te(e,t),i=ne(e,t,Pe()),r=t==="checkin"?"link check-in":"chiedi email",l=e.controlloEmail.tipo==="diretta",c=o?`<a class="btn btn-piccolo${l?"":" btn-primario"}" href="${s(o)}" target="_blank" rel="noopener noreferrer" data-azione="apri" data-canale="whatsapp" data-motivo="${t}" data-id="${n}">WhatsApp \xB7 ${r}</a>`:"",d=i?`<a class="btn btn-piccolo${l||!o?" btn-primario":""}" href="${s(i)}" target="_blank" rel="noopener" data-azione="apri" data-canale="email" data-motivo="${t}" data-id="${n}"${e.controlloEmail.tipo==="portale"?` title="Arriva all'ospite solo se spedisci da info@alpstay.eu (indirizzo registrato in ${s(e.controlloEmail.portale??"extranet")})"`:""}>Email \xB7 ${r}</a>`:"";return`<div class="azioni">
+    ${l?d+c:c+d}
+    <button type="button" class="link link-piccolo" data-azione="copia-testo" data-motivo="${t}" data-id="${n}" title="Testo nella lingua dell'ospite, da incollare per esempio nella chat dell'extranet">Copia testo</button>
+    <button type="button" class="link link-piccolo" data-azione="segna" data-motivo="${t}" data-id="${n}">Segna contattato</button>
+  </div>`}function Ve(e){let t=E(e,a.registro);return t?`<p class="contattato">\u2713 Contattato ${s(k(t.quando))} \xB7 ${s(ue[t.canale])}. In attesa che l'ospite risponda e che l'email arrivi in Slope. <button type="button" class="link link-piccolo" data-azione="togli-contatto" data-id="${s(e.reservationId)}">Annulla</button></p>`:""}function qe(e){let t=!!E(e,a.registro),n=e.linguaSlope&&e.linguaSlope!==e.lingua?`${e.linguaSlope.toUpperCase()}\u2192${e.lingua.toUpperCase()}`:e.lingua.toUpperCase();return`
+    <li class="riga${t?" contattata":""}">
+      <div class="col-camera"><span class="camera" title="Camera">${s(e.camera??"\u2014")}</span></div>
+      <div class="col-ospite">
+        <span class="nome">${s(e.nome)}</span>
+        <span class="date"><span class="tra tra-${Math.min(e.giorniAllArrivo,2)}">${s(_e(e.giorniAllArrivo))}</span> ${s(A(e.arrivo))} \u2192 ${s(A(e.partenza))} \xB7 ${e.notti===1?"1 notte":`${e.notti} notti`}</span>
+      </div>
+      <div class="col-contatti">
+        <span class="campo-riga"><span class="etichetta">Email</span>${e.email?`<span class="email">${s(e.email)}</span>`:""} ${Be(e)}</span>
+        <span class="campo-riga"><span class="etichetta">Tel.</span>${je(e)} <span class="codice" title="Lingua dei messaggi (Slope \u2192 testo)">${s(n)}</span></span>
+      </div>
+      <div class="col-checkin"><span class="etichetta">Check-in online</span>${We(e)}</div>
+      ${Ke(e)}
+      ${Ve(e)}
+    </li>`}function ge(){let e=g("#lista");if(a.caricamento==="attesa"||a.caricamento==="in-corso"&&!a.dati){e.innerHTML='<div class="vuoto"><p class="vuoto-titolo">Leggo gli arrivi dello Chalet Hartmann\u2026</p></div>';return}if(a.caricamento==="password"){e.innerHTML=`
+      <form class="vuoto sblocco" id="form-sblocco" autocomplete="on">
+        <p class="vuoto-titolo">Password reception</p>
+        <p>\xC8 la stessa delle lettere di benvenuto e degli avvisi arrivo. Su questo computer basta inserirla una volta.</p>
+        <div class="riga-sblocco">
+          <label class="sr" for="sblocco-pw">Password reception</label>
+          <input id="sblocco-pw" type="password" autocomplete="current-password" required>
+          <button class="btn btn-primario" type="submit">Apri</button>
+        </div>
+        ${a.erroreSblocco?`<p class="errore" role="alert">${s(a.erroreSblocco)}</p>`:""}
+      </form>`,window.setTimeout(()=>document.getElementById("sblocco-pw")?.focus(),30);return}if(a.caricamento==="errore"&&a.errore){e.innerHTML=`<div class="vuoto vuoto-errore"><p class="vuoto-titolo">${s(a.errore.titolo)}</p><p>${s(a.errore.dettaglio)}</p><button type="button" class="btn btn-primario" data-azione="riprova">Riprova</button></div>`;return}if(!a.righe.length){e.innerHTML=`<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Nessun arrivo confermato nei prossimi giorni.</p><p>Le nuove prenotazioni compaiono con l'aggiornamento orario da Slope.</p></div>`;return}let t=ee(a.righe,a.cerca),n=a.filtro==="tutti"?t:t.filter(o=>o.stato===a.filtro);if(!n.length){e.innerHTML=`<div class="vuoto"><p class="vuoto-titolo">${a.cerca?"Nessun ospite corrisponde alla ricerca.":`Nessuna prenotazione in \xAB${s(y[a.filtro].breve)}\xBB.`}</p></div>`;return}e.innerHTML=f.filter(o=>n.some(i=>i.stato===o)).map(o=>{let i=n.filter(r=>r.stato===o);return`
+        <section class="gruppo gruppo-${o}" aria-labelledby="g-${o}">
+          <div class="gruppo-testa">
+            <h2 id="g-${o}"><span class="pallino" aria-hidden="true"></span>${s(y[o].titolo)} <span class="conta">${i.length}</span></h2>
+            <p class="nota">${s(y[o].spiegazione)}</p>
+          </div>
+          <ul class="righe">${i.map(qe).join("")}</ul>
+        </section>`}).join("")}function u(){De(),Ge(),Ue(),ge()}function Ze(e){return e?a.righe.find(t=>t.reservationId===e):void 0}function Je(){document.getElementById("aggiorna")?.addEventListener("click",()=>{v()});let e=document.getElementById("cerca");e?.addEventListener("input",()=>{a.cerca=e.value,ge()}),document.addEventListener("submit",t=>{if(t.target.id!=="form-sblocco")return;t.preventDefault();let o=document.getElementById("sblocco-pw")?.value??"";o&&v(o)}),document.addEventListener("click",t=>{let n=t.target.closest("[data-azione]");if(!n)return;let o=n.dataset.azione,i=Ze(n.dataset.id),r=n.dataset.motivo==="email"?"email":"checkin";switch(o){case"riprova":v();break;case"filtro":{let l=n.dataset.stato;a.filtro=l&&l!==a.filtro?l:"tutti";try{sessionStorage.setItem(ce,a.filtro)}catch{}u();break}case"copia-link":i?.checkinUrl&&se(i.checkinUrl).then(l=>T(l?`Link di check-in copiato${i.camera?` (camera ${i.camera})`:""}.`:"Copia non riuscita: usa \xABApri\xBB e copia l'indirizzo."));break;case"copia-testo":i&&se($(i,r).testo).then(l=>{l?F(i,r,"testo"):T("Copia non riuscita.")});break;case"apri":i&&F(i,r,n.dataset.canale==="email"?"email":"whatsapp");break;case"segna":i&&F(i,r,"altro");break;case"togli-contatto":n.dataset.id&&Ne(n.dataset.id);break;case"blocca":b.dimentica(),a.dati=null,a.righe=[],v();break}})}async function pe(e){b=e;try{let o=sessionStorage.getItem(ce);o&&(o==="tutti"||f.includes(o))&&(a.filtro=o)}catch{}ae(),Je(),u(),await v();let t=Date.now(),n=()=>{document.visibilityState!=="visible"||a.caricamento==="in-corso"||a.caricamento==="password"||Date.now()-t<xe||(t=Date.now(),ae(),v())};window.setInterval(n,6e4),document.addEventListener("visibilitychange",n)}var Ye="../arrivi.json",N="welcomeHartmann.password";function Qe(){try{return localStorage.getItem(N)}catch{return null}}function me(e){try{e?localStorage.setItem(N,e):localStorage.removeItem(N)}catch{}}async function Xe(){let e=await fetch(`${Ye}?t=${Date.now()}`,{cache:"no-store"});if(!e.ok)throw new Error(`HTTP ${e.status}`);let t=await e.json();if(!B(t))throw new Error("formato non riconosciuto");return t}var R=null,et={prova:!1,async leggi(e){let t;try{t=await Xe()}catch{return{esito:"errore",titolo:"Non riesco a scaricare gli arrivi",dettaglio:"Controlla la connessione a internet e premi Riprova."}}if(!t.avvisi)return{esito:"errore",titolo:"Email e link di check-in non ancora disponibili",dettaglio:"Arrivano con il prossimo aggiornamento orario degli arrivi da Slope. Riprova pi\xF9 tardi."};let n=e??R??Qe();if(!n)return{esito:"password",errore:null};try{let o=await U(t.avvisi,n,G(t.from));return R=n,e&&me(n),{esito:"ok",dati:{righe:o.items,da:t.from,a:t.to,aggiornatoAlle:t.scatola_updated_at,generatoAlle:t.generated_at,freschezza:t.freshness}}}catch{return R=null,{esito:"password",errore:e?"Password errata. Riprova.":"La password salvata non apre i dati: inseriscila di nuovo."}}},dimentica(){R=null,me(null)}};typeof document<"u"&&pe(et);})();
+
+</script>
+</body>
+</html>
