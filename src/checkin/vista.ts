@@ -11,7 +11,7 @@
  */
 import type { AvvisoItem } from "../feed";
 import type { FreshnessStatus } from "../types";
-import type { Programma } from "../avvisi/testi";
+import type { Lingua, Programma } from "../avvisi/testi";
 import { mostraNumero } from "../avvisi/testi";
 import {
   ANTICIPO_GIORNI,
@@ -75,6 +75,15 @@ export interface Fonte {
 // ───────────────────────── Stato ─────────────────────────
 
 type Filtro = StatoRiga | "tutti";
+/** Canale del messaggio nella finestra «Scrivi all'ospite». «testo» = da copiare (chat dell'extranet, altro). */
+type CanaleMsg = "email" | "whatsapp" | "testo";
+interface Composer {
+  /** reservation_id di Slope, invariato */
+  readonly id: string;
+  readonly motivo: Motivo;
+  canale: CanaleMsg;
+  lingua: Lingua;
+}
 type Vista = "oggi" | "calendario" | "tutte";
 const VISTE: readonly Vista[] = ["oggi", "calendario", "tutte"];
 
@@ -95,6 +104,8 @@ interface Stato {
   campoAperto: string | null;
   /** promemoria del calendario aperti con tutte le azioni */
   espansi: Set<string>;
+  /** finestra «Scrivi all'ospite» aperta */
+  composer: Composer | null;
   erroreCampo: { errore: string; suggerita: string | null } | null;
   archivioOk: boolean;
 }
@@ -125,6 +136,7 @@ const stato: Stato = {
   campoAperto: null,
   erroreCampo: null,
   espansi: new Set(),
+  composer: null,
   archivioOk: true,
 };
 
@@ -188,20 +200,6 @@ function chiudiEmailInserite(): void {
   if (fatte.length) {
     salvaEmailNuove();
     window.setTimeout(() => toast(`Email ora in Slope: ${fatte.join(", ")}.`), 50);
-  }
-}
-
-/** Gli appunti accettano l'HTML (Chrome, Edge, Safari): l'email si apre senza testo e si incolla quello con START. */
-const appuntiHtml = (): boolean => typeof ClipboardItem !== "undefined" && typeof navigator.clipboard?.write === "function";
-
-function copiaHtml(html: string, testo: string): Promise<boolean> {
-  try {
-    return navigator.clipboard
-      .write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([testo], { type: "text/plain" }) })])
-      .then(() => true)
-      .catch(() => false);
-  } catch {
-    return Promise.resolve(false);
   }
 }
 
@@ -293,6 +291,10 @@ function $(sel: string): HTMLElement {
 let timerToast: number | undefined;
 function toast(testo: string, annulla?: () => void): void {
   const t = $("#toast");
+  // con la finestra «Scrivi all'ospite» aperta il messaggio va dentro la finestra, altrimenti resterebbe sotto
+  const d = document.getElementById("composer") as HTMLDialogElement | null;
+  const host = d?.open ? d : document.body;
+  if (t.parentElement !== host) host.appendChild(t);
   t.innerHTML = `<span>${esc(testo)}</span>${annulla ? '<button type="button" class="link" id="toast-annulla">Annulla</button>' : ""}`;
   t.hidden = false;
   document.getElementById("toast-annulla")?.addEventListener("click", () => {
@@ -461,28 +463,14 @@ function rif(r: RigaCheckin): string {
   return `<span class="rif" title="Numero della prenotazione: va anche nell'oggetto delle email">${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}</span>`;
 }
 
+/** Un solo pulsante: apre la finestra con il messaggio già scritto, i canali disponibili e «Segna inviato». */
 function azioni(r: RigaCheckin): string {
   const motivo = motivoPer(r);
   if (!motivo) return "";
-  const id = esc(r.reservationId);
-  const wa = linkWhatsapp(r, motivo);
-  const posta = linkPosta(r, motivo, programmaEmail(), !appuntiHtml());
-  const etichetta = motivo === "checkin" ? "link check-in" : "chiedi email";
-  // Con l'email diretta si scrive per email; altrimenti WhatsApp, se il numero è plausibile.
-  const emailPrima = r.controlloEmail.tipo === "diretta" || r.controlloEmail.tipo === "sospetta";
-  const viaPortale = !r.email && r.inoltroPortale;
-  const bWa = wa
-    ? `<a class="btn btn-piccolo${emailPrima ? "" : " btn-primario"}" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" data-azione="apri" data-canale="whatsapp" data-motivo="${motivo}" data-id="${id}">WhatsApp · ${etichetta}</a>`
-    : "";
-  const bPosta = posta
-    ? `<a class="btn btn-piccolo${emailPrima || !wa ? " btn-primario" : ""}" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="apri" data-canale="email" data-motivo="${motivo}" data-id="${id}"${
-        viaPortale ? ` title="Arriva all'ospite solo se spedisci da info@alpstay.eu (indirizzo registrato in ${esc(r.controlloEmail.portale ?? "extranet")})"` : ""
-      }>${viaPortale ? `Email via ${esc(r.controlloEmail.portale ?? "portale")}` : "Email"} · ${etichetta}</a>`
-    : "";
   return `<div class="azioni">
-    ${emailPrima ? bPosta + bWa : bWa + bPosta}
-    <button type="button" class="link link-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}" title="Testo nella lingua dell'ospite, da incollare per esempio nella chat dell'extranet">Copia testo</button>
-    <button type="button" class="link link-piccolo" data-azione="segna" data-motivo="${motivo}" data-id="${id}">Segna contattato</button>
+    <button type="button" class="btn btn-piccolo btn-primario" data-azione="scrivi" data-motivo="${motivo}" data-id="${esc(r.reservationId)}">${
+      motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"
+    }</button>
   </div>`;
 }
 
@@ -493,16 +481,22 @@ function rigaContatto(r: RigaCheckin): string {
 }
 
 /** Riga completa. Con `p` (promemoria) mostra anche cosa fare e se è in ritardo. */
-function riga(r: RigaCheckin, p?: Promemoria): string {
+function riga(r: RigaCheckin, p?: Promemoria, nelGruppo = false): string {
   const contattato = Boolean(contattoAttuale(r, stato.registro));
   const lingua = r.linguaSlope && r.linguaSlope !== r.lingua ? `${r.linguaSlope.toUpperCase()}→${r.lingua.toUpperCase()}` : r.lingua.toUpperCase();
   const ritardo = p && p.quando === "in-ritardo" ? differenzaGiorni(p.giorno, stato.oggi) : 0;
   if (p?.sollecito && p.contatto) return rigaSollecito(r, p.contatto);
-  const compito = p
-    ? `<p class="compito compito-${r.stato}"><span class="pallino" aria-hidden="true"></span><b>${esc(cosaFare(r))}</b>${
-        ritardo > 0 ? ` <span class="ritardo">in ritardo di ${ritardo === 1 ? "1 giorno" : `${ritardo} giorni`}</span>` : ""
-      }${r.giorniAllArrivo === 0 ? ' <span class="ritardo">arriva oggi: fallo al banco</span>' : ""}</p>`
-    : "";
+  // dentro i gruppi di «Da fare oggi» il titolo dice già cosa fare: restano solo ritardo e arrivo di oggi
+  const avvisiRiga = `${ritardo > 0 ? ` <span class="ritardo">in ritardo di ${ritardo === 1 ? "1 giorno" : `${ritardo} giorni`}</span>` : ""}${
+    r.giorniAllArrivo === 0 ? ' <span class="ritardo">arriva oggi: fallo al banco</span>' : ""
+  }`;
+  const compito = !p
+    ? ""
+    : nelGruppo
+      ? avvisiRiga
+        ? `<p class="compito compito-${r.stato}">${avvisiRiga}</p>`
+        : ""
+      : `<p class="compito compito-${r.stato}"><span class="pallino" aria-hidden="true"></span><b>${esc(cosaFare(r))}</b>${avvisiRiga}</p>`;
   return `
     <li class="riga${contattato ? " contattata" : ""}">
       <div class="col-camera"><span class="camera" title="Camera">${esc(r.camera ?? "—")}</span></div>
@@ -530,7 +524,7 @@ function rigaSollecito(r: RigaCheckin, c: Contatto): string {
   const cosa = motivo === "checkin" ? "il check-in online (con l'email)" : "l'email";
   const giaChiamato = c.canale === "telefono";
   const chiama = r.whatsapp
-    ? `<a class="btn btn-piccolo btn-primario btn-chiama" href="tel:+${esc(r.whatsapp)}" data-azione="apri" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
+    ? `<a class="btn btn-piccolo btn-primario btn-chiama" href="tel:+${esc(r.whatsapp)}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
     : r.telefono
       ? '<span class="badge badge-no badge-lungo" title="Numero segnaposto del portale o senza prefisso internazionale">numero non valido: scrivi nella chat dell\'extranet o chiedi al banco</span>'
       : '<span class="badge badge-no badge-lungo">nessun telefono in Slope: scrivi nella chat dell\'extranet o chiedi al banco</span>';
@@ -554,7 +548,7 @@ function rigaSollecito(r: RigaCheckin, c: Contatto): string {
       <div class="azioni">
         ${chiama}
         <button type="button" class="btn btn-piccolo" data-azione="segna" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Segna telefonato</button>
-        ${r.whatsapp ? "" : `<button type="button" class="link link-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}" title="Per la chat dell'extranet">Copia testo</button>`}
+        <button type="button" class="btn btn-piccolo" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">Scrivi di nuovo</button>
       </div>
     </li>`;
 }
@@ -663,7 +657,7 @@ function vistaOggi(): string {
     ? `<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Nessun ospite da contattare oggi.</p><p>${
         prossimo ? `Prossimo promemoria: ${esc(giornoLungo(prossimo.giorno))}, camera ${esc(prossimo.riga.camera ?? "—")}.` : "Nessun promemoria nei prossimi giorni."
       }</p></div>`
-    : `<section class="gruppo gruppo-oggi" aria-label="Da contattare oggi"><ul class="righe">${daFare.map((p) => riga(p.riga, p)).join("")}</ul></section>`;
+    : gruppiOggi(daFare);
   const giaFatti = fatti.length
     ? `<details class="gruppo gruppo-fatti" data-chiave="fatti">
         <summary><h3>Già contattati, in attesa dell'email in Slope <span class="conta">${fatti.length}</span></h3></summary>
@@ -671,6 +665,40 @@ function vistaOggi(): string {
       </details>`
     : "";
   return testa + sezioneSlope + vuoto + giaFatti;
+}
+
+/** Le cose di oggi divise per tipo di lavoro, nell'ordine in cui farle: telefonate, link di check-in, email. */
+function gruppiOggi(daFare: readonly Promemoria[]): string {
+  const gruppi: { chiave: string; titolo: string; nota: string; voci: Promemoria[] }[] = [
+    {
+      chiave: "telefonare",
+      titolo: "Telefonare",
+      nota: "Richieste rimaste senza risposta. Dopo la chiamata annota l'email o segna «telefonato».",
+      voci: daFare.filter((p) => p.sollecito),
+    },
+    {
+      chiave: "link",
+      titolo: "Mandare il link di check-in",
+      nota: "5 giorni prima dell'arrivo. Nel modulo di Slope l'ospite inserisce la sua email.",
+      voci: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "checkin"),
+    },
+    {
+      chiave: "email",
+      titolo: "Chiedere o correggere l'email",
+      nota: "3 giorni prima dell'arrivo, per chi ha fatto il check-in senza un'email valida.",
+      voci: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "email"),
+    },
+  ];
+  return gruppi
+    .filter((g) => g.voci.length)
+    .map(
+      (g) => `<section class="gruppo gruppo-oggi gruppo-${g.chiave}" aria-labelledby="g-${g.chiave}">
+        <div class="gruppo-testa"><h3 id="g-${g.chiave}"><span class="pallino" aria-hidden="true"></span>${esc(g.titolo)} <span class="conta">${g.voci.length}</span></h3>
+        <p class="nota">${esc(g.nota)}</p></div>
+        <ul class="righe">${g.voci.map((p) => riga(p.riga, p, true)).join("")}</ul>
+      </section>`,
+    )
+    .join("");
 }
 
 /** L'azione da fare subito per un promemoria, con un clic: chiamare, scrivere, copiare l'email per Slope o annotarla. */
@@ -681,24 +709,12 @@ function azionePrimaria(r: RigaCheckin, p: Promemoria, pendente: boolean): strin
   if (!motivo) return "";
   if (p.sollecito) {
     return r.whatsapp
-      ? `<a class="btn btn-piccolo btn-primario" href="tel:+${esc(r.whatsapp)}" data-azione="apri" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
-      : `<button type="button" class="btn btn-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}" title="Nessun numero valido: testo per la chat dell'extranet">Copia testo</button>`;
+      ? `<a class="btn btn-piccolo btn-primario" href="tel:+${esc(r.whatsapp)}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
+      : `<button type="button" class="btn btn-piccolo" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">Scrivi di nuovo</button>`;
   }
   // già contattato e in attesa: quando l'ospite risponde si annota l'email
   if (p.contatto) return `<button type="button" class="btn btn-piccolo" data-azione="apri-campo" data-id="${id}">Annota email</button>`;
-  const wa = linkWhatsapp(r, motivo);
-  const posta = linkPosta(r, motivo, programmaEmail(), !appuntiHtml());
-  const emailPrima = r.controlloEmail.tipo === "diretta" || r.controlloEmail.tipo === "sospetta";
-  const bEmail = posta
-    ? `<a class="btn btn-piccolo btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="apri" data-canale="email" data-motivo="${motivo}" data-id="${id}">${r.email ? "Email" : `Email via ${esc(r.controlloEmail.portale ?? "portale")}`}</a>`
-    : "";
-  const bWa = wa
-    ? `<a class="btn btn-piccolo btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" data-azione="apri" data-canale="whatsapp" data-motivo="${motivo}" data-id="${id}">WhatsApp</a>`
-    : "";
-  if (emailPrima && bEmail) return bEmail;
-  if (bWa) return bWa;
-  if (bEmail) return bEmail;
-  return `<button type="button" class="btn btn-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}">Copia testo</button>`;
+  return `<button type="button" class="btn btn-piccolo btn-primario" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link" : "Chiedi l'email"}</button>`;
 }
 
 function vistaCalendario(): string {
@@ -833,6 +849,158 @@ function render(): void {
   renderLista();
 }
 
+// ───────────────────────── Finestra «Scrivi all'ospite» ─────────────────────────
+
+const NOMI_LINGUA: Readonly<Record<Lingua, string>> = { de: "Deutsch", it: "Italiano", en: "English" };
+const NOMI_CANALE_MSG: Readonly<Record<CanaleMsg, string>> = { email: "Email", whatsapp: "WhatsApp", testo: "Extranet / altro" };
+
+function canaliPer(r: RigaCheckin): CanaleMsg[] {
+  const c: CanaleMsg[] = [];
+  if (r.email || r.inoltroPortale) c.push("email");
+  if (r.whatsapp) c.push("whatsapp");
+  c.push("testo");
+  return c;
+}
+
+/** Email diretta → email; altrimenti WhatsApp; altrimenti l'inoltro del portale; altrimenti testo da copiare. */
+function canaleIniziale(r: RigaCheckin): CanaleMsg {
+  if (r.email) return "email";
+  if (r.whatsapp) return "whatsapp";
+  if (r.inoltroPortale) return "email";
+  return "testo";
+}
+
+function dialogo(): HTMLDialogElement {
+  return document.getElementById("composer") as HTMLDialogElement;
+}
+
+/** Il messaggio a comparsa può stare dentro la finestra: va rimesso nella pagina prima di riscriverla o chiuderla. */
+function rimettiToast(): void {
+  const t = document.getElementById("toast");
+  if (t && t.parentElement !== document.body) document.body.appendChild(t);
+}
+
+function apriComposer(r: RigaCheckin, motivo: Motivo): void {
+  stato.composer = { id: r.reservationId, motivo, canale: canaleIniziale(r), lingua: r.lingua };
+  renderComposer();
+  const d = dialogo();
+  if (!d.open) {
+    try {
+      d.showModal();
+    } catch {
+      d.setAttribute("open", "");
+    }
+  }
+}
+
+function chiudiComposer(): void {
+  stato.composer = null;
+  rimettiToast();
+  const d = dialogo();
+  if (d.open) d.close();
+  d.innerHTML = "";
+}
+
+function renderComposer(): void {
+  const d = dialogo();
+  const c = stato.composer;
+  const r = c ? trova(c.id) : undefined;
+  if (!c || !r) {
+    if (c) chiudiComposer();
+    return;
+  }
+  const rl: RigaCheckin = { ...r, lingua: c.lingua };
+  const m = messaggio(rl, c.motivo);
+  const canali = canaliPer(r);
+  if (!canali.includes(c.canale)) c.canale = canali[0];
+  const schede = canali
+    .map(
+      (k) =>
+        `<button type="button" role="tab" class="scheda${k === c.canale ? " attiva" : ""}" aria-selected="${k === c.canale}" data-azione="canale" data-canale="${k}">${NOMI_CANALE_MSG[k]}</button>`,
+    )
+    .join("");
+  const lingue = (["de", "it", "en"] as const).map((l) => `<option value="${l}"${l === c.lingua ? " selected" : ""}>${NOMI_LINGUA[l]}</option>`).join("");
+  let corpo = "";
+  if (c.canale === "email") {
+    const a = r.email ?? r.inoltroPortale ?? "";
+    const posta = linkPosta(rl, c.motivo, programmaEmail(), false) ?? "";
+    corpo = `
+      <dl class="msg-campi">
+        <div><dt>A</dt><dd>${esc(a)}${
+          r.email ? "" : ` <span class="badge badge-portale badge-lungo">inoltro ${esc(r.controlloEmail.portale ?? "del portale")}: arriva solo se spedisci da info@alpstay.eu</span>`
+        }</dd></div>
+        <div><dt>Oggetto</dt><dd>${esc(m.oggetto)}</dd></div>
+      </dl>
+      <p class="msg-etichetta">Testo che riceve l'ospite</p>
+      <div class="anteprima-email" id="anteprima-msg">${m.html}</div>
+      <ol class="msg-passi">
+        <li><a class="btn btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="copia-e-apri">Copia il testo e apri l'email</a>
+          <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante START.</span></li>
+        <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviata</button></li>
+      </ol>
+      <p class="aiuto">Se l'incolla non porta il testo: <button type="button" class="link" data-azione="copia-anteprima">copia di nuovo il testo</button>.</p>`;
+  } else if (c.canale === "whatsapp") {
+    const wa = linkWhatsapp(rl, c.motivo) ?? "";
+    corpo = `
+      <dl class="msg-campi"><div><dt>A</dt><dd>${esc(mostraNumero(r.whatsapp ?? ""))}</dd></div></dl>
+      <p class="msg-etichetta">Messaggio WhatsApp</p>
+      <div class="anteprima-testo">${esc(m.whatsapp).replace(/\*([^*\n]+)\*/g, "<b>$1</b>")}</div>
+      <ol class="msg-passi">
+        <li><a class="btn btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Apri WhatsApp con il messaggio</a>
+          <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo START, in grassetto.</span></li>
+        <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviato</button></li>
+      </ol>`;
+  } else {
+    corpo = `
+      <p class="msg-etichetta">Testo da copiare (chat dell'extranet di Booking.com o Expedia, SMS…)</p>
+      <div class="anteprima-testo">${esc(m.testo)}</div>
+      <ol class="msg-passi">
+        <li><button type="button" class="btn btn-primario" data-azione="copia-testo-composer">Copia il testo</button></li>
+        <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviato</button></li>
+      </ol>`;
+  }
+  const t = document.getElementById("toast");
+  const toastDentro = t !== null && t.parentElement === d;
+  rimettiToast();
+  d.innerHTML = `
+    <div class="composer">
+      <div class="composer-testa">
+        <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
+        <div class="composer-titolo">
+          <h2 id="composer-titolo">${c.motivo === "checkin" ? "Link di check-in" : "Richiesta dell'email"} · ${esc(r.nome)}</h2>
+          <span class="nota">${r.riferimento ? `${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)} · ` : ""}arrivo ${esc(giorno(r.arrivo))}</span>
+        </div>
+        <button type="button" class="btn btn-piccolo" data-azione="chiudi-composer">Chiudi</button>
+      </div>
+      <div class="composer-barra">
+        <div class="schede-msg" role="tablist" aria-label="Canale">${schede}</div>
+        <label class="composer-lingua">Lingua <select id="composer-lingua">${lingue}</select></label>
+      </div>
+      ${corpo}
+      <p class="composer-piede"><button type="button" class="link link-piccolo" data-azione="segna-voce">Fatto a voce o al banco: segna contattato</button></p>
+    </div>`;
+  if (toastDentro && t) d.appendChild(t);
+}
+
+/** Copia l'anteprima come testo formattato (con il link START): selezione + copia, che funziona anche senza permessi. */
+function copiaAnteprima(): boolean {
+  const el = document.getElementById("anteprima-msg");
+  const sel = window.getSelection();
+  if (!el || !sel) return false;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  sel.removeAllRanges();
+  return ok;
+}
+
 // ───────────────────────── Eventi ─────────────────────────
 
 function trova(id: string | undefined): RigaCheckin | undefined {
@@ -841,6 +1009,20 @@ function trova(id: string | undefined): RigaCheckin | undefined {
 
 function collegaEventi(): void {
   document.getElementById("aggiorna")?.addEventListener("click", () => void carica());
+
+  document.addEventListener("change", (ev) => {
+    const el = ev.target as HTMLElement;
+    if (el.id === "composer-lingua" && stato.composer) {
+      const v = (el as HTMLSelectElement).value;
+      if (v === "de" || v === "it" || v === "en") {
+        stato.composer.lingua = v;
+        renderComposer();
+      }
+    }
+  });
+  dialogo()?.addEventListener("close", () => {
+    stato.composer = null;
+  });
 
   const campoCerca = document.getElementById("cerca") as HTMLInputElement | null;
   campoCerca?.addEventListener("input", () => {
@@ -896,28 +1078,44 @@ function collegaEventi(): void {
           void copia(r.checkinUrl).then((ok) => toast(ok ? `Link di check-in copiato${r.camera ? ` (camera ${r.camera})` : ""}.` : "Copia non riuscita: usa «Apri» e copia l'indirizzo."));
         }
         break;
-      case "copia-testo":
-        if (r) {
-          void copia(messaggio(r, motivo).testo).then((ok) => {
-            if (ok) segnaContatto(r, motivo, "testo");
-            else toast("Copia non riuscita.");
-          });
+      case "scrivi":
+        if (r) apriComposer(r, motivo);
+        break;
+      case "canale": {
+        const k = el.dataset.canale as CanaleMsg | undefined;
+        if (stato.composer && k) {
+          stato.composer.canale = k;
+          renderComposer();
         }
         break;
-      case "apri":
-        // il link si apre da sé; qui si registra il contatto (annullabile) e, per l'email, si copia il testo con START
-        if (r && el.dataset.canale === "email" && appuntiHtml()) {
-          const m = messaggio(r, motivo);
-          void copiaHtml(m.html, m.testo).then((ok) =>
-            ok
-              ? toast("Testo copiato con il pulsante START: nella nuova email clicca nel testo e premi Ctrl+V.")
-              : toast("Copia non riuscita: usa «Copia testo» e incollalo nell'email."),
-          );
-          segnaContatto(r, motivo, "email");
-          break;
-        }
-        if (r) segnaContatto(r, motivo, el.dataset.canale === "email" ? "email" : el.dataset.canale === "telefono" ? "telefono" : "whatsapp");
+      }
+      case "chiudi-composer":
+        chiudiComposer();
         break;
+      case "copia-e-apri":
+        // il link mailto si apre da sé: qui si copia, subito, il testo con il pulsante START
+        toast(copiaAnteprima() ? "Testo copiato: nell'email clicca nel corpo e premi Ctrl+V." : "Copia non riuscita: seleziona il testo nella finestra e premi Ctrl+C.");
+        break;
+      case "copia-anteprima":
+        toast(copiaAnteprima() ? "Testo copiato con il pulsante START." : "Copia non riuscita: seleziona il testo e premi Ctrl+C.");
+        break;
+      case "copia-testo-composer": {
+        const c = stato.composer;
+        const rc = c ? trova(c.id) : undefined;
+        if (c && rc) void copia(messaggio({ ...rc, lingua: c.lingua }, c.motivo).testo).then((ok) => toast(ok ? "Testo copiato." : "Copia non riuscita."));
+        break;
+      }
+      case "segna-inviato":
+      case "segna-voce": {
+        const c = stato.composer;
+        const rc = c ? trova(c.id) : undefined;
+        if (c && rc) {
+          const canale: Canale = azione === "segna-voce" ? "altro" : c.canale;
+          chiudiComposer();
+          segnaContatto(rc, c.motivo, canale);
+        }
+        break;
+      }
       case "segna":
         if (r) segnaContatto(r, motivo, el.dataset.canale === "telefono" ? "telefono" : "altro");
         break;

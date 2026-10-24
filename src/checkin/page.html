@@ -112,7 +112,10 @@ h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
 .vista-testa { display: flex; flex-direction: column; gap: 4px; }
 .vista-testa h2 { font-size: 26px; }
 #lista h3 { font-family: var(--font-title); font-weight: 400; font-size: 21px; margin: 0; display: flex; align-items: center; gap: 10px; }
-.gruppo-oggi { --c: var(--gold); border-left-color: var(--gold); }
+.gruppo-oggi { --c: var(--gold); --c-soft: var(--gold-soft); }
+.gruppo-telefonare { --c: var(--danger); --c-soft: var(--danger-soft); }
+.gruppo-link { --c: var(--danger); --c-soft: var(--danger-soft); }
+.gruppo-email { --c: var(--rust); --c-soft: var(--rust-soft); }
 .gruppo-slope { --c: var(--danger); --c-soft: var(--danger-soft); }
 .gruppo-fatti { --c: var(--ok); --c-soft: var(--ok-soft); padding-bottom: 12px; }
 .gruppo-fatti summary { cursor: pointer; list-style: none; }
@@ -279,6 +282,39 @@ input[type="search"], input[type="password"] {
 #legenda dd { margin: 0; color: var(--muted); }
 #legenda p { color: var(--muted); max-width: 80ch; }
 
+/* Finestra «Scrivi all'ospite» */
+#composer {
+  width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--bg); color: var(--fg);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .25);
+}
+#composer::backdrop { background: rgba(22, 21, 18, .45); }
+.composer { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 16px; }
+.composer-testa { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.composer-titolo { display: flex; flex-direction: column; min-width: 0; }
+.composer-titolo h2 { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
+.composer-barra { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 16px; border-bottom: 1px solid var(--line); }
+.schede-msg { display: flex; gap: 2px; }
+.composer-lingua { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; padding-bottom: 6px; }
+.composer-lingua select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.msg-campi { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.msg-campi > div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.msg-campi dt { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.msg-campi dd { margin: 0; overflow-wrap: anywhere; font-weight: 700; }
+.msg-etichetta { margin: 4px 0 -6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+/* L'anteprima dell'email resta chiara anche in tema scuro: è come la vede l'ospite */
+.anteprima-email { background: #ffffff; color: #161512; border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+.anteprima-email a { color: #ffffff; }
+.anteprima-testo { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.msg-passi { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+.msg-passi li { padding-left: 4px; }
+.msg-passi li::marker { font-weight: 700; color: var(--gold); }
+.msg-passi .aiuto { display: block; margin-top: 4px; }
+.aiuto { font-size: 13px; color: var(--muted); }
+kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); }
+.btn-conferma { background: var(--ok); color: #ffffff; border-color: var(--ok); }
+.composer-piede { margin: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+
 #toast {
   position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
   display: flex; gap: 14px; align-items: center; max-width: calc(100vw - 32px);
@@ -304,6 +340,10 @@ input[type="search"], input[type="password"] {
   .voce-riga { grid-template-columns: auto minmax(0, 1fr); }
   .voce-azioni { grid-column: 1 / -1; justify-content: flex-start; }
   .voce-dettaglio { padding: 0 8px; }
+  .composer { padding: 14px 14px 12px; }
+  .composer-testa { grid-template-columns: auto minmax(0, 1fr); }
+  .composer-testa .btn { grid-column: 1 / -1; justify-self: start; }
+  .msg-campi > div { grid-template-columns: 1fr; gap: 0; }
   .camera { width: 48px; height: 48px; font-size: 19px; }
   .azioni .btn { flex: 1 1 auto; }
   #legenda dl { grid-template-columns: 1fr; gap: 2px; }
@@ -346,11 +386,13 @@ input[type="search"], input[type="password"] {
     </dl>
     <p><b>Quando scrivere:</b> check-in online da fare 5 giorni prima dell'arrivo; email mancante o da correggere 3 giorni prima. I promemoria arrivano in «Da fare oggi»; quelli dei prossimi giorni sono nel «Calendario».</p>
     <p><b>Email mandata dall'ospite:</b> annotala subito nella riga della camera («+ Annota l'email»), così non si perde. Lampeggia in rosso finché non è nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. A ogni aggiornamento orario la pagina controlla Slope e, quando la trova, la toglie da sola.</p>
-    <p><b>Email agli ospiti:</b> il pulsante «Email» apre il messaggio con l'oggetto (numero di prenotazione e nome) e copia il testo con il pulsante START: clicca nel testo e premi Ctrl+V.</p>
+    <p><b>Scrivere all'ospite:</b> «Manda il link di check-in» o «Chiedi l'email» apre una finestra con il messaggio già scritto nella sua lingua, come lo riceverà, e i canali disponibili (Email, WhatsApp, Extranet). Per l'email: «Copia il testo e apri l'email» apre il messaggio con destinatario e oggetto (numero di prenotazione e nome); nel corpo si incolla con Ctrl+V il testo con il pulsante START. Poi «Segna inviata».</p>
     <p>«Contattato» e le email annotate restano solo su questo computer e si cancellano 14 giorni dopo l'arrivo (le email anche appena compaiono in Slope). Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
     <button type="button" class="btn btn-piccolo" data-azione="blocca" title="Toglie la password reception da questo browser: servirà di nuovo anche per lettere di benvenuto e avvisi">Blocca questo computer</button>
   </details>
 </div>
+
+<dialog id="composer" aria-labelledby="composer-titolo"></dialog>
 
 <div id="toast" role="status" hidden></div>
 

@@ -76,9 +76,12 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password r
   3 giorni prima; senza risposta il promemoria torna come «Telefonare» (dopo 2 giorni per il check-in, 1 per l'email).
 - L'email che l'ospite manda si annota nella riga della camera: lampeggia in rosso «da inserire in Slope» finché
   l'aggiornamento orario non la trova in Slope, poi sparisce da sola.
-- Messaggi nella lingua dell'ospite (DE, IT, EN per le altre): WhatsApp, email (il pulsante copia il testo con il
-  link come pulsante «START», da incollare con Ctrl+V; oggetto con numero di prenotazione e nome) o «Copia testo»
-  per la chat dell'extranet.
+- «Manda il link di check-in» / «Chiedi l'email» apre la finestra del messaggio: testo già scritto nella lingua
+  dell'ospite (DE, IT, EN per le altre, cambiabile), visibile com'è; canali Email, WhatsApp, Extranet. Email: «Copia
+  il testo e apri l'email» → destinatario e oggetto (numero di prenotazione e nome) già scritti, nel corpo Ctrl+V
+  incolla il testo con il link come pulsante «START». Poi «Segna inviata».
+- «Da fare oggi» è diviso per lavoro: email da inserire in Slope, telefonare, mandare il link, chiedere l'email.
+  Ogni voce del calendario ha il suo pulsante d'azione.
 - Dati: blocco `avvisi` di `arrivi.json`; il numero di prenotazione arriva da `curated_reservations` (portali) e
   `curated_order_balances` (ordine Slope), passi facoltativi 3a/3b di `tools/AGGIORNA.md`. Nel browser restano il
   registro «contattato» e le email annotate, cancellati 14 giorni dopo l'arrivo.
