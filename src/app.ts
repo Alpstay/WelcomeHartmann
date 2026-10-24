@@ -1,15 +1,18 @@
 // Interfaccia della receptionist: arrivi del giorno → controllo nome/lingua → PDF A4.
 
 import { ASSETS } from "./assets.generated";
-import { FEED_FILE, decryptJson, feedAad, fromFeedItem, isFeedEnvelope } from "./feed";
-import type { FeedEnvelope, FeedPayload } from "./feed";
+import { FEED_FILE, avvisiAad, decryptJson, feedAad, fromFeedItem, isFeedEnvelope } from "./feed";
+import type { AvvisiPayload, FeedEnvelope, FeedPayload } from "./feed";
+import { mostraNumero, numeroWhatsapp } from "./avvisi/testi";
+import { welcomeWhatsappUrl } from "./whatsapp-welcome";
 import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
 import { buildLetter, isPin, nightsBetween } from "./letter";
-import { PDF_FONTS, buildDocDefinition, pdfVfs } from "./pdf";
+import { buildDocDefinition, pdfFonts, pdfVfs, scriptFontsFor } from "./pdf";
+import { prepareFonts } from "./script-fonts";
 import { SERVER, fetchArrivals, fetchGuestInfo, freshnessTime, isMcpError, toItems } from "./scatola";
 import { CLIENT_FILE, parseClient } from "./scatola-client";
 import { buildSummary, whatsappUrl } from "./summary";
-import { LANG_ORDER, TEXTS } from "./texts";
+import { LANG_ORDER, RTL_LANGS, TEXTS } from "./texts";
 import type { ArrivalItem, Freshness, LangCode, LetterModel, Paragraph } from "./types";
 
 type Mcp = typeof Claude.mcp;
@@ -31,6 +34,8 @@ interface AppState {
   /** Solo su GitHub: file arrivi.json pubblicato e il suo contenuto decifrato. */
   feed: FeedEnvelope | null;
   feedData: FeedPayload | null;
+  /** Telefono dell'intestatario per reservation_id (dai contatti cifrati di arrivi.json), così com'è in Slope. */
+  phones: Map<string, string | null>;
   /** Giorno scelto nel campo data. */
   date: string;
   /** Giorno degli arrivi attualmente in elenco (null se nessun dato scaricato). */
@@ -94,6 +99,7 @@ const plural = (n: number, one: string, many: string): string => `${n} ${n === 1
 const state: AppState = {
   feed: null,
   feedData: null,
+  phones: new Map(),
   date: romeDate(0),
   loadedDate: null,
   dataTime: null,
@@ -128,6 +134,10 @@ interface ItemEdit {
   at: number;
   /** Giorno di partenza (AAAA-MM-GG): dopo, nome, PIN e nota spariscono dal browser. */
   until?: string;
+  /** Telefono scritto o corretto dalla reception per il WhatsApp. */
+  phone?: string;
+  /** Quando è stato aperto il WhatsApp di benvenuto (ms). */
+  waAt?: number;
 }
 
 const noteOpen = new Set<string>();
@@ -301,10 +311,23 @@ async function refreshFeed(): Promise<"ok" | "locked" | "missing" | "error"> {
   if (!pw) return "locked";
   try {
     state.feedData = await decryptJson<FeedPayload>(env.enc, pw, feedAad(env.from));
+    await loadPhones(env, pw);
     return "ok";
   } catch {
     rememberPassword(null);
     return "locked";
+  }
+}
+
+/** Telefoni degli intestatari dal blocco contatti (stessa password). Senza blocco: si scrivono a mano. */
+async function loadPhones(env: FeedEnvelope, pw: string): Promise<void> {
+  state.phones = new Map();
+  if (!env.avvisi) return;
+  try {
+    const data = await decryptJson<AvvisiPayload>(env.avvisi, pw, avvisiAad(env.from));
+    for (const a of data.items) state.phones.set(a.reservationId, a.phone);
+  } catch {
+    /* contatti non leggibili: le lettere funzionano lo stesso */
   }
 }
 
@@ -422,6 +445,7 @@ async function unlock(pw: string): Promise<void> {
   $("unlock-msg").textContent = "Controllo la password…";
   try {
     state.feedData = await decryptJson<FeedPayload>(state.feed.enc, pw, feedAad(state.feed.from));
+    await loadPhones(state.feed, pw);
     rememberPassword(pw);
     $<HTMLInputElement>("pw").value = "";
     void load();
@@ -512,6 +536,68 @@ async function load(): Promise<void> {
 
 // ——— elenco ———
 
+// ——— WhatsApp di benvenuto per camera ———
+
+/** Numeri scritti a mano sulle lettere manuali (che non si salvano nel browser). */
+const typedPhones = new Map<string, string>();
+
+interface PhoneInfo {
+  /** Testo nel campo: numero formattato se valido, altrimenti com'è. */
+  readonly shown: string;
+  /** Solo cifre con prefisso, pronto per wa.me; null se manca o non è affidabile. */
+  readonly digits: string | null;
+  readonly source: "reception" | "slope" | "nessuno";
+}
+
+function phoneOf(item: ArrivalItem): PhoneInfo {
+  const typed = edits[item.key]?.phone ?? typedPhones.get(item.key);
+  const slope = item.reservationId ? (state.phones.get(item.reservationId) ?? null) : null;
+  const raw = (typed ?? slope ?? "").trim();
+  const digits = raw ? numeroWhatsapp(raw) : null;
+  const source = typed !== undefined ? "reception" : slope ? "slope" : "nessuno";
+  return { shown: digits && source === "slope" ? mostraNumero(digits) : raw, digits, source };
+}
+
+function phoneChip(item: ArrivalItem): Chip | null {
+  const sent = edits[item.key]?.waAt;
+  if (sent) return { text: `WhatsApp aperto alle ${timeRome(new Date(sent).toISOString())}`, tone: "info" };
+  const p = phoneOf(item);
+  if (p.digits) return null;
+  if (!p.shown) return { text: "Nessun telefono in Slope: scrivilo per il WhatsApp", tone: "warn" };
+  return { text: "Telefono da verificare (prefisso o numero del portale): correggilo per il WhatsApp", tone: "warn" };
+}
+
+function phoneField(item: ArrivalItem): HTMLElement {
+  const p = phoneOf(item);
+  const send = h(
+    "button",
+    {
+      type: "button",
+      class: "btn wa-guest small",
+      "data-act": "wa-guest",
+      id: `wa-${item.key}`,
+      disabled: !p.digits,
+      title: p.digits ? `Apri WhatsApp con il messaggio di benvenuto in ${TEXTS[item.lang].nameIt.toLowerCase()}` : "Serve un numero valido con prefisso",
+    },
+    "WhatsApp",
+  );
+  return h(
+    "div",
+    { class: "wa-field" },
+    h("input", {
+      type: "tel",
+      class: "phone",
+      id: `phone-${item.key}`,
+      value: p.shown,
+      inputmode: "tel",
+      autocomplete: "off",
+      placeholder: "+39 …",
+      "aria-label": "Telefono dell'ospite per WhatsApp",
+    }),
+    send,
+  );
+}
+
 function chipsFor(item: ArrivalItem): Chip[] {
   const chips: Chip[] = [];
   if (!item.room) chips.push({ text: "Scegli la camera", tone: "error" });
@@ -531,6 +617,8 @@ function chipsFor(item: ArrivalItem): Chip[] {
   if (item.pin.length > 0 && !isPin(item.pin)) chips.push({ text: "PIN incompleto: servono 4 cifre", tone: "error" });
   else if (!isPin(item.pin)) chips.push({ text: "Senza PIN: caselle da scrivere a mano", tone: "warn" });
   if (item.note.trim()) chips.push({ text: "Con nota", tone: "info" });
+  const wa = phoneChip(item);
+  if (wa) chips.push(wa);
   return chips;
 }
 
@@ -637,6 +725,7 @@ function rowFor(item: ArrivalItem): HTMLLIElement {
           "aria-label": "PIN a 4 cifre per il post-it",
         }),
       ),
+      phoneField(item),
       remove,
     ),
   );
@@ -732,7 +821,7 @@ function paraEl(p: Paragraph, cls = "p"): HTMLParagraphElement {
 function blockEl(b: LetterModel["primary"]): HTMLElement {
   return h(
     "div",
-    { class: "l-block", lang: b.lang },
+    { class: "l-block", lang: b.lang, ...(RTL_LANGS.has(b.lang) ? { dir: "rtl" } : {}) },
     h("h3", { class: "l-head" }, b.headline),
     h("p", { class: "p" }, b.salutation),
     ...b.paragraphs.map((p) => paraEl(p)),
@@ -756,7 +845,7 @@ function postItEl(m: LetterModel): HTMLElement {
       { class: "l-postit-text" },
       h("p", { class: "l-postit-label" }, "PIN"),
       digits,
-      h("p", { class: "l-postit-room" }, `${m.roomLabel.split(" · ")[0]} ${m.room}`),
+      h("p", { class: "l-postit-room", dir: "auto" }, `${m.roomLabel.split(" · ")[0]} ${m.room}`),
     ),
   );
   return box;
@@ -809,14 +898,16 @@ function renderPreview(): void {
       h(
         "div",
         { class: "l-personal" },
-        h("div", { class: "l-guest" }, m.guestName ? h("p", { class: "l-name" }, m.guestName) : null, m.stayLabel ? h("p", { class: "l-stay" }, m.stayLabel) : null),
-        h("div", { class: "l-room" }, h("p", { class: "l-room-label" }, m.roomLabel), h("p", { class: "l-room-no" }, m.room)),
+        h("div", { class: "l-guest" }, m.guestName ? h("p", { class: "l-name", dir: "auto" }, m.guestName) : null, m.stayLabel ? h("p", { class: "l-stay" }, m.stayLabel) : null),
+        h("div", { class: "l-room" }, h("p", { class: "l-room-label", dir: "auto" }, m.roomLabel), h("p", { class: "l-room-no" }, m.room)),
       ),
       h("hr", { class: "l-rule" }),
       blockEl(m.primary),
       m.english ? h("p", { class: "l-divider" }, "English") : null,
       m.english ? blockEl(m.english) : null,
-      m.note ? h("div", { class: "l-note" }, h("p", { class: "l-note-label" }, m.noteLabel), h("p", { class: "l-note-text" }, m.note)) : null,
+      m.note
+        ? h("div", { class: "l-note" }, h("p", { class: "l-note-label", dir: "auto" }, m.noteLabel), h("p", { class: "l-note-text", dir: "auto" }, m.note))
+        : null,
       h(
         "div",
         { class: "l-foot" },
@@ -824,7 +915,7 @@ function renderPreview(): void {
         h(
           "div",
           { class: "l-qr" },
-          h("div", { class: "l-qr-text" }, h("p", {}, m.qrCaption), m.qrCaptionEnglish ? h("p", { class: "l-muted" }, m.qrCaptionEnglish) : null),
+          h("div", { class: "l-qr-text" }, h("p", { dir: "auto", lang: m.primary.lang }, m.qrCaption), m.qrCaptionEnglish ? h("p", { class: "l-muted" }, m.qrCaptionEnglish) : null),
           h("img", { src: QR_URL, alt: "QR informazioni Chalet Hotel Hartmann" }),
         ),
       ),
@@ -841,12 +932,23 @@ function renderAll(): void {
 
 // ——— PDF ———
 
-function pdfBlob(models: readonly LetterModel[]): Promise<Blob> {
+/** Cartella dei font per cinese, coreano e arabo: sulla pagina GitHub è accanto, dentro claude.ai si scarica da lì. */
+const FONT_BASE = IN_CLAUDE ? "https://alpstay.github.io/WelcomeHartmann/fonts/" : "fonts/";
+
+class FontError extends Error {}
+
+async function pdfBlob(models: readonly LetterModel[]): Promise<Blob> {
   const lib = window.pdfMake;
-  if (!lib) return Promise.reject(new Error("pdfmake non caricato"));
+  if (!lib) throw new Error("pdfmake non caricato");
+  const scripts = scriptFontsFor(models);
+  const extra = await prepareFonts(scripts, FONT_BASE).catch((e: unknown) => {
+    throw new FontError(e instanceof Error ? e.message : String(e));
+  });
   return new Promise((resolve, reject) => {
     try {
-      lib.createPdf(buildDocDefinition(models, ASSETS), undefined, PDF_FONTS, pdfVfs(ASSETS)).getBlob(resolve);
+      lib
+        .createPdf(buildDocDefinition(models, ASSETS, { measure: extra.measure }), undefined, pdfFonts(scripts), { ...pdfVfs(ASSETS), ...extra.vfs })
+        .getBlob(resolve);
     } catch (e) {
       reject(e);
     }
@@ -893,6 +995,8 @@ async function makePdf(items: readonly ArrivalItem[], filename: string): Promise
     else if (code === "rate_limited") toast("C'è già una richiesta di salvataggio aperta: confermala o chiudila.", "warn");
     else if (code === "unavailable" || code === "not_granted" || code === "capability_disabled")
       toast("In questa vista non è possibile salvare file. Apri la pagina da claude.ai nel browser o nell'app desktop.", "error");
+    else if (e instanceof FontError)
+      toast("Non riesco a scaricare i caratteri per cinese, coreano o arabo. Controlla la connessione e riprova.", "error");
     else if (e instanceof Error && e.message.includes("pdfmake"))
       toast("Il generatore PDF non si è caricato. Ricarica la pagina.", "error");
     else toast("Non sono riuscito a creare il PDF. Riprova.", "error");
@@ -1036,6 +1140,14 @@ function wire(): void {
       renderPreview();
       return;
     }
+    if (act === "wa-guest") {
+      const p = phoneOf(item);
+      if (!p.digits) return;
+      window.open(welcomeWhatsappUrl(p.digits, item.lang), "_blank", "noopener");
+      if (!item.manual) saveEdit(item, { waAt: Date.now() });
+      updateRowChrome(item);
+      return;
+    }
     if (act === "note-all") {
       const targets = state.items.filter((i) => i.selected && i.key !== item.key);
       for (const t of targets) {
@@ -1067,6 +1179,15 @@ function wire(): void {
       item.pin = digits;
       saveEdit(item, { pin: digits });
       updateRowChrome(item);
+    } else if (target.classList.contains("phone")) {
+      const value = (target as HTMLInputElement).value;
+      if (item.manual) typedPhones.set(item.key, value);
+      else saveEdit(item, { phone: value });
+      const ok = numeroWhatsapp(value.trim()) !== null;
+      const btn = document.getElementById(`wa-${item.key}`) as HTMLButtonElement | null;
+      if (btn) btn.disabled = !ok;
+      updateRowChrome(item);
+      return;
     } else if (target.classList.contains("note")) {
       item.note = (target as HTMLTextAreaElement).value.slice(0, NOTE_MAX);
       saveEdit(item, { note: item.note });

@@ -5,6 +5,7 @@ import { TEXTS, plain } from "./texts";
 import type { HotelSettings, LangCode, LetterBlock, LetterInput, LetterModel } from "./types";
 
 const SUPPORTED = new Set<LangCode>(Object.keys(TEXTS) as LangCode[]);
+const SENTENCE_GAP: Partial<Record<LangCode, string>> = { zh: "" };
 
 export interface NormalizedLang {
   readonly lang: LangCode;
@@ -66,14 +67,16 @@ function buildBlock(lang: LangCode, input: LetterInput, settings: HotelSettings)
   const tx = TEXTS[lang];
   const room = input.room.trim();
   const name = input.guestName?.trim() || null;
+  // In cinese le frasi si accostano senza spazio.
+  const sp = SENTENCE_GAP[lang] ?? " ";
   return {
     lang,
     headline: tx.headline,
     salutation: tx.salutation(name),
     paragraphs: [
-      [...plain(`${tx.intro} `), ...tx.room(room, floorOf(room))],
-      plain(`${tx.home} ${tx.bar}`),
-      plain(`${tx.breakfast(settings.breakfastFrom, settings.breakfastTo)} ${tx.sauna}`),
+      [...plain(`${tx.intro}${sp}`), ...tx.room(room, floorOf(room))],
+      plain(`${tx.home}${sp}${tx.bar}`),
+      plain(`${tx.breakfast(settings.breakfastFrom, settings.breakfastTo)}${sp}${tx.sauna}`),
     ],
     wifiLabel: tx.wifiLabel,
     wifiValue: settings.wifiPassword,

@@ -3,7 +3,9 @@
 
 import type { Content, ContentCanvas, ContentText, TDocumentDefinitions, TFontDictionary } from "pdfmake/interfaces";
 import type { EmbeddedAssets } from "./assets.generated";
-import type { LetterBlock, LetterModel, Paragraph } from "./types";
+import { breakLines, isRtlText, resolve, scriptFontOf, tokenize, visualOrder } from "./bidi";
+import type { Dir, Piece, ScriptFont, Token } from "./bidi";
+import type { LetterBlock, LetterModel } from "./types";
 
 /** Solo bianco e nero: la stampante della reception è monocromatica. */
 export const PDF_COLORS = {
@@ -17,6 +19,69 @@ export const PDF_FONTS: TFontDictionary = {
   Belleza: { normal: "Belleza.ttf", bold: "Belleza.ttf", italics: "Belleza.ttf", bolditalics: "Belleza.ttf" },
 };
 
+/**
+ * Font per cinese, coreano e arabo: file in fonts/ (sottoinsiemi dei Noto, licenza OFL), scaricati solo quando una
+ * lettera li usa. Senza corsivo: il corsivo usa il normale.
+ */
+export const SCRIPT_FONT_FILES: Readonly<Record<ScriptFont, { readonly normal: string; readonly bold: string }>> = {
+  NotoSansSC: { normal: "NotoSansSC-Regular.ttf", bold: "NotoSansSC-Bold.ttf" },
+  NotoSansKR: { normal: "NotoSansKR-Regular.ttf", bold: "NotoSansKR-Bold.ttf" },
+  NotoNaskhArabic: { normal: "NotoNaskhArabic-Regular.ttf", bold: "NotoNaskhArabic-Bold.ttf" },
+};
+
+/** Dizionario dei font per pdfmake: quelli latini più i font di scrittura già caricati. */
+export function pdfFonts(scripts: Iterable<ScriptFont> = []): TFontDictionary {
+  const out: TFontDictionary = { ...PDF_FONTS };
+  for (const f of scripts) {
+    const { normal, bold } = SCRIPT_FONT_FILES[f];
+    out[f] = { normal, bold, italics: normal, bolditalics: bold };
+  }
+  return out;
+}
+
+/** Larghezza di un testo in punti con il font del PDF: serve solo per andare a capo nell'arabo. */
+export type Measure = (text: string, font: string, bold: boolean, size: number) => number;
+
+export interface RenderEnv {
+  readonly measure: Measure | null;
+}
+
+/** Stima di riserva se manca la misura vera (non dovrebbe succedere: la pagina la fornisce sempre). */
+const roughMeasure: Measure = (text, _font, bold, size) => text.length * size * (bold ? 0.56 : 0.52);
+
+/** Font di scrittura usati da un insieme di lettere: la pagina li scarica prima di creare il PDF. */
+export function scriptFontsFor(letters: readonly LetterModel[]): Set<ScriptFont> {
+  const out = new Set<ScriptFont>();
+  const add = (t: string | null | undefined): void => {
+    const f = t ? scriptFontOf(t) : null;
+    if (f) out.add(f);
+  };
+  for (const m of letters) {
+    add(m.guestName);
+    add(m.roomLabel);
+    add(m.noteLabel);
+    add(m.note);
+    add(m.qrCaption);
+    for (const b of [m.primary, m.english]) {
+      if (!b) continue;
+      add(b.headline);
+      add(b.salutation);
+      add(b.wifiLabel);
+      add(b.closing);
+      for (const p of [...b.paragraphs, b.emergency]) add(p.map((x) => x.text).join(""));
+    }
+  }
+  return out;
+}
+
+/**
+ * Altezza di riga: i Noto hanno ascendenti e discendenti più ampi del Lato, quindi a parità di valore le righe
+ * sarebbero più distanti. Il fattore riporta l'interlinea a quella del Lato (1,2 em).
+ */
+const LH_FACTOR: Readonly<Record<ScriptFont, number>> = { NotoSansSC: 1.2 / 1.448, NotoSansKR: 1.2 / 1.448, NotoNaskhArabic: 1.2 / 1.703 };
+/** Il Naskh appare più piccolo del Lato allo stesso corpo. */
+const ARABIC_SCALE = 1.12;
+
 export function pdfVfs(a: EmbeddedAssets): Record<string, string> {
   return {
     "Lato-Regular.ttf": a.LatoRegular,
@@ -29,32 +94,150 @@ export function pdfVfs(a: EmbeddedAssets): Record<string, string> {
 const A4_WIDTH = 595.28;
 const MARGIN_X = 64;
 const CONTENT_WIDTH = A4_WIDTH - MARGIN_X * 2;
+/** Testo della nota: riquadro meno filetto e margini interni. */
+const NOTE_WIDTH = CONTENT_WIDTH - 11 - 10 - 1.6;
 
 const rule = (color: string, width = 0.5): ContentCanvas => ({
   canvas: [{ type: "line", x1: 0, y1: 0, x2: CONTENT_WIDTH, y2: 0, lineWidth: width, lineColor: color }],
 });
 
-const para = (p: Paragraph, gap: number): ContentText => ({
-  text: p.map((s) => ({ text: s.text, bold: s.bold === true })),
-  margin: [0, 0, 0, gap],
+/** Margini [sinistra, sopra, destra, sotto]. */
+type Box = [number, number, number, number];
+
+interface RichOpts {
+  /** Larghezza disponibile (serve per andare a capo nell'arabo). */
+  readonly width: number;
+  /** Corpo e interlinea effettivi del punto in cui si trova il testo. */
+  readonly size: number;
+  readonly lineHeight: number;
+  /** Font per il testo latino. */
+  readonly latin?: "Lato" | "Belleza";
+  /** Corpo e interlinea vanno scritti nel nodo (altrimenti li eredita, come prima). */
+  readonly setSize?: boolean;
+  readonly setLineHeight?: boolean;
+  readonly bold?: boolean;
+  readonly italics?: boolean;
+  readonly color?: string;
+  readonly alignment?: "left" | "right" | "center";
+  readonly characterSpacing?: number;
+  readonly margin?: Box;
+}
+
+const inlineOf = (p: Piece, o: RichOpts): ContentText => ({
+  text: p.text,
+  bold: o.bold === true || p.bold === true,
+  ...(p.muted ? { color: PDF_COLORS.muted } : {}),
 });
 
+/**
+ * Testo in qualsiasi scrittura. Latino: come sempre. Cinese/coreano: font Noto (il coreano va a capo solo tra le
+ * parole). Arabo: righe composte qui, da destra a sinistra (vedi bidi.ts).
+ */
+function rich(pieces: readonly Piece[], o: RichOpts, env: RenderEnv): Content {
+  const all = pieces.map((p) => p.text).join("");
+  const sf = scriptFontOf(all);
+  const common = {
+    ...(o.margin ? { margin: o.margin } : {}),
+    ...(o.color ? { color: o.color } : {}),
+    ...(o.alignment ? { alignment: o.alignment } : {}),
+    ...(o.italics ? { italics: true } : {}),
+    ...(o.characterSpacing !== undefined ? { characterSpacing: o.characterSpacing } : {}),
+    ...(o.setSize ? { fontSize: o.size } : {}),
+    ...(o.setLineHeight ? { lineHeight: o.lineHeight } : {}),
+  };
+  if (sf === "NotoNaskhArabic") return rtlText(pieces, o, env);
+  if (!sf) return { text: pieces.map((p) => inlineOf(p, o)), ...(o.latin && o.latin !== "Lato" ? { font: o.latin } : {}), ...common };
+  const items: ContentText[] =
+    sf === "NotoSansKR"
+      ? // Coreano: a capo solo tra le parole, come si usa (niente sillabe spezzate).
+        pieces.flatMap((p) =>
+          p.text
+            .split(/(?<= )/)
+            .filter(Boolean)
+            .map((w) => ({ ...inlineOf({ ...p, text: w }, o), noWrap: true })),
+        )
+      : pieces.map((p) => inlineOf(p, o));
+  return { text: items, font: sf, ...common, lineHeight: o.lineHeight * LH_FACTOR[sf], ...(o.bold ? { bold: true } : {}) };
+}
+
+/** Righe con arabo: a capo in ordine logico, poi ogni riga in ordine visivo; font scelto parola per parola. */
+function rtlText(pieces: readonly Piece[], o: RichOpts, env: RenderEnv): Content {
+  const measure = env.measure ?? roughMeasure;
+  const para: Dir = isRtlText(pieces.map((p) => p.text).join("")) ? "R" : "L";
+  const latin = o.latin ?? "Lato";
+  // Font secondo il contenuto: arabo nel Naskh, il resto (anche la punteggiatura latina in una frase araba) nel
+  // font latino o in quello della sua scrittura.
+  const fontOf = (t: Token): string => scriptFontOf(t.pieces.map((p) => p.text).join("")) ?? latin;
+  const sizeOf = (t: Token): number => (fontOf(t) === "NotoNaskhArabic" ? o.size * ARABIC_SCALE : o.size);
+  const tokens = resolve(tokenize(pieces), para);
+  const widthOf = (t: Token): number =>
+    t.pieces.reduce((w, p) => w + measure(p.text, fontOf(t), o.bold === true || p.bold === true, sizeOf(t)), 0);
+  const space = measure(" ", latin, false, o.size);
+  // Margine di sicurezza: pdfmake misura con fontkit, qui con il browser; meglio una riga un po' più corta che
+  // una parola che scivola alla riga sotto nel verso sbagliato.
+  const lines = breakLines(tokens, o.width * 0.95, widthOf, space);
+  const lh = o.lineHeight * LH_FACTOR.NotoNaskhArabic;
+  const nodes: ContentText[] = lines.map((line, i) => ({
+    text: visualOrder(line, para).flatMap(({ token, spaceBefore }) => {
+      const f = fontOf(token);
+      const parts = (token.dir === "R" ? token.pieces.slice().reverse() : token.pieces).map(
+        (p): ContentText => ({
+          ...inlineOf(p, o),
+          font: f,
+          fontSize: sizeOf(token),
+          ...(f !== latin ? { characterSpacing: 0 } : {}),
+        }),
+      );
+      return spaceBefore ? [{ text: " ", font: latin, fontSize: o.size } as ContentText, ...parts] : parts;
+    }),
+    noWrap: true,
+    lineHeight: lh,
+    alignment: o.alignment ?? (para === "R" ? "right" : "left"),
+    ...(o.color ? { color: o.color } : {}),
+    ...(o.italics ? { italics: true } : {}),
+    ...(o.characterSpacing !== undefined ? { characterSpacing: o.characterSpacing } : {}),
+    ...(i === 0 && o.margin ? { margin: [o.margin[0], o.margin[1], o.margin[2], lines.length === 1 ? o.margin[3] : 0] as Box } : {}),
+    ...(i > 0 && i === lines.length - 1 && o.margin ? { margin: [o.margin[0], 0, o.margin[2], o.margin[3]] as Box } : {}),
+  }));
+  return nodes.length === 1 ? nodes[0] : { stack: nodes };
+}
+
+const plainPieces = (text: string): Piece[] => [{ text }];
+
+/** Corpo e interlinea del testo della lettera (compact: versione più stretta, quando c'è una nota). */
+const bodySize = (compact: boolean): { size: number; lineHeight: number } => (compact ? { size: 9.7, lineHeight: 1.22 } : { size: 10.5, lineHeight: 1.32 });
+
 /** compact: versione più stretta usata quando la lettera ha una nota, per restare su una pagina. */
-function block(b: LetterBlock, compact: boolean): Content[] {
+function block(b: LetterBlock, compact: boolean, env: RenderEnv): Content[] {
   const gap = compact ? 2.5 : 4;
+  const base = { width: CONTENT_WIDTH, ...bodySize(compact) };
+  const head = scriptFontOf(b.headline);
   return [
-    { text: b.headline, font: "Belleza", fontSize: compact ? 14.5 : 16, color: PDF_COLORS.ink, margin: [0, 0, 0, compact ? 5 : 8] },
-    { text: b.salutation, margin: [0, 0, 0, gap] },
-    ...b.paragraphs.map((p) => para(p, gap)),
-    {
-      text: [
-        { text: `${b.wifiLabel}: `, color: PDF_COLORS.muted },
+    rich(
+      plainPieces(b.headline),
+      {
+        ...base,
+        size: compact ? 14.5 : 16,
+        setSize: true,
+        latin: "Belleza",
+        bold: head !== null,
+        color: PDF_COLORS.ink,
+        margin: [0, 0, 0, compact ? 5 : 8],
+      },
+      env,
+    ),
+    rich(plainPieces(b.salutation), { ...base, margin: [0, 0, 0, gap] }, env),
+    ...b.paragraphs.map((p) => rich(p, { ...base, margin: [0, 0, 0, gap] }, env)),
+    rich(
+      [
+        { text: `${b.wifiLabel}: `, muted: true },
         { text: b.wifiValue, bold: true },
       ],
-      margin: [0, 1, 0, gap],
-    },
-    para(b.emergency, gap),
-    { text: b.closing, italics: true, margin: [0, 1, 0, 0] },
+      { ...base, margin: [0, 1, 0, gap] },
+      env,
+    ),
+    rich(b.emergency, { ...base, margin: [0, 0, 0, gap] }, env),
+    rich(plainPieces(b.closing), { ...base, italics: true, margin: [0, 1, 0, 0] }, env),
   ];
 }
 
@@ -62,7 +245,7 @@ function block(b: LetterBlock, compact: boolean): Content[] {
 // angolo piegato in basso a destra. Senza PIN restano 4 caselle da compilare a penna.
 const POSTIT = { x: MARGIN_X, y: 28, w: 104, h: 90, fold: 15 } as const;
 
-function postIt(m: LetterModel): Content[] {
+function postIt(m: LetterModel, env: RenderEnv): Content[] {
   const { x, y, w, h, fold } = POSTIT;
   const shape: ContentCanvas = {
     absolutePosition: { x, y },
@@ -115,14 +298,19 @@ function postIt(m: LetterModel): Content[] {
     stack: [
       { text: "PIN", bold: true, fontSize: 9, characterSpacing: 3, lineHeight: 1 },
       digits,
-      { text: `${m.roomLabel.split(" · ")[0].toUpperCase()} ${m.room}`, fontSize: 7.5, characterSpacing: 1, color: PDF_COLORS.muted, lineHeight: 1 },
+      rich(
+        plainPieces(`${m.roomLabel.split(" · ")[0].toUpperCase()} ${m.room}`),
+        { width: POSTIT.w - 22, size: 7.5, lineHeight: 1, setSize: true, setLineHeight: true, characterSpacing: 1, color: PDF_COLORS.muted, alignment: "left" },
+        env,
+      ),
     ],
   };
   return [shape, text];
 }
 
-function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFirst: boolean): Content[] {
+function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFirst: boolean, env: RenderEnv): Content[] {
   const compact = m.note !== null;
+  const { lineHeight } = bodySize(compact);
   const header: Content[] = [
     { image: logoDataUrl, width: compact ? 74 : 86, alignment: "center", margin: [0, 0, 0, 4] },
     {
@@ -137,7 +325,10 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
   ];
 
   const guestColumn: Content[] = [];
-  if (m.guestName) guestColumn.push({ text: m.guestName, font: "Belleza", fontSize: 14, color: PDF_COLORS.ink });
+  if (m.guestName)
+    guestColumn.push(
+      rich(plainPieces(m.guestName), { width: CONTENT_WIDTH - 90, size: 14, lineHeight, setSize: true, latin: "Belleza", color: PDF_COLORS.ink, alignment: "left" }, env),
+    );
   if (m.stayLabel) guestColumn.push({ text: m.stayLabel, fontSize: 9, color: PDF_COLORS.muted, margin: [0, 3, 0, 0] });
 
   const personal: Content = {
@@ -146,7 +337,11 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
       {
         width: "auto",
         stack: [
-          { text: m.roomLabel.toUpperCase(), fontSize: 7.5, characterSpacing: 1.5, color: PDF_COLORS.muted, alignment: "right" },
+          rich(
+            plainPieces(m.roomLabel.toUpperCase()),
+            { width: 160, size: 7.5, lineHeight, setSize: true, characterSpacing: 1.5, color: PDF_COLORS.muted, alignment: "right" },
+            env,
+          ),
           { text: m.room, font: "Belleza", fontSize: 30, color: PDF_COLORS.ink, alignment: "right", lineHeight: 1 },
         ],
       },
@@ -154,12 +349,12 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
     margin: [0, 0, 0, 6],
   };
 
-  const body: Content[] = [...block(m.primary, compact)];
+  const body: Content[] = [...block(m.primary, compact, env)];
   if (m.english) {
     body.push(
       { ...rule(PDF_COLORS.line, 0.4), margin: [0, compact ? 9 : 13, 0, 0] },
       { text: "ENGLISH", font: "Belleza", fontSize: 8, characterSpacing: 2.5, color: PDF_COLORS.ink, margin: [0, compact ? 4 : 5, 0, compact ? 6 : 9] },
-      ...block(m.english, compact),
+      ...block(m.english, compact, env),
     );
   }
 
@@ -168,7 +363,7 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
     { text: m.signerRole, fontSize: 8.5, color: PDF_COLORS.muted, margin: [0, 2, 0, 0] },
   ];
 
-  const qrText: Content[] = [{ text: m.qrCaption, fontSize: 9, lineHeight: 1.25 }];
+  const qrText: Content[] = [rich(plainPieces(m.qrCaption), { width: 236 - 68 - 8, size: 9, lineHeight: 1.25, setSize: true, setLineHeight: true }, env)];
   if (m.qrCaptionEnglish) {
     qrText.push({ text: m.qrCaptionEnglish, fontSize: 8.5, lineHeight: 1.25, color: PDF_COLORS.muted, margin: [0, 4, 0, 0] });
   }
@@ -199,8 +394,12 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
               [
                 {
                   stack: [
-                    { text: m.noteLabel.toUpperCase(), font: "Belleza", fontSize: 7.5, characterSpacing: 1.8, color: PDF_COLORS.ink, margin: [0, 0, 0, 3] },
-                    { text: m.note, italics: true, fontSize: 10.5, lineHeight: 1.25 },
+                    rich(
+                      plainPieces(m.noteLabel.toUpperCase()),
+                      { width: NOTE_WIDTH, size: 7.5, lineHeight, setSize: true, latin: "Belleza", characterSpacing: 1.8, color: PDF_COLORS.ink, margin: [0, 0, 0, 3] },
+                      env,
+                    ),
+                    rich(plainPieces(m.note), { width: NOTE_WIDTH, size: 10.5, lineHeight: 1.25, setSize: true, setLineHeight: true, italics: true }, env),
                   ],
                 },
               ],
@@ -224,7 +423,7 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
   return [
     {
       stack: [
-        ...postIt(m),
+        ...postIt(m, env),
         { stack: header },
         personal,
         { ...rule(PDF_COLORS.line), margin: [0, 0, 0, 12] },
@@ -239,7 +438,7 @@ function letterPage(m: LetterModel, logoDataUrl: string, qrDataUrl: string, isFi
 }
 
 /** Un PDF con una pagina A4 per ogni lettera, nell'ordine ricevuto. */
-export function buildDocDefinition(letters: readonly LetterModel[], assets: EmbeddedAssets): TDocumentDefinitions {
+export function buildDocDefinition(letters: readonly LetterModel[], assets: EmbeddedAssets, env: RenderEnv = { measure: null }): TDocumentDefinitions {
   const logo = `data:image/png;base64,${assets.logoBwPng}`;
   const qr = `data:image/png;base64,${assets.qrPng}`;
   return {
@@ -247,6 +446,6 @@ export function buildDocDefinition(letters: readonly LetterModel[], assets: Embe
     pageMargins: [MARGIN_X, 34, MARGIN_X, 30],
     info: { title: "Lettere di benvenuto – Chalet Hotel Hartmann", author: "AlpStay", creator: "AlpStay" },
     defaultStyle: { font: "Lato", fontSize: 10.5, lineHeight: 1.32, color: PDF_COLORS.ink },
-    content: letters.flatMap((m, i) => letterPage(m, logo, qr, i === 0)),
+    content: letters.flatMap((m, i) => letterPage(m, logo, qr, i === 0, env)),
   };
 }

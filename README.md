@@ -5,7 +5,14 @@ Lettera di benvenuto al check-in presso l'AlpStay Chalet Hotel Hartmann.
 Pagina: https://alpstay.github.io/WelcomeHartmann/
 
 - Si sceglie il giorno di arrivo, si controllano nome e lingua di ogni ospite e si crea un PDF con
-  una pagina A4 per camera: testo nella lingua dell'ospite e, sotto, in inglese.
+  una pagina A4 per camera: testo nella lingua dell'ospite e, sotto, in inglese. Lingue: tedesco,
+  italiano, inglese, francese, olandese, polacco, ceco, spagnolo, danese, svedese, cinese (semplificato),
+  coreano e arabo. Per cinese, coreano e arabo la pagina scarica i font da `fonts/` solo quando servono;
+  l'arabo nel PDF va da destra a sinistra (`src/bidi.ts`).
+- WhatsApp di benvenuto dalla riga della camera: il telefono dell'intestatario arriva da Slope (blocco
+  contatti cifrato di `arrivi.json`) e si può correggere a mano; i numeri segnaposto dei portali non
+  vengono usati. «WhatsApp» apre la chat con il messaggio nella lingua dell'ospite (testi in
+  `src/whatsapp-welcome.ts`, inglese come fornito dalla reception il 24/10/2026).
 - Gli arrivi arrivano da La Scatola tramite `arrivi.json`, aggiornato ogni ora (alle :40, dalle 7:40
   alle 17:40) da un'attività pianificata (procedura in `tools/AGGIORNA.md`). Nomi e lingue sono cifrati: la prima
   volta su ogni dispositivo la pagina chiede la password reception.
@@ -30,8 +37,8 @@ Sorgente TypeScript in `src/`; build con `npm install && node build.mjs` (scrive
   verso Google Fonts e jsDelivr. Per aggiornare pdfmake vanno cambiati insieme indirizzo e impronta in
   `src/page.html`.
 - Nel browser della reception restano la password (per non chiederla a ogni ora) e le modifiche a
-  nome, lingua, PIN e nota: queste ultime si cancellano dopo la partenza dell'ospite, al massimo dopo
-  14 giorni.
+  nome, lingua, PIN, nota e telefono: queste ultime si cancellano dopo la partenza dell'ospite, al
+  massimo dopo 14 giorni.
 - Il workflow GitHub usa azioni fissate a un commit preciso, perché ha accesso ai segreti.
 
 ## Avvisi arrivo (email e WhatsApp pre-arrivo)

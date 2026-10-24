@@ -1,4 +1,4 @@
-// Testi della lettera di benvenuto in 10 lingue.
+// Testi della lettera di benvenuto in 13 lingue (cinese semplificato, coreano e arabo dal 24/10/2026).
 // Contenuti richiesti: numero di camera con il percorso, sentirsi a casa, bar self-service
 // annotando le consumazioni, sauna al piano giardino fino alle 21:00, password Wi-Fi,
 // numero per le emergenze, augurio di buon soggiorno.
@@ -24,7 +24,7 @@ const frTime = (hm: string): string => {
 const dotTime = (hm: string): string => hm.replace(":", ".");
 
 /** Ordine nel menu: prima le lingue più frequenti in Val Gardena. */
-export const LANG_ORDER: readonly LangCode[] = ["de", "it", "en", "fr", "nl", "pl", "cs", "es", "da", "sv"];
+export const LANG_ORDER: readonly LangCode[] = ["de", "it", "en", "fr", "nl", "pl", "cs", "es", "da", "sv", "zh", "ko", "ar"];
 
 export const TEXTS: Readonly<Record<LangCode, LetterTexts>> = {
   en: {
@@ -280,7 +280,89 @@ export const TEXTS: Readonly<Record<LangCode, LetterTexts>> = {
     qr: "Skanna QR-koden för all information om Chalet Hotel Hartmann.",
     noteLabel: "Ett meddelande till er",
   },
+
+  // Cinese semplificato. I piani si descrivono «di quanti piani salire»: in Cina il piano terra è il «primo piano».
+  zh: {
+    nameIt: "Cinese",
+    roomLabel: "房间",
+    headline: "欢迎入住 Chalet Hotel Hartmann",
+    salutation: (n) => (n ? `尊敬的 ${n}：` : "尊敬的宾客："),
+    intro: "我们非常高兴迎接您的到来。",
+    room: (r, f) => {
+      const where: Record<Floor, string> = {
+        first: "，在楼上一层。",
+        second: "，在楼上两层。",
+        garden: "，位于花园层，沿楼梯下楼即可到达。",
+      };
+      return [t("您的房间号为 "), b(r), t(f ? where[f] : "。")];
+    },
+    home: "请把这里当作自己的家。",
+    bar: "吧台饮品可自行取用，只需记下您取用的物品即可。",
+    breakfast: (f, to) => `早餐供应时间为 ${f} 至 ${to}。`,
+    sauna: "桑拿位于花园层，开放至晚上 9 点。",
+    wifiLabel: "Wi-Fi 密码",
+    emergency: (p) => [t("如遇紧急情况，请拨打 "), b(p), t("。")],
+    closing: "祝您入住愉快！",
+    qr: "扫描二维码，即可查看 Chalet Hotel Hartmann 的全部信息。",
+    noteLabel: "给您的留言",
+  },
+
+  // Coreano, registro di cortesia. Piani descritti in modo relativo: in Corea il piano terra è il «1층».
+  ko: {
+    nameIt: "Coreano",
+    roomLabel: "객실",
+    headline: "Chalet Hotel Hartmann에 오신 것을 환영합니다",
+    salutation: (n) => (n ? `${n} 님께` : "소중한 고객님께"),
+    intro: "저희와 함께해 주셔서 진심으로 기쁩니다.",
+    room: (r, f) => {
+      const where: Record<Floor, string> = {
+        first: "호이며, 한 층 위에 있습니다.",
+        second: "호이며, 두 층 위에 있습니다.",
+        garden: "호이며, 정원 층에 있습니다. 계단으로 내려가시면 됩니다.",
+      };
+      return [t("고객님의 객실은 "), b(r), t(f ? where[f] : "호입니다.")];
+    },
+    home: "집처럼 편안하게 지내시기 바랍니다.",
+    bar: "바에서는 자유롭게 음료를 드셔도 됩니다. 드신 것만 적어 주세요.",
+    breakfast: (f, to) => `조식은 오전 ${f}부터 ${to}까지 제공됩니다.`,
+    sauna: "사우나는 정원 층에 있으며 오후 9시까지 이용하실 수 있습니다.",
+    wifiLabel: "Wi-Fi 비밀번호",
+    emergency: (p) => [t("긴급 상황 시에는 "), b(p), t("번으로 연락해 주세요.")],
+    closing: "편안하고 즐거운 시간 보내시기 바랍니다!",
+    qr: "QR 코드를 스캔하시면 Chalet Hotel Hartmann에 관한 모든 정보를 확인하실 수 있습니다.",
+    noteLabel: "고객님께 드리는 메모",
+  },
+
+  // Arabo standard, plurale di cortesia. Saluto senza nome (il nome è già in alto). Le frasi non finiscono con
+  // numeri o nomi latini quando si può evitare, così la lettura da destra a sinistra resta pulita anche nel PDF.
+  ar: {
+    nameIt: "Arabo",
+    roomLabel: "الغرفة",
+    headline: "أهلاً وسهلاً بكم في Chalet Hotel Hartmann",
+    salutation: () => "ضيوفنا الكرام،",
+    intro: "يسعدنا أن نرحب بكم بيننا.",
+    room: (r, f) => {
+      const where: Record<Floor, string> = {
+        first: " وتقع في الطابق الأول، أي طابق واحد إلى الأعلى.",
+        second: " وتقع في الطابق الثاني، أي طابقين إلى الأعلى.",
+        garden: " وتقع في طابق الحديقة، ويكفي أن تنزلوا الدرج للوصول إليها.",
+      };
+      return [t("رقم غرفتكم "), b(r), t(f ? where[f] : ".")];
+    },
+    home: "نرجو أن تشعروا وكأنكم في بيتكم.",
+    bar: "تفضلوا بخدمة أنفسكم في البار، ويكفي أن تدوّنوا ما تتناولونه.",
+    breakfast: (f, to) => `يقدم الفطور من الساعة ${f} حتى الساعة ${to} صباحًا.`,
+    sauna: "تقع الساونا في طابق الحديقة، ويمكن استخدامها حتى الساعة التاسعة مساءً.",
+    wifiLabel: "كلمة مرور الواي فاي",
+    emergency: (p) => [t("في حالات الطوارئ يرجى الاتصال بالرقم "), b(p), t(".")],
+    closing: "نتمنى لكم إقامة رائعة!",
+    qr: "امسحوا رمز QR ضوئيًا لتجدوا جميع المعلومات عن Chalet Hotel Hartmann.",
+    noteLabel: "ملاحظة لكم",
+  },
 };
+
+/** Lingue scritte da destra a sinistra. */
+export const RTL_LANGS: ReadonlySet<LangCode> = new Set<LangCode>(["ar"]);
 
 /** Paragrafo semplice da una stringa. */
 export const plain = (text: string): Paragraph => [t(text)];

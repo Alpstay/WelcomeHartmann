@@ -108,6 +108,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .note-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .note-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: auto; }
 .pin-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
+/* WhatsApp di benvenuto sulla riga della camera: telefono dell'ospite (da Slope o scritto a mano) e invio. */
+.wa-field { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+.phone { width: 150px; min-width: 0; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-variant-numeric: tabular-nums; }
+.btn.wa-guest { background: #1f6f4a; color: #fff; font-weight: 700; }
+.btn.wa-guest:hover:not(:disabled) { background: #185a3c; }
+.btn.wa-guest:disabled { background: var(--wash); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
 .pin { width: 76px; font-size: 18px; font-weight: 700; letter-spacing: 0.3em; text-align: center; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-variant-numeric: tabular-nums; }
 .pin:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold-soft); }
 .empty { padding: 28px 10px; color: var(--muted); border-bottom: 1px solid var(--line); }
@@ -165,6 +171,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .l-postit-boxes span { width: calc(15 * var(--pt)); height: calc(24 * var(--pt)); border: calc(0.8 * var(--pt)) solid #000; margin-left: calc(-0.8 * var(--pt)); }
 .l-postit-boxes span:first-child { margin-left: 0; }
 .l-postit-room { font-size: calc(7.5 * var(--pt)); letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); line-height: 1; }
+.l-page :dir(rtl) { letter-spacing: 0 !important; }
 .l-empty { display: grid; place-items: center; height: 100%; color: var(--muted); }
 .l-badge { position: absolute; top: 12px; right: 12px; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--info-bg); color: var(--info); }
 .sheet.example .l-page { opacity: 0.8; }

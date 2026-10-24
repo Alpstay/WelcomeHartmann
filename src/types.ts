@@ -1,7 +1,7 @@
 // Tipi condivisi della piattaforma "Lettere di benvenuto" — Chalet Hotel Hartmann.
 
 /** Lingue in cui la lettera è disponibile. */
-export type LangCode = "it" | "de" | "en" | "fr" | "es" | "nl" | "pl" | "cs" | "da" | "sv";
+export type LangCode = "it" | "de" | "en" | "fr" | "es" | "nl" | "pl" | "cs" | "da" | "sv" | "zh" | "ko" | "ar";
 
 /** Piani dello Chalet Hartmann con indicazioni per raggiungere la camera. */
 export type Floor = "first" | "second" | "garden";
