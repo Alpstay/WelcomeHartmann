@@ -6,7 +6,7 @@
  * Il link feratel è personale: è una credenziale. Non si salva mai: resta solo nella finestra della reception.
  * Regola: gli ID ricevuti da Slope non vengono mai modificati.
  */
-import { LINK_ARRIVO } from "./testi";
+import { LINK_ARRIVO, RE_CHECKIN_SLOPE } from "./testi";
 import type { Lingua } from "./testi";
 import type { EncBlock } from "../feed";
 
@@ -195,23 +195,33 @@ const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Link personale alla pagina d'arrivo con i pass (nel frammento #: non arriva a nessun server).
  * `prenotazioni` = reservation_id Slope a cui appartengono i pass (&gr=…, copiati identici): la Directory mostra i
  * pass solo con il link di quella prenotazione, così su un dispositivo condiviso un ospite non vede quelli di un altro.
+ * Con `checkinUrl` (link di check-in Slope della prenotazione) il link porta anche #ci=…: la pagina d'arrivo diventa
+ * la piattaforma personale completa (check-in online + Guest Pass). La prenotazione del check-in entra anche in &gr=,
+ * così la Directory riconosce pass e check-in come della stessa prenotazione. ID copiati identici, mai modificati.
  */
-export function linkGuestPass(lingua: Lingua, pass: readonly PassTrovato[], prenotazioni: readonly string[] = []): string {
+export function linkGuestPass(
+  lingua: Lingua,
+  pass: readonly PassTrovato[],
+  prenotazioni: readonly string[] = [],
+  checkinUrl: string | null = null,
+): string {
   const gp = pass.map((p) => p.codice).join("~");
   const gn = pass.some((p) => p.nome) ? "&gn=" + pass.map((p) => encodeURIComponent(p.nome)).join("~") : "";
-  const ids = prenotazioni.filter((id) => RE_UUID.test(id)).slice(0, 12);
+  const m = checkinUrl ? RE_CHECKIN_SLOPE.exec(checkinUrl) : null;
+  const ci = m ? `ci=${m[1]}~${m[2]}~${m[3]}&` : "";
+  const ids = [...new Set([...prenotazioni, ...(m ? [m[3]] : [])])].filter((id) => RE_UUID.test(id)).slice(0, 12);
   const gr = ids.length ? "&gr=" + ids.join("~") : "";
-  return `${LINK_ARRIVO}?lang=${lingua}#gp=${gp}${gn}${gr}`;
+  return `${LINK_ARRIVO}?lang=${lingua}#${ci}gp=${gp}${gn}${gr}`;
 }
 
-/** Testi del 22/10/2026 (bozza, modificabile nel riquadro prima dell'invio). Firma come gli avvisi pre-arrivo. */
+/** Testi del 22/10/2026, «pagina personale» dal 24/10 (bozza, modificabile nel riquadro prima dell'invio). Firma come gli avvisi pre-arrivo. */
 export const TESTI_GUESTPASS: Readonly<Record<Lingua, TestoGuestPass>> = {
   it: {
     oggetto: "Il vostro Guest Pass · Chalet Hotel Hartmann",
     corpo: [
       "Il vostro *Guest Pass* per i mezzi pubblici della Val Gardena è pronto.",
       "",
-      "Lo trovate qui, insieme a tutte le informazioni per l'arrivo, e potete salvarlo nel Wallet del telefono:",
+      "Lo trovate nella vostra *pagina personale*, insieme al vostro check-in online e a tutte le informazioni per l'arrivo; da lì potete salvarlo nel Wallet del telefono:",
       SEGNAPOSTO_LINK_GUESTPASS,
       "",
       "Il Guest Pass è personale: obliteratelo prima di salire, a ogni corsa.",
@@ -226,7 +236,7 @@ export const TESTI_GUESTPASS: Readonly<Record<Lingua, TestoGuestPass>> = {
     corpo: [
       "Ihr *Guest Pass* für die öffentlichen Verkehrsmittel in Gröden ist bereit.",
       "",
-      "Sie finden ihn hier, zusammen mit allen Informationen zur Anreise, und können ihn im Wallet Ihres Smartphones speichern:",
+      "Sie finden ihn auf Ihrer *persönlichen Seite*, zusammen mit Ihrem Online-Check-in und allen Informationen zur Anreise; von dort können Sie ihn im Wallet Ihres Smartphones speichern:",
       SEGNAPOSTO_LINK_GUESTPASS,
       "",
       "Der Guest Pass ist persönlich: Bitte bei jeder Fahrt vor dem Einsteigen entwerten.",
@@ -241,7 +251,7 @@ export const TESTI_GUESTPASS: Readonly<Record<Lingua, TestoGuestPass>> = {
     corpo: [
       "Your *Guest Pass* for public transport in Val Gardena is ready.",
       "",
-      "You will find it here, together with all the information for your arrival, and you can save it to your phone's Wallet:",
+      "You will find it on your *personal page*, together with your online check-in and all the information for your arrival; from there you can save it to your phone's Wallet:",
       SEGNAPOSTO_LINK_GUESTPASS,
       "",
       "The Guest Pass is personal: please validate it before boarding, on every ride.",
@@ -253,8 +263,13 @@ export const TESTI_GUESTPASS: Readonly<Record<Lingua, TestoGuestPass>> = {
   },
 };
 
-export function testoGuestPass(lingua: Lingua, pass: readonly PassTrovato[], prenotazioni: readonly string[] = []): string {
-  return TESTI_GUESTPASS[lingua].corpo.split(SEGNAPOSTO_LINK_GUESTPASS).join(linkGuestPass(lingua, pass, prenotazioni));
+export function testoGuestPass(
+  lingua: Lingua,
+  pass: readonly PassTrovato[],
+  prenotazioni: readonly string[] = [],
+  checkinUrl: string | null = null,
+): string {
+  return TESTI_GUESTPASS[lingua].corpo.split(SEGNAPOSTO_LINK_GUESTPASS).join(linkGuestPass(lingua, pass, prenotazioni, checkinUrl));
 }
 
 // ───────────────────────── File guestpass.json (casella Guest Pass) ─────────────────────────

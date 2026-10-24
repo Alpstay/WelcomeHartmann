@@ -192,3 +192,18 @@ console.log("ok", Math.round(full.length / 1024), "KB");
     `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${collegaCsp}">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta name="referrer" content="no-referrer">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`,
   );
 }
+
+// Avviso «Guest Pass arrivato» per Google Apps Script (Gmail dedicata): stesso codice di
+// tools/gmail-avviso/avviso-guestpass.ts senza tipi, da incollare nell'editor di Apps Script (vedi LEGGIMI.md).
+{
+  const { transform } = await import("esbuild");
+  const sorgente = readFileSync("tools/gmail-avviso/avviso-guestpass.ts", "utf8");
+  const js = await transform(sorgente, { loader: "ts", target: "es2020" });
+  writeFileSync(
+    "tools/gmail-avviso/avviso-guestpass.gs",
+    "// Avviso «Guest Pass arrivato» · Gmail guestpass.hartmann@gmail.com → GitHub «Guest Pass dalla casella».\n" +
+      "// Generato da avviso-guestpass.ts con build.mjs: si incolla così com'è in Apps Script (Codice.gs).\n" +
+      "// Ogni 5 minuti: se c'è un'email nuova di sgp01@feratel.tv avvia subito il workflow. Token in Proprietà script: GITHUB_TOKEN.\n" +
+      js.code,
+  );
+}

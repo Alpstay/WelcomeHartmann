@@ -2,7 +2,7 @@
  * Guest Pass nella pagina checkin/ — regole pure (nessun DOM).
  *
  * Dopo il check-in online con l'email diretta in Slope si manda all'ospite il suo Guest Pass. Il Guest Pass si genera
- * in LTS con destinatario la casella dedicata; il workflow «Guest Pass dalla casella» la legge ogni 15 minuti e
+ * in LTS con destinatario la casella dedicata; il workflow «Guest Pass dalla casella» la legge (avviato dalla Gmail appena arriva un pass) e
  * pubblica guestpass.json (cifrato con la password reception). Qui si abbinano i pass alle prenotazioni dal nome e si
  * prepara il messaggio con il link personale alla pagina d'arrivo (stesso link e stessi testi della pagina avvisi/).
  *
@@ -132,11 +132,12 @@ export const ETICHETTA_GUESTPASS = "GUEST PASS";
 
 /**
  * Messaggio del Guest Pass: stessi testi della pagina avvisi/ (TESTI_GUESTPASS), oggetto con numero di prenotazione
- * e nome. Il link porta alla pagina d'arrivo con i pass della prenotazione (#gp=…&gr=<reservation_id>).
+ * e nome. Il link porta alla pagina d'arrivo personale: check-in e pass della prenotazione (#ci=…&gp=…&gr=<reservation_id>).
  */
 export function messaggioGuestPass(r: RigaCheckin, lingua: Lingua, pass: readonly PassTrovato[]): Messaggio {
   const t = TESTI_GUESTPASS[lingua];
-  const link = linkGuestPass(lingua, pass, [r.reservationId]);
+  // pagina personale completa: Guest Pass e check-in della prenotazione nello stesso link
+  const link = linkGuestPass(lingua, pass, [r.reservationId], r.checkinUrl);
   const righe = t.corpo.split("\n");
   const senzaAsterischi = (x: string): string => x.replace(/\*([^*\n]+)\*/g, "$1");
   const testo = righe.map((x) => (x === SEGNAPOSTO_LINK_GUESTPASS ? `${ETICHETTA_GUESTPASS}: ${link}` : senzaAsterischi(x))).join("\n");

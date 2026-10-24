@@ -39,7 +39,7 @@ const K_IMPOSTAZIONI = "avvisiHartmann.impostazioni";
 const K_GUESTPASS = "avvisiHartmann.guestpass";
 /** Email del Guest Pass già gestite (inviate o nascoste) su questo computer: solo l'impronta dell'email, mai i link. */
 const K_GUESTPASS_EMAIL = "avvisiHartmann.guestpassEmail";
-/** Guest Pass letti dalla casella dedicata (workflow «Guest Pass dalla casella», ogni 15 minuti). */
+/** Guest Pass letti dalla casella dedicata (workflow «Guest Pass dalla casella», avviato dalla Gmail appena arriva un pass). */
 const GUESTPASS_URL = "../guestpass.json";
 const STATO_GUESTPASS_URL = "../stato-guestpass.txt";
 /** La casella tiene 8 giorni di email: il registro delle email gestite qualche giorno in più. */
@@ -1328,7 +1328,7 @@ function renderCasella(): string {
   const problema = c.problema ? `<p class="errore" role="alert">${esc(c.problema)}</p>` : "";
   const lista = emailDaGestire();
   if (lista.length === 0) {
-    return `${problema}<p class="aiuto gp-casella-vuota">Nessun Guest Pass nuovo dalla casella. Si controlla da sola ogni 15 minuti.</p>`;
+    return `${problema}<p class="aiuto gp-casella-vuota">Nessun Guest Pass nuovo dalla casella. La pagina ricontrolla da sola ogni 5 minuti.</p>`;
   }
   const righe = lista
     .map((e) => {
@@ -1364,6 +1364,8 @@ interface DestinatarioGuestPass {
   id: string | null;
   /** reservation_id Slope a cui legare i pass nel link: la prenotazione scelta e le altre camere dello stesso intestatario */
   prenotazioni: string[];
+  /** link di check-in Slope della prenotazione scelta: il link del Guest Pass apre la pagina d'arrivo completa */
+  checkinUrl: string | null;
   nome: string;
   arrivo: string | null;
   emails: string[];
@@ -1376,7 +1378,7 @@ function destinatarioGuestPass(): DestinatarioGuestPass | null {
   const gp = stato.gp;
   if (gp.sceltaId === GP_ALTRO) {
     const email = pulisciEmail(gp.email);
-    return { id: null, prenotazioni: [], nome: "Ospite non in lista", arrivo: null, emails: email ? [email.toLowerCase()] : [], relayOta: relayOta(email), telefono: gp.telefono.trim() || null, lingua: gp.lingua ?? gp.linguaEmail ?? "en" };
+    return { id: null, prenotazioni: [], checkinUrl: null, nome: "Ospite non in lista", arrivo: null, emails: email ? [email.toLowerCase()] : [], relayOta: relayOta(email), telefono: gp.telefono.trim() || null, lingua: gp.lingua ?? gp.linguaEmail ?? "en" };
   }
   const a = gp.sceltaId ? stato.tuttiArrivi.find((x) => x.reservationId === gp.sceltaId) : undefined;
   if (!a) return null;
@@ -1393,6 +1395,7 @@ function destinatarioGuestPass(): DestinatarioGuestPass | null {
   return {
     id: a.reservationId,
     prenotazioni: [a.reservationId, ...camere],
+    checkinUrl: a.checkinUrl,
     nome: a.nome,
     arrivo: a.arrivo,
     emails,
@@ -1487,7 +1490,7 @@ function renderGuestPass(): void {
 
   let azioni = "";
   if (d) {
-    const corpo = testoGuestPass(d.lingua, gp.pass, d.prenotazioni);
+    const corpo = testoGuestPass(d.lingua, gp.pass, d.prenotazioni, d.checkinUrl);
     const oggetto = TESTI_GUESTPASS[d.lingua].oggetto;
     const urlEmail = d.emails.length ? linkEmail(stato.impostazioni.programma, d.emails, oggetto, senzaGrassetto(corpo)) : null;
     const max = stato.impostazioni.programma === "gmail" ? MAX_LUNGHEZZA_GMAIL : MAX_LUNGHEZZA_MAILTO;
@@ -1592,10 +1595,10 @@ function collegaGuestPass(): void {
         void segnaGuestPassInviato();
         break;
       case "gp-copia-testo":
-        if (d) void copia(testoGuestPass(d.lingua, gp.pass, d.prenotazioni), el);
+        if (d) void copia(testoGuestPass(d.lingua, gp.pass, d.prenotazioni, d.checkinUrl), el);
         break;
       case "gp-copia-link":
-        if (d) void copia(linkGuestPass(d.lingua, gp.pass, d.prenotazioni), el);
+        if (d) void copia(linkGuestPass(d.lingua, gp.pass, d.prenotazioni, d.checkinUrl), el);
         break;
       case "gp-togli": {
         const i = Number(el.dataset.indice);

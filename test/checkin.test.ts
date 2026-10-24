@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readBundle } from "../src/cli/feed-files";
 import { abbinaGuestPass, messaggioGuestPass, registroEmailGestite, registroInviiGuestPass, statoGuestPass } from "../src/checkin/guestpass";
+import { linkGuestPass } from "../src/avvisi/guestpass";
 import { avvisiAad, decryptJson, encryptJson } from "../src/feed";
 import type { AvvisiPayload, AvvisoItem } from "../src/feed";
 import { avvisiItems, riferimentiPer } from "../src/feed-build";
@@ -437,11 +438,19 @@ await t("Guest Pass: messaggio con pulsante GUEST PASS e link alla pagina d'arri
   const m = messaggioGuestPass(r, "it", [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }]);
   assert.equal(m.oggetto, "Il vostro Guest Pass · Chalet Hotel Hartmann · Prenotazione n. 8086301 · Luca Rossi");
   assert.match(m.html, />GUEST PASS<\/a>/);
-  assert.ok(m.html.includes(`#gp=${"C".repeat(24)}&amp;gn=LUCA%20ROSSI&amp;gr=${ID(1)}`));
-  assert.ok(m.testo.includes("GUEST PASS: https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it#gp="));
+  // pagina personale completa: check-in (#ci=) + pass, legati alla stessa prenotazione (ID non ripetuto)
+  const ci = `ci=00000000-0000-4000-8000-0000000000aa~c6055fa5-edaa-4b8f-a518-541322f3ac1e~${ID(1)}`;
+  assert.ok(m.html.includes(`#${ci}&amp;gp=${"C".repeat(24)}&amp;gn=LUCA%20ROSSI&amp;gr=${ID(1)}"`));
+  assert.ok(m.testo.includes(`GUEST PASS: https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it#${ci}&gp=`));
+  assert.ok(m.testo.includes("pagina personale"));
   assert.ok(!m.testo.includes("*"));
   assert.ok(m.whatsapp.includes("*GUEST PASS* https://"));
   assert.ok(!m.html.includes("<br></p>"));
+  // senza link di check-in: solo i pass; check-in di un'altra camera dello stesso intestatario: entrambe in &gr=
+  const pass = [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }];
+  assert.equal(linkGuestPass("en", pass, [ID(1)]), `https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=en#gp=${"C".repeat(24)}&gn=LUCA%20ROSSI&gr=${ID(1)}`);
+  assert.ok(linkGuestPass("en", pass, [ID(1)], LINK(2)).endsWith(`&gr=${ID(1)}~${ID(2)}`));
+  assert.ok(!linkGuestPass("en", pass, [ID(1)], "https://esempio.com/check-in").includes("ci="));
 });
 
 console.log(`checkin: ${n} test superati`);

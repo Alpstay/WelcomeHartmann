@@ -861,7 +861,7 @@ function gruppoGuestPassDaGenerare(righe: readonly RigaCheckin[]): string {
   const ordini = perOrdine(righe);
   return `<section class="gruppo gruppo-oggi gruppo-gp-lts" aria-labelledby="g-gp-lts">
     <div class="gruppo-testa"><h3 id="g-gp-lts"><span class="pallino" aria-hidden="true"></span>Generare il Guest Pass in LTS <span class="conta">${ordini.length}</span></h3>
-    <p class="nota">Check-in fatto ed email diretta in Slope. <b>1</b> «Apri in Slope» · <b>2</b> estensione «Slope X LTS Guest Pass» · <b>3</b> in LTS «Invia carta d'ospite» a <b>${esc(CASELLA_GUESTPASS)}</b> («Copia indirizzo»). Entro 15 minuti il pass compare qui in «Inviare il Guest Pass».</p></div>
+    <p class="nota">Check-in fatto ed email diretta in Slope. <b>1</b> «Apri in Slope» · <b>2</b> estensione «Slope X LTS Guest Pass» · <b>3</b> in LTS «Invia carta d'ospite» a <b>${esc(CASELLA_GUESTPASS)}</b> («Copia indirizzo»). Il pass compare qui in «Inviare il Guest Pass» appena la casella viene letta (la pagina ricontrolla ogni 5 minuti).</p></div>
     <ul class="voci voci-gp">${ordini
       .map((camere) => {
         const r = camere[0];
@@ -1115,6 +1115,12 @@ function renderComposer(): void {
     )
     .join("");
   const lingue = (["de", "it", "en"] as const).map((l) => `<option value="${l}"${l === c.lingua ? " selected" : ""}>${NOMI_LINGUA[l]}</option>`).join("");
+  // «e/o»: dopo l'email si può mandare lo stesso messaggio anche su WhatsApp (e viceversa), poi si segna una volta sola
+  const anche = (k: "email" | "whatsapp"): string =>
+    canali.includes(k)
+      ? `<li><button type="button" class="btn" data-azione="canale" data-canale="${k}">${k === "whatsapp" ? "Manda anche su WhatsApp" : "Manda anche per email"}</button>
+          <span class="aiuto">Facoltativo: stesso testo e stesso link personale.</span></li>`
+      : "";
   let corpo = "";
   if (c.canale === "email") {
     const a = r.email ?? (c.guestpass ? stato.emailNuove.get(r.reservationId)?.email : undefined) ?? r.inoltroPortale ?? "";
@@ -1132,6 +1138,7 @@ function renderComposer(): void {
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="copia-e-apri">Copia il testo e apri l'email</a>
           <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante ${c.guestpass ? "GUEST PASS" : "START"}.</span></li>
+        ${anche("whatsapp")}
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviata</button></li>
       </ol>
       <p class="aiuto">Se l'incolla non porta il testo: <button type="button" class="link" data-azione="copia-anteprima">copia di nuovo il testo</button>.</p>`;
@@ -1144,6 +1151,7 @@ function renderComposer(): void {
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Apri WhatsApp con il messaggio</a>
           <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo ${c.guestpass ? "GUEST PASS" : "START"}, in grassetto.</span></li>
+        ${anche("email")}
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviato</button></li>
       </ol>`;
   } else {
@@ -1470,7 +1478,7 @@ export async function avvia(f: Fonte): Promise<void> {
   const forse = (): void => {
     if (document.visibilityState !== "visible" || stato.caricamento === "in-corso" || stato.caricamento === "password") return;
     if (Date.now() - ultimo < AGGIORNA_OGNI_MS) {
-      // i Guest Pass della casella si controllano più spesso (il workflow gira ogni 15 minuti)
+      // i Guest Pass della casella si controllano più spesso (il workflow parte appena arriva un pass, con l'avviso dalla Gmail)
       if (stato.caricamento === "ok" && Date.now() - ultimoGP >= AGGIORNA_GP_OGNI_MS) {
         ultimoGP = Date.now();
         caricaRegistriGP();

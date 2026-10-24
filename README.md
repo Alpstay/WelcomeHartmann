@@ -86,6 +86,9 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password r
   casella dedicata); quando il workflow «Guest Pass dalla casella» lo pubblica in `guestpass.json`, la pagina lo abbina
   alla prenotazione dal nome e propone «Invia il Guest Pass» (email con il pulsante GUEST PASS verso la pagina d'arrivo,
   stessi testi e link della pagina avvisi/). Registri «inviato» e «email gestite» condivisi con avvisi/.
+  Il link apre la pagina personale dell'ospite: check-in (`#ci=`) e pass (`#gp=`) della stessa prenotazione; nella
+  finestra del messaggio «Manda anche su WhatsApp / per email» per usare entrambi i canali. Casella letta in pochi
+  minuti solo con l'avviso dalla Gmail (`tools/gmail-avviso/LEGGIMI.md`): da solo GitHub la legge ogni 4–5 ore.
 - «Apri in Slope»: apre l'ordine nel backoffice (`backoffice.slope.it/<struttura>/orders/<order_id>/view`, order_id
   invariato da La Scatola). In «Generare il Guest Pass» una voce per ordine (più camere insieme) → estensione
   «Slope X LTS Guest Pass»; nelle email da inserire «Copia email e apri Slope».
