@@ -14,7 +14,7 @@ import { prepareFonts } from "./script-fonts";
 import { SERVER, fetchArrivals, fetchGuestInfo, freshnessTime, isMcpError, toItems } from "./scatola";
 import { CLIENT_FILE, parseClient } from "./scatola-client";
 import { buildSummary, whatsappUrl } from "./summary";
-import { LANG_ORDER, RTL_LANGS, TEXTS } from "./texts";
+import { LANG_ORDER, RTL_LANGS, TEXTS, withEnglish } from "./texts";
 import type { ArrivalItem, Freshness, LangCode, LetterModel, Paragraph } from "./types";
 
 type Mcp = typeof Claude.mcp;
@@ -675,7 +675,7 @@ function metaFor(item: ArrivalItem): string {
 function langSelect(item: ArrivalItem): HTMLSelectElement {
   const sel = h("select", { class: "lang", id: `lang-${item.key}`, "aria-label": "Lingua della lettera" });
   for (const code of LANG_ORDER) {
-    const opt = h("option", { value: code }, `${TEXTS[code].nameIt}${code === "en" ? "" : " + inglese"}`);
+    const opt = h("option", { value: code }, `${TEXTS[code].nameIt}${withEnglish(code) ? " + inglese" : ""}`);
     if (code === item.lang) opt.selected = true;
     sel.append(opt);
   }
