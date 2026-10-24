@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Belleza&family=Lato:wght@400;700&display=swap">
 <style>
-/* Banco reception, anche da telefono. Testata, tre schede (Da fare oggi · Calendario · Tutte), poi la vista scelta.
+/* Banco reception, anche da telefono. Testata, due schede (Da fare oggi con i prossimi giorni in fondo · Tutte).
    Righe a griglia: camera a sinistra, a destra cosa fare, ospite, contatti, check-in, email annotata e azioni. Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
 :root {
   --bg: #ffffff;
@@ -123,7 +123,9 @@ h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
 .gruppo-fatti summary h3::before { content: "▸"; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
 .gruppo-fatti[open] summary h3::before { content: "▾"; }
 
-/* Calendario: un giorno sotto l'altro; ogni promemoria ha la sua azione e si apre sulla riga completa */
+/* Prossimi giorni (in fondo a «Da fare oggi»): un giorno sotto l'altro; ogni promemoria ha la sua azione e si apre sulla riga completa */
+.prossimi { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
+#lista .giorno h4 { font-family: var(--font-title); font-weight: 400; font-size: 17px; margin: 0; display: flex; align-items: center; gap: 10px; }
 .agenda { display: flex; flex-direction: column; gap: 12px; }
 .giorno { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .giorno-oggi { border-color: var(--gold); background: var(--gold-soft); }
@@ -384,7 +386,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <dt>Tutto a posto</dt>
       <dd>Check-in fatto e indirizzo diretto dell'ospite in Slope.</dd>
     </dl>
-    <p><b>Quando scrivere:</b> check-in online da fare 5 giorni prima dell'arrivo; email mancante o da correggere 3 giorni prima. I promemoria arrivano in «Da fare oggi»; quelli dei prossimi giorni sono nel «Calendario».</p>
+    <p><b>Quando scrivere:</b> check-in online da fare 5 giorni prima dell'arrivo; email mancante o da correggere 3 giorni prima. I promemoria arrivano in «Da fare oggi»; quelli dei prossimi giorni sono in fondo alla stessa pagina.</p>
     <p><b>Email mandata dall'ospite:</b> annotala subito nella riga della camera («+ Annota l'email»), così non si perde. Lampeggia in rosso finché non è nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. A ogni aggiornamento orario la pagina controlla Slope e, quando la trova, la toglie da sola.</p>
     <p><b>Scrivere all'ospite:</b> «Manda il link di check-in» o «Chiedi l'email» apre una finestra con il messaggio già scritto nella sua lingua, come lo riceverà, e i canali disponibili (Email, WhatsApp, Extranet). Per l'email: «Copia il testo e apri l'email» apre il messaggio con destinatario e oggetto (numero di prenotazione e nome); nel corpo si incolla con Ctrl+V il testo con il pulsante START. Poi «Segna inviata».</p>
     <p>«Contattato» e le email annotate restano solo su questo computer e si cancellano 14 giorni dopo l'arrivo (le email anche appena compaiono in Slope). Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
