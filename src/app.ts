@@ -5,6 +5,8 @@ import { FEED_FILE, avvisiAad, decryptJson, feedAad, fromFeedItem, isFeedEnvelop
 import type { AvvisiPayload, FeedEnvelope, FeedPayload } from "./feed";
 import { mostraNumero, numeroWhatsapp } from "./avvisi/testi";
 import { welcomeWhatsappText, welcomeWhatsappUrl } from "./whatsapp-welcome";
+import type { WelcomeInput } from "./whatsapp-welcome";
+import { setupSettings } from "./settings-ui";
 import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
 import { buildLetter, isPin, nightsBetween } from "./letter";
 import { buildDocDefinition, pdfFonts, pdfVfs, scriptFontsFor } from "./pdf";
@@ -869,11 +871,12 @@ function modelFor(item: ArrivalItem): LetterModel | null {
   });
 }
 
-const EXAMPLE = buildLetter({ reservationId: null, room: "107", guestName: null, lang: "de", arrival: null, departure: null });
+/** Lettera d'esempio quando non c'è una camera selezionata (rifatta ogni volta: i testi possono cambiare). */
+const example = (): LetterModel => buildLetter({ reservationId: null, room: "107", guestName: null, lang: "de", arrival: null, departure: null });
 
 function renderPreview(): void {
   const item = focusedItem();
-  const model = item ? modelFor(item) : EXAMPLE;
+  const model = item ? modelFor(item) : example();
   const sheet = $("sheet");
   $<HTMLButtonElement>("pdf-one").disabled = !item || !model || state.busy || (!item.manual && dateChangedNotLoaded());
   $("preview-note").textContent = !item
@@ -1281,14 +1284,34 @@ function wire(): void {
 
 // ——— avvio ———
 
-function start(): void {
-  $<HTMLImageElement>("brand-logo").src = LOGO_URL;
-  $("server-name").textContent = SERVER;
+function renderFacts(): void {
   $("hotel-facts").replaceChildren(
     h("span", {}, `Wi-Fi ${HOTEL.wifiPassword}`),
     h("span", {}, `Emergenze ${HOTEL.emergencyPhone}`),
-    h("span", {}, `Colazione ${HOTEL.breakfastFrom}–${HOTEL.breakfastTo} · Sauna fino alle 21:00`),
+    h("span", {}, `Colazione ${HOTEL.breakfastFrom}–${HOTEL.breakfastTo}`),
   );
+}
+
+/** Dati per l'anteprima del WhatsApp in Impostazioni: la camera selezionata o un esempio. */
+function settingsSample(): WelcomeInput {
+  const item = focusedItem();
+  if (!item) return { lang: "en", name: "Mario Rossi", room: "107", pin: "1234" };
+  return { lang: item.lang, name: item.name.trim() || null, room: item.room, pin: isPin(item.pin) ? item.pin.trim() : null };
+}
+
+function start(): void {
+  $<HTMLImageElement>("brand-logo").src = LOGO_URL;
+  $("server-name").textContent = SERVER;
+  // Prima di tutto i testi modificati in Impostazioni su questo computer.
+  setupSettings({
+    onChange: () => {
+      renderFacts();
+      renderPreview();
+    },
+    sample: settingsSample,
+    toast,
+  });
+  renderFacts();
   wire();
   renderAll();
   void load();

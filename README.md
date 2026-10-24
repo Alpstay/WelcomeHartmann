@@ -25,6 +25,12 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/
 - «Riepilogo WhatsApp»: testo con gli arrivi selezionati (camera, nome, date, lingua, note e, a
   scelta, i PIN) da copiare o aprire in WhatsApp, dove si sceglie il gruppo a cui inviarlo.
 
+- «Impostazioni» (in alto a destra): si modificano tutti i testi — dati dell'hotel (Wi-Fi, numero per le
+  emergenze, orari della colazione, firma), lettera in ognuna delle 13 lingue (frasi con segnaposto come
+  `{camera}`, `{telefono}`) e messaggio WhatsApp per lingua, con anteprima. Le modifiche si salvano nel
+  browser di quel computer (solo le parti cambiate); «Esporta»/«Importa» le portano su un altro computer;
+  «Ripristina» torna ai testi predefiniti (`src/texts.ts`, `src/hotel.ts`, `src/whatsapp-welcome.ts`).
+
 Sorgente TypeScript in `src/`; build con `npm install && node build.mjs` (scrive anche `index.html`).
 
 ## Sicurezza

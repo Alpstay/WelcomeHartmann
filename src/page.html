@@ -198,11 +198,33 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .wa-text { width: 100%; min-height: 220px; max-height: 46dvh; resize: vertical; font-size: 14px; line-height: 1.45; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--wash); }
 .wa-text:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 .wa-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+/* Impostazioni dei testi */
+.set-open { flex: none; }
+.top .facts + .set-open { margin-left: 4px; }
+.set { width: min(920px, calc(100vw - 32px)); }
+.set-box { gap: 14px; }
+.set-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+.set-tab { border: 0; background: none; padding: 9px 14px; font-size: 15px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.set-tab.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--gold); }
+.set-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.set-count { font-size: 13px; color: var(--muted); }
+.set-body { display: grid; gap: 14px; max-height: 56dvh; overflow: auto; padding-right: 4px; }
+.set-field { display: grid; gap: 5px; }
+.set-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0; font-size: 13px; font-weight: 700; color: var(--ink); }
+.set-text, .set-input { width: 100%; font-size: 14px; line-height: 1.45; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); resize: vertical; }
+.set-text:focus, .set-input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.set-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.set-warn { margin: 0; font-size: 12px; color: var(--warn); background: var(--warn-bg); padding: 5px 8px; border-radius: 6px; }
+.set-details summary { cursor: pointer; font-size: 13px; color: var(--gold); }
+.set-legend { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.set-legend code { color: var(--ink); }
+.set-preview { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.45 var(--text); background: #e7f3ec; border: 1px solid #cfe5d8; border-radius: 10px; padding: 10px 12px; max-height: 340px; overflow: auto; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .preview-col { position: static; }
   .top .facts { display: none; }
+  .top .facts + .set-open { margin-left: auto; }
 }
 @media (max-width: 560px) {
   .app { padding-inline: 16px; }
@@ -226,6 +248,7 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
       <p>Chalet Hotel Hartmann · arrivi da <span id="server-name">La Scatola</span></p>
     </div>
     <p class="facts" id="hotel-facts"></p>
+    <button type="button" class="btn ghost small set-open" id="settings-open">Impostazioni</button>
   </header>
 
   <section class="day" aria-labelledby="day-label">
@@ -284,6 +307,10 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
   <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
 
   <!-- Riepilogo per WhatsApp: testo pronto, il gruppo si sceglie in WhatsApp al momento dell'invio. -->
+  <dialog class="wa set" id="settings" aria-labelledby="set-title">
+    <div class="wa-box set-box" id="set-box"></div>
+  </dialog>
+
   <dialog class="wa" id="wa" aria-labelledby="wa-title">
     <form method="dialog" class="wa-box">
       <div class="wa-head">

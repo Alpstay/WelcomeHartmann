@@ -9,19 +9,17 @@ import { HOTEL, floorOf } from "./hotel";
 import { TEXTS } from "./texts";
 import type { LangCode, Paragraph } from "./types";
 
-const WIFI = HOTEL.wifiPassword;
 const INFO = "https://alpstay.github.io/InfoHartmann/";
 const RESTAURANTS = "https://receptionacadia.github.io/Restaurants/";
 const BUS = (l: "it" | "de" | "en"): string => `https://www.suedtirolmobil.info/${l}/#/`;
-const EMERGENCY = "+39 333 68 28717";
 const TAXI = "Taxi Fleur +39 335 6345264";
 const SIGN = "Chiara - Alpstay Hotels";
 /** Nei testi da destra a sinistra il segno LRM tiene il «+» del prefisso davanti al numero. */
 const LRM = "‎";
 
 interface WaTexts {
-  /** Riga del PIN: apre la cassaforte della camera, riconoscibile dalla busta personale. */
-  readonly pin: (code: string) => string;
+  /** Riga del PIN ({pin}): apre la cassaforte della camera, riconoscibile dalla busta personale. */
+  readonly pin: string;
   /** Dopo «Sentitevi come a casa.»: introduce l'elenco. */
   readonly useful: string;
   readonly breakfast: string;
@@ -47,7 +45,7 @@ interface WaTexts {
 
 const WA: Readonly<Record<LangCode, WaTexts>> = {
   en: {
-    pin: (c) => `🔐 PIN: *${c}* – this code opens the safe for your room, which you will recognise by the personal envelope on it.`,
+    pin: "🔐 PIN: {pin} – this code opens the safe for your room, which you will recognise by the personal envelope on it.",
     useful: "Here is some useful information for your stay:",
     breakfast: "☕ Breakfast : 8 - 10.30 AM",
     bar: "🍸 Self-Service Bar: open 24/7 with room and price list",
@@ -70,7 +68,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Best regards",
   },
   it: {
-    pin: (c) => `🔐 PIN: *${c}* – il codice apre la cassaforte della vostra camera, riconoscibile dalla busta personale applicata sopra.`,
+    pin: "🔐 PIN: {pin} – il codice apre la cassaforte della vostra camera, riconoscibile dalla busta personale applicata sopra.",
     useful: "Ecco alcune informazioni utili per il vostro soggiorno:",
     breakfast: "☕ Colazione: 8:00 - 10:30",
     bar: "🍸 Bar self-service: aperto 24 ore su 24, con lista per camera e listino prezzi",
@@ -93,7 +91,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Cordiali saluti",
   },
   de: {
-    pin: (c) => `🔐 PIN: *${c}* – mit diesem Code öffnen Sie den Safe für Ihr Zimmer; Sie erkennen ihn am persönlichen Umschlag darauf.`,
+    pin: "🔐 PIN: {pin} – mit diesem Code öffnen Sie den Safe für Ihr Zimmer; Sie erkennen ihn am persönlichen Umschlag darauf.",
     useful: "Hier einige nützliche Informationen für Ihren Aufenthalt:",
     breakfast: "☕ Frühstück: 8:00 - 10:30 Uhr",
     bar: "🍸 Self-Service-Bar: rund um die Uhr geöffnet, mit Zimmerliste und Preisliste",
@@ -116,7 +114,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Herzliche Grüße",
   },
   fr: {
-    pin: (c) => `🔐 PIN : *${c}* – ce code ouvre le coffre-fort de votre chambre, que vous reconnaîtrez à l'enveloppe personnelle posée dessus.`,
+    pin: "🔐 PIN : {pin} – ce code ouvre le coffre-fort de votre chambre, que vous reconnaîtrez à l'enveloppe personnelle posée dessus.",
     useful: "Voici quelques informations utiles pour votre séjour :",
     breakfast: "☕ Petit-déjeuner : 8 h - 10 h 30",
     bar: "🍸 Bar en libre-service : ouvert 24 h/24, avec liste par chambre et liste des prix",
@@ -139,7 +137,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Bien cordialement,",
   },
   es: {
-    pin: (c) => `🔐 PIN: *${c}* – este código abre la caja fuerte de su habitación, que reconocerán por el sobre personal colocado encima.`,
+    pin: "🔐 PIN: {pin} – este código abre la caja fuerte de su habitación, que reconocerán por el sobre personal colocado encima.",
     useful: "Aquí tienen información útil para su estancia:",
     breakfast: "☕ Desayuno: 8:00 - 10:30",
     bar: "🍸 Bar de autoservicio: abierto 24 horas, con lista por habitación y lista de precios",
@@ -162,7 +160,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Un cordial saludo",
   },
   nl: {
-    pin: (c) => `🔐 PIN: *${c}* – met deze code opent u de kluis voor uw kamer; u herkent hem aan de persoonlijke envelop erop.`,
+    pin: "🔐 PIN: {pin} – met deze code opent u de kluis voor uw kamer; u herkent hem aan de persoonlijke envelop erop.",
     useful: "Hier wat handige informatie voor uw verblijf:",
     breakfast: "☕ Ontbijt: 8.00 - 10.30 uur",
     bar: "🍸 Selfservicebar: 24/7 open, met kamerlijst en prijslijst",
@@ -185,7 +183,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Met vriendelijke groet",
   },
   pl: {
-    pin: (c) => `🔐 PIN: *${c}* – ten kod otwiera sejf dla Państwa pokoju, który rozpoznają Państwo po osobistej kopercie na sejfie.`,
+    pin: "🔐 PIN: {pin} – ten kod otwiera sejf dla Państwa pokoju, który rozpoznają Państwo po osobistej kopercie na sejfie.",
     useful: "Oto kilka przydatnych informacji na czas Państwa pobytu:",
     breakfast: "☕ Śniadanie: 8:00 - 10:30",
     bar: "🍸 Bar samoobsługowy: czynny całą dobę, z listą dla pokoi i cennikiem",
@@ -208,7 +206,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Z serdecznymi pozdrowieniami",
   },
   cs: {
-    pin: (c) => `🔐 PIN: *${c}* – tento kód otevírá trezor pro Váš pokoj, který poznáte podle osobní obálky na něm.`,
+    pin: "🔐 PIN: {pin} – tento kód otevírá trezor pro Váš pokoj, který poznáte podle osobní obálky na něm.",
     useful: "Zde je několik užitečných informací pro Váš pobyt:",
     breakfast: "☕ Snídaně: 8:00 - 10:30",
     bar: "🍸 Samoobslužný bar: otevřený nonstop, se seznamem pro pokoje a ceníkem",
@@ -231,7 +229,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "S pozdravem",
   },
   da: {
-    pin: (c) => `🔐 PIN: *${c}* – koden åbner pengeskabet til jeres værelse, som I kan kende på den personlige kuvert på det.`,
+    pin: "🔐 PIN: {pin} – koden åbner pengeskabet til jeres værelse, som I kan kende på den personlige kuvert på det.",
     useful: "Her er nogle nyttige oplysninger til jeres ophold:",
     breakfast: "☕ Morgenmad: kl. 8.00 - 10.30",
     bar: "🍸 Selvbetjeningsbar: åben døgnet rundt, med værelsesliste og prisliste",
@@ -254,7 +252,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Med venlig hilsen",
   },
   sv: {
-    pin: (c) => `🔐 PIN: *${c}* – koden öppnar kassaskåpet för ert rum, som ni känner igen på det personliga kuvertet som sitter på det.`,
+    pin: "🔐 PIN: {pin} – koden öppnar kassaskåpet för ert rum, som ni känner igen på det personliga kuvertet som sitter på det.",
     useful: "Här är lite användbar information inför er vistelse:",
     breakfast: "☕ Frukost: kl. 8.00 - 10.30",
     bar: "🍸 Självservicebar: öppen dygnet runt, med rumslista och prislista",
@@ -277,7 +275,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "Vänliga hälsningar",
   },
   zh: {
-    pin: (c) => `🔐 PIN：*${c}* — 此密码用于打开您房间对应的保险箱，保险箱上贴有您的专属信封，便于识别。`,
+    pin: "🔐 PIN：{pin} — 此密码用于打开您房间对应的保险箱，保险箱上贴有您的专属信封，便于识别。",
     useful: "以下是您入住期间的一些实用信息：",
     breakfast: "☕ 早餐：8:00 - 10:30",
     bar: "🍸 自助酒吧：24 小时开放，备有房间登记表和价目表",
@@ -299,7 +297,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "谨致问候",
   },
   ko: {
-    pin: (c) => `🔐 PIN: *${c}* – 이 번호로 고객님 객실용 금고를 여실 수 있습니다. 금고에 고객님 전용 봉투가 붙어 있어 쉽게 찾으실 수 있습니다.`,
+    pin: "🔐 PIN: {pin} – 이 번호로 고객님 객실용 금고를 여실 수 있습니다. 금고에 고객님 전용 봉투가 붙어 있어 쉽게 찾으실 수 있습니다.",
     useful: "숙박에 도움이 되는 정보를 안내해 드립니다:",
     breakfast: "☕ 조식: 8:00 - 10:30",
     bar: "🍸 셀프서비스 바: 24시간 운영, 객실별 기록표와 가격표 비치",
@@ -322,7 +320,7 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
     regards: "감사합니다.",
   },
   ar: {
-    pin: (c) => `🔐 الرمز (PIN): *${c}* – يفتح هذا الرمز الخزنة المخصصة لغرفتكم، وتعرفونها من الظرف الشخصي الموضوع عليها.`,
+    pin: "🔐 الرمز (PIN): {pin} – يفتح هذا الرمز الخزنة المخصصة لغرفتكم، وتعرفونها من الظرف الشخصي الموضوع عليها.",
     useful: "إليكم بعض المعلومات المفيدة لإقامتكم:",
     breakfast: "☕ الفطور: من 8:00 حتى 10:30 صباحًا",
     bar: "🍸 بار الخدمة الذاتية: مفتوح على مدار الساعة، مع قائمة للغرف وقائمة أسعار",
@@ -362,33 +360,34 @@ const waText = (p: Paragraph): string =>
     })
     .join("");
 
-export interface WelcomeInput {
-  readonly lang: LangCode;
-  /** Nome sull'intestazione della lettera (può mancare). */
-  readonly name: string | null;
-  readonly room: string | null;
-  /** PIN a 4 cifre, solo se compilato. */
-  readonly pin: string | null;
-}
+/**
+ * Segnaposto del messaggio. Le frasi personali vengono dai testi della lettera; una riga con {pin} o {camera}
+ * sparisce se il PIN non è compilato o la camera manca.
+ */
+export const WA_PLACEHOLDERS: readonly { readonly key: string; readonly what: string }[] = [
+  { key: "titolo", what: "titolo della lettera" },
+  { key: "saluto", what: "saluto della lettera, con il nome se c'è" },
+  { key: "benvenuto", what: "prima frase della lettera" },
+  { key: "pin", what: "PIN della cassaforte (la riga sparisce se manca)" },
+  { key: "camera", what: "frase della lettera con numero e piano della camera" },
+  { key: "casa", what: "«sentitevi a casa» e bar della lettera" },
+  { key: "wifi", what: "password Wi-Fi (Impostazioni › Hotel)" },
+  { key: "telefono", what: "numero per le emergenze (Impostazioni › Hotel)" },
+];
 
-/** Il messaggio completo per una camera, nella lingua scelta per la lettera. */
-export function welcomeWhatsappText(i: WelcomeInput): string {
-  const tx = TEXTS[i.lang];
-  const wa = WA[i.lang];
-  const sp = gap(i.lang);
-  const rtl = i.lang === "ar";
-  const num = (n: string): string => (rtl ? `${LRM}${n}` : n);
-  const room = i.room?.trim() || null;
-  const roomLine = room ? [waText(tx.room(room, floorOf(room)))] : [];
+/** Messaggio predefinito di una lingua, con i segnaposto. */
+export function defaultWhatsappTemplate(lang: LangCode): string {
+  const wa = WA[lang];
+  const rtl = lang === "ar";
   return [
-    `*${tx.headline}* 😀`,
+    "*{titolo}* 😀",
     "",
-    tx.salutation(i.name?.trim() || null),
-    tx.intro,
+    "{saluto}",
+    "{benvenuto}",
     // Il PIN prima della camera: all'arrivo serve per primo (cassaforte con la chiave).
-    ...(i.pin ? [wa.pin(i.pin)] : []),
-    ...roomLine,
-    `${tx.home}${sp}${tx.bar}`,
+    wa.pin,
+    "{camera}",
+    "{casa}",
     "",
     wa.useful,
     "",
@@ -398,9 +397,9 @@ export function welcomeWhatsappText(i: WelcomeInput): string {
     "",
     wa.checkout,
     wa.reception,
-    `${wa.wifi}: ${WIFI}`,
+    `${wa.wifi}: {wifi}`,
     "",
-    `${wa.emergency}: ${num(EMERGENCY)}`,
+    `${wa.emergency}: {telefono}`,
     "",
     wa.info,
     INFO,
@@ -426,6 +425,49 @@ export function welcomeWhatsappText(i: WelcomeInput): string {
     wa.regards,
     SIGN,
   ].join("\n");
+}
+
+const LANGS = Object.keys(WA) as LangCode[];
+
+/** Messaggi in uso: i predefiniti più le modifiche fatte in Impostazioni su questo computer. */
+const current: Record<LangCode, string> = Object.fromEntries(LANGS.map((l) => [l, defaultWhatsappTemplate(l)])) as Record<LangCode, string>;
+
+export const whatsappTemplate = (lang: LangCode): string => current[lang];
+
+/** Applica le modifiche di Impostazioni (sostituisce quelle precedenti). */
+export function applyWhatsappTemplates(overrides: Partial<Record<LangCode, string>>): void {
+  for (const l of LANGS) current[l] = overrides[l]?.trim() ? overrides[l]! : defaultWhatsappTemplate(l);
+}
+
+export interface WelcomeInput {
+  readonly lang: LangCode;
+  /** Nome sull'intestazione della lettera (può mancare). */
+  readonly name: string | null;
+  readonly room: string | null;
+  /** PIN a 4 cifre, solo se compilato. */
+  readonly pin: string | null;
+}
+
+/** Il messaggio completo per una camera, nella lingua scelta per la lettera. */
+export function welcomeWhatsappText(i: WelcomeInput, template = whatsappTemplate(i.lang)): string {
+  const tx = TEXTS[i.lang];
+  const rtl = i.lang === "ar";
+  const room = i.room?.trim() || null;
+  const vars: Record<string, string> = {
+    titolo: tx.headline,
+    saluto: tx.salutation(i.name?.trim() || null),
+    benvenuto: tx.intro,
+    pin: i.pin ? `*${i.pin}*` : "",
+    camera: room ? waText(tx.room(room, floorOf(room))) : "",
+    casa: `${tx.home}${gap(i.lang)}${tx.bar}`,
+    wifi: HOTEL.wifiPassword,
+    telefono: rtl ? `${LRM}${HOTEL.emergencyPhone}` : HOTEL.emergencyPhone,
+  };
+  return template
+    .split("\n")
+    .filter((line) => ![...line.matchAll(/\{(\w+)\}/g)].some((m) => vars[m[1]] === ""))
+    .map((line) => line.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? vars[k] : all)))
+    .join("\n");
 }
 
 /**

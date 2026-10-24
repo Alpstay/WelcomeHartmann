@@ -74,6 +74,17 @@ function isFeedEnvelope(v) {
 }
 
 // src/hotel.ts
+var HOTEL_DEFAULTS = {
+  hotelName: "Chalet Hotel Hartmann",
+  place: "Ortisei \xB7 Val Gardena",
+  wifiPassword: "enjoyhartmann",
+  emergencyPhone: "+39 333 6828717",
+  breakfastFrom: "8:00",
+  breakfastTo: "10:30",
+  signer: "Chiara",
+  signerRole: "Manager \xB7 Chalet Hotel Hartmann"
+};
+var HOTEL = { ...HOTEL_DEFAULTS };
 var PROPERTY_NAME_MATCH = /hartmann/i;
 var ROOM_FLOORS = {
   "101": "first",
@@ -105,297 +116,265 @@ var frTime = (hm) => {
   return m === "00" ? `${Number(h)}${NBSP}h` : `${Number(h)}${NBSP}h${NBSP}${m}`;
 };
 var dotTime = (hm) => hm.replace(":", ".");
-var TEXTS = {
+var TIME_FORMAT = { en: en12, fr: frTime, nl: dotTime, da: dotTime, sv: dotTime };
+var LANG_NAMES = {
+  en: "Inglese",
+  it: "Italiano",
+  de: "Tedesco",
+  fr: "Francese",
+  es: "Spagnolo",
+  nl: "Olandese",
+  pl: "Polacco",
+  cs: "Ceco",
+  da: "Danese",
+  sv: "Svedese",
+  zh: "Cinese",
+  ko: "Coreano",
+  ar: "Arabo"
+};
+var LETTER_DEFAULTS = {
   en: {
-    nameIt: "Inglese",
     roomLabel: "Room",
     headline: "Welcome to Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Dear ${n},` : "Dear Guests,",
+    salutation: "Dear {nome},",
+    salutationNoName: "Dear Guests,",
     intro: "We are delighted to have you with us.",
-    room: (r, f) => {
-      const where = {
-        first: " and you will find it on the first floor (one floor up).",
-        second: " and you will find it on the second floor (two floors up).",
-        garden: " and you will find it on the garden floor \u2013 simply take the stairs down."
-      };
-      return [t("Your room is number "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Your room is number {camera} and you will find it on the first floor (one floor up).",
+    roomSecond: "Your room is number {camera} and you will find it on the second floor (two floors up).",
+    roomGarden: "Your room is number {camera} and you will find it on the garden floor \u2013 simply take the stairs down.",
+    roomOther: "Your room is number {camera}.",
     home: "We would like you to feel at home here.",
     bar: "Please help yourself at the bar \u2013 simply jot down what you take.",
-    breakfast: (f, to) => `Breakfast is served from ${en12(f)} to ${en12(to)}.`,
+    breakfast: "Breakfast is served from {dalle} to {alle}.",
     sauna: "The sauna is on the garden floor and can be used until 9 pm.",
     wifiLabel: "Wi-Fi password",
-    emergency: (p) => [t("In case of emergency, please call "), b(p), t(".")],
+    emergency: "In case of emergency, please call {telefono}.",
     closing: "We wish you a wonderful stay!",
     qr: "Scan the QR code to find all the information about Chalet Hotel Hartmann.",
     noteLabel: "A note for you"
   },
   it: {
-    nameIt: "Italiano",
     roomLabel: "Camera",
     headline: "Benvenuti allo Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Gentile ${n},` : "Gentili ospiti,",
+    salutation: "Gentile {nome},",
+    salutationNoName: "Gentili ospiti,",
     intro: "Siamo felici di accogliervi.",
-    room: (r, f) => {
-      const where = {
-        first: " e si trova al primo piano.",
-        second: " e si trova al secondo piano.",
-        garden: " e si trova al piano giardino: basta scendere le scale."
-      };
-      return [t("La vostra camera \xE8 la numero "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "La vostra camera \xE8 la numero {camera} e si trova al primo piano.",
+    roomSecond: "La vostra camera \xE8 la numero {camera} e si trova al secondo piano.",
+    roomGarden: "La vostra camera \xE8 la numero {camera} e si trova al piano giardino: basta scendere le scale.",
+    roomOther: "La vostra camera \xE8 la numero {camera}.",
     home: "Sentitevi come a casa.",
     bar: "Servitevi pure liberamente al bar: vi chiediamo soltanto di annotare quanto consumato.",
-    breakfast: (f, to) => `La prima colazione \xE8 servita dalle ore ${f} alle ore ${to}.`,
+    breakfast: "La prima colazione \xE8 servita dalle ore {dalle} alle ore {alle}.",
     sauna: "La sauna si trova al piano giardino ed \xE8 accessibile fino alle ore 21:00.",
     wifiLabel: "Password Wi-Fi",
-    emergency: (p) => [t("In caso di emergenza potete chiamare il numero "), b(p), t(".")],
+    emergency: "In caso di emergenza potete chiamare il numero {telefono}.",
     closing: "Vi auguriamo un buon soggiorno!",
     qr: "Inquadrate il codice QR: troverete tutte le informazioni sullo Chalet Hotel Hartmann.",
     noteLabel: "Una nota per voi"
   },
   de: {
-    nameIt: "Tedesco",
     roomLabel: "Zimmer",
     headline: "Willkommen im Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Guten Tag ${n},` : "Liebe G\xE4ste,",
+    salutation: "Guten Tag {nome},",
+    salutationNoName: "Liebe G\xE4ste,",
     // Nach der Anrede mit Komma geht es im Deutschen klein weiter.
     intro: "wir freuen uns sehr, Sie bei uns begr\xFC\xDFen zu d\xFCrfen.",
-    room: (r, f) => {
-      const where = {
-        first: " und befindet sich im ersten Stock.",
-        second: " und befindet sich im zweiten Stock.",
-        garden: " und befindet sich im Gartengeschoss \u2013 einfach die Treppe hinunter."
-      };
-      return [t("Ihr Zimmer hat die Nummer "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Ihr Zimmer hat die Nummer {camera} und befindet sich im ersten Stock.",
+    roomSecond: "Ihr Zimmer hat die Nummer {camera} und befindet sich im zweiten Stock.",
+    roomGarden: "Ihr Zimmer hat die Nummer {camera} und befindet sich im Gartengeschoss \u2013 einfach die Treppe hinunter.",
+    roomOther: "Ihr Zimmer hat die Nummer {camera}.",
     home: "F\xFChlen Sie sich bei uns wie zu Hause.",
     bar: "Bedienen Sie sich gerne an der Bar \u2013 notieren Sie einfach, was Sie genommen haben.",
-    breakfast: (f, to) => `Das Fr\xFChst\xFCck servieren wir von ${f} bis ${to} Uhr.`,
+    breakfast: "Das Fr\xFChst\xFCck servieren wir von {dalle} bis {alle} Uhr.",
     sauna: "Die Sauna befindet sich im Gartengeschoss und steht Ihnen bis 21:00 Uhr zur Verf\xFCgung.",
     wifiLabel: "WLAN-Passwort",
-    emergency: (p) => [t("Im Notfall erreichen Sie uns unter "), b(p), t(".")],
+    emergency: "Im Notfall erreichen Sie uns unter {telefono}.",
     closing: "Wir w\xFCnschen Ihnen einen wundersch\xF6nen Aufenthalt!",
     qr: "Scannen Sie den QR-Code: Dort finden Sie alle Informationen zum Chalet Hotel Hartmann.",
     noteLabel: "Eine Notiz f\xFCr Sie"
   },
   fr: {
-    nameIt: "Francese",
     roomLabel: "Chambre",
     headline: "Bienvenue au Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Bonjour ${n},` : "Chers h\xF4tes,",
+    salutation: "Bonjour {nome},",
+    salutationNoName: "Chers h\xF4tes,",
     intro: "Nous sommes ravis de vous accueillir.",
-    room: (r, f) => {
-      const where = {
-        first: " et se trouve au premier \xE9tage.",
-        second: " et se trouve au deuxi\xE8me \xE9tage.",
-        garden: ` et se trouve au niveau jardin${NBSP}: il suffit de descendre l\u2019escalier.`
-      };
-      return [t("Votre chambre porte le num\xE9ro "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Votre chambre porte le num\xE9ro {camera} et se trouve au premier \xE9tage.",
+    roomSecond: "Votre chambre porte le num\xE9ro {camera} et se trouve au deuxi\xE8me \xE9tage.",
+    roomGarden: `Votre chambre porte le num\xE9ro {camera} et se trouve au niveau jardin${NBSP}: il suffit de descendre l\u2019escalier.`,
+    roomOther: "Votre chambre porte le num\xE9ro {camera}.",
     home: `Faites comme chez vous${NBSP}!`,
     bar: `N\u2019h\xE9sitez pas \xE0 vous servir au bar${NBSP}: notez simplement ce que vous avez consomm\xE9.`,
-    breakfast: (f, to) => `Le petit-d\xE9jeuner est servi de ${frTime(f)} \xE0 ${frTime(to)}.`,
+    breakfast: "Le petit-d\xE9jeuner est servi de {dalle} \xE0 {alle}.",
     sauna: `Le sauna se trouve au niveau jardin et est accessible jusqu\u2019\xE0 21${NBSP}h.`,
     wifiLabel: "Mot de passe Wi-Fi",
-    emergency: (p) => [t("En cas d\u2019urgence, vous pouvez nous appeler au "), b(p), t(".")],
+    emergency: "En cas d\u2019urgence, vous pouvez nous appeler au {telefono}.",
     closing: `Nous vous souhaitons un excellent s\xE9jour${NBSP}!`,
     qr: "Scannez le code QR pour retrouver toutes les informations sur le Chalet Hotel Hartmann.",
     noteLabel: "Un petit mot pour vous"
   },
   es: {
-    nameIt: "Spagnolo",
     roomLabel: "Habitaci\xF3n",
     headline: "Bienvenidos al Chalet Hotel Hartmann",
     // Saluto senza nome: evita la scelta Estimado/Estimada.
-    salutation: () => "Estimados hu\xE9spedes:",
+    salutation: "",
+    salutationNoName: "Estimados hu\xE9spedes:",
     intro: "Es un placer darles la bienvenida.",
-    room: (r, f) => {
-      const where = {
-        first: " y se encuentra en la primera planta.",
-        second: " y se encuentra en la segunda planta.",
-        garden: " y se encuentra en la planta jard\xEDn: solo tienen que bajar las escaleras."
-      };
-      return [t("Su habitaci\xF3n es la n\xFAmero "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Su habitaci\xF3n es la n\xFAmero {camera} y se encuentra en la primera planta.",
+    roomSecond: "Su habitaci\xF3n es la n\xFAmero {camera} y se encuentra en la segunda planta.",
+    roomGarden: "Su habitaci\xF3n es la n\xFAmero {camera} y se encuentra en la planta jard\xEDn: solo tienen que bajar las escaleras.",
+    roomOther: "Su habitaci\xF3n es la n\xFAmero {camera}.",
     home: "Si\xE9ntanse como en casa.",
     bar: "Pueden servirse libremente en el bar: solo les pedimos que anoten lo que consuman.",
-    breakfast: (f, to) => `El desayuno se sirve de ${f} a ${to}.`,
+    breakfast: "El desayuno se sirve de {dalle} a {alle}.",
     sauna: "La sauna se encuentra en la planta jard\xEDn y est\xE1 disponible hasta las 21:00.",
     wifiLabel: "Contrase\xF1a del wifi",
-    emergency: (p) => [t("En caso de emergencia, pueden llamarnos al "), b(p), t(".")],
+    emergency: "En caso de emergencia, pueden llamarnos al {telefono}.",
     closing: "\xA1Les deseamos una estancia maravillosa!",
     qr: "Escaneen el c\xF3digo QR para encontrar toda la informaci\xF3n sobre el Chalet Hotel Hartmann.",
     noteLabel: "Una nota para ustedes"
   },
   nl: {
-    nameIt: "Olandese",
     roomLabel: "Kamer",
     headline: "Welkom in Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Beste ${n},` : "Beste gasten,",
+    salutation: "Beste {nome},",
+    salutationNoName: "Beste gasten,",
     intro: "Wat fijn dat u bij ons te gast bent.",
-    room: (r, f) => {
-      const where = {
-        first: " en ligt op de eerste verdieping.",
-        second: " en ligt op de tweede verdieping.",
-        garden: " en ligt op de tuinverdieping: neem gewoon de trap naar beneden."
-      };
-      return [t("Uw kamer heeft nummer "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Uw kamer heeft nummer {camera} en ligt op de eerste verdieping.",
+    roomSecond: "Uw kamer heeft nummer {camera} en ligt op de tweede verdieping.",
+    roomGarden: "Uw kamer heeft nummer {camera} en ligt op de tuinverdieping: neem gewoon de trap naar beneden.",
+    roomOther: "Uw kamer heeft nummer {camera}.",
     home: "Voelt u zich hier helemaal thuis.",
     bar: "Bedient u zich gerust aan de bar \u2013 noteer gewoon wat u neemt.",
-    breakfast: (f, to) => `Het ontbijt wordt geserveerd van ${dotTime(f)} tot ${dotTime(to)} uur.`,
+    breakfast: "Het ontbijt wordt geserveerd van {dalle} tot {alle} uur.",
     sauna: "De sauna bevindt zich op de tuinverdieping en is tot 21.00 uur beschikbaar.",
     wifiLabel: "Wifi-wachtwoord",
-    emergency: (p) => [t("In geval van nood kunt u ons bellen op "), b(p), t(".")],
+    emergency: "In geval van nood kunt u ons bellen op {telefono}.",
     closing: "Wij wensen u een heerlijk verblijf!",
     qr: "Scan de QR-code voor alle informatie over Chalet Hotel Hartmann.",
     noteLabel: "Een bericht voor u"
   },
   pl: {
-    nameIt: "Polacco",
     roomLabel: "Pok\xF3j",
     headline: "Witamy w Chalet Hotel Hartmann",
     // Saluto senza nome: evita la declinazione del nome.
-    salutation: () => "Drodzy Go\u015Bcie!",
+    salutation: "",
+    salutationNoName: "Drodzy Go\u015Bcie!",
     intro: "Bardzo si\u0119 cieszymy, \u017Ce mo\u017Cemy Pa\u0144stwa u nas go\u015Bci\u0107.",
-    room: (r, f) => {
-      const where = {
-        first: " i znajduje si\u0119 na pierwszym pi\u0119trze.",
-        second: " i znajduje si\u0119 na drugim pi\u0119trze.",
-        garden: " i znajduje si\u0119 na poziomie ogrodu \u2013 wystarczy zej\u015B\u0107 schodami w d\xF3\u0142."
-      };
-      return [t("Pa\u0144stwa pok\xF3j ma numer "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Pa\u0144stwa pok\xF3j ma numer {camera} i znajduje si\u0119 na pierwszym pi\u0119trze.",
+    roomSecond: "Pa\u0144stwa pok\xF3j ma numer {camera} i znajduje si\u0119 na drugim pi\u0119trze.",
+    roomGarden: "Pa\u0144stwa pok\xF3j ma numer {camera} i znajduje si\u0119 na poziomie ogrodu \u2013 wystarczy zej\u015B\u0107 schodami w d\xF3\u0142.",
+    roomOther: "Pa\u0144stwa pok\xF3j ma numer {camera}.",
     home: "Prosimy czu\u0107 si\u0119 jak u siebie w domu.",
     bar: "Zapraszamy do swobodnego korzystania z baru \u2013 wystarczy zapisa\u0107, co Pa\u0144stwo wzi\u0119li.",
-    breakfast: (f, to) => `\u015Aniadanie serwujemy w godzinach ${f}\u2013${to}.`,
+    breakfast: "\u015Aniadanie serwujemy w godzinach {dalle}\u2013{alle}.",
     sauna: "Sauna znajduje si\u0119 na poziomie ogrodu i jest dost\u0119pna do godziny 21:00.",
     wifiLabel: "Has\u0142o do Wi-Fi",
-    emergency: (p) => [t("W nag\u0142ych przypadkach prosimy dzwoni\u0107 pod numer "), b(p), t(".")],
+    emergency: "W nag\u0142ych przypadkach prosimy dzwoni\u0107 pod numer {telefono}.",
     closing: "\u017Byczymy udanego pobytu!",
     qr: "Prosimy zeskanowa\u0107 kod QR \u2013 znajd\u0105 tam Pa\u0144stwo wszystkie informacje o Chalet Hotel Hartmann.",
     noteLabel: "Wiadomo\u015B\u0107 dla Pa\u0144stwa"
   },
   cs: {
-    nameIt: "Ceco",
     roomLabel: "Pokoj",
     headline: "V\xEDtejte v Chalet Hotelu Hartmann",
     // Saluto senza nome: evita il vocativo.
-    salutation: () => "V\xE1\u017Een\xED host\xE9,",
+    salutation: "",
+    salutationNoName: "V\xE1\u017Een\xED host\xE9,",
     intro: "srde\u010Dn\u011B V\xE1s u n\xE1s v\xEDt\xE1me.",
-    room: (r, f) => {
-      const where = {
-        first: " a najdete ho v prvn\xEDm pat\u0159e.",
-        second: " a najdete ho ve druh\xE9m pat\u0159e.",
-        garden: " a najdete ho v zahradn\xEDm podla\u017E\xED \u2013 sta\u010D\xED sej\xEDt po schodech dol\u016F."
-      };
-      return [t("V\xE1\u0161 pokoj m\xE1 \u010D\xEDslo "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "V\xE1\u0161 pokoj m\xE1 \u010D\xEDslo {camera} a najdete ho v prvn\xEDm pat\u0159e.",
+    roomSecond: "V\xE1\u0161 pokoj m\xE1 \u010D\xEDslo {camera} a najdete ho ve druh\xE9m pat\u0159e.",
+    roomGarden: "V\xE1\u0161 pokoj m\xE1 \u010D\xEDslo {camera} a najdete ho v zahradn\xEDm podla\u017E\xED \u2013 sta\u010D\xED sej\xEDt po schodech dol\u016F.",
+    roomOther: "V\xE1\u0161 pokoj m\xE1 \u010D\xEDslo {camera}.",
     home: "C\xED\u0165te se u n\xE1s jako doma.",
     bar: "Z baru si m\u016F\u017Eete voln\u011B poslou\u017Eit \u2013 sta\u010D\xED si jen poznamenat, co jste si vzali.",
-    breakfast: (f, to) => `Sn\xEDdani pod\xE1v\xE1me od ${f} do ${to}.`,
+    breakfast: "Sn\xEDdani pod\xE1v\xE1me od {dalle} do {alle}.",
     sauna: "Sauna se nach\xE1z\xED v zahradn\xEDm podla\u017E\xED a je k dispozici do 21:00.",
     wifiLabel: "Heslo k Wi-Fi",
-    emergency: (p) => [t("V nal\xE9hav\xFDch p\u0159\xEDpadech n\xE1m volejte na \u010D\xEDslo "), b(p), t(".")],
+    emergency: "V nal\xE9hav\xFDch p\u0159\xEDpadech n\xE1m volejte na \u010D\xEDslo {telefono}.",
     closing: "P\u0159ejeme V\xE1m p\u0159\xEDjemn\xFD pobyt!",
     qr: "Naskenujte QR k\xF3d \u2013 najdete v n\u011Bm v\u0161echny informace o Chalet Hotelu Hartmann.",
     noteLabel: "Vzkaz pro V\xE1s"
   },
   da: {
-    nameIt: "Danese",
     roomLabel: "V\xE6relse",
     headline: "Velkommen til Chalet Hotel Hartmann",
-    salutation: (n) => n ? `K\xE6re ${n},` : "K\xE6re g\xE6ster,",
+    salutation: "K\xE6re {nome},",
+    salutationNoName: "K\xE6re g\xE6ster,",
     intro: "Vi er glade for at byde jer velkommen.",
-    room: (r, f) => {
-      const where = {
-        first: " og ligger p\xE5 f\xF8rste sal.",
-        second: " og ligger p\xE5 anden sal.",
-        garden: " og ligger p\xE5 haveetagen \u2013 tag blot trappen ned."
-      };
-      return [t("Jeres v\xE6relse har nummer "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Jeres v\xE6relse har nummer {camera} og ligger p\xE5 f\xF8rste sal.",
+    roomSecond: "Jeres v\xE6relse har nummer {camera} og ligger p\xE5 anden sal.",
+    roomGarden: "Jeres v\xE6relse har nummer {camera} og ligger p\xE5 haveetagen \u2013 tag blot trappen ned.",
+    roomOther: "Jeres v\xE6relse har nummer {camera}.",
     home: "F\xF8l jer som hjemme.",
     bar: "I er velkomne til at forsyne jer i baren \u2013 skriv blot ned, hvad I tager.",
-    breakfast: (f, to) => `Morgenmaden serveres kl. ${dotTime(f)}\u2013${dotTime(to)}.`,
+    breakfast: "Morgenmaden serveres kl. {dalle}\u2013{alle}.",
     sauna: "Saunaen ligger p\xE5 haveetagen og kan benyttes indtil kl. 21.00.",
     wifiLabel: "Wi-Fi-adgangskode",
-    emergency: (p) => [t("I n\xF8dstilf\xE6lde kan I ringe til os p\xE5 "), b(p), t(".")],
+    emergency: "I n\xF8dstilf\xE6lde kan I ringe til os p\xE5 {telefono}.",
     closing: "Vi \xF8nsker jer et dejligt ophold!",
     qr: "Scan QR-koden, s\xE5 finder I alle oplysninger om Chalet Hotel Hartmann.",
     noteLabel: "En besked til jer"
   },
   sv: {
-    nameIt: "Svedese",
     roomLabel: "Rum",
     headline: "V\xE4lkommen till Chalet Hotel Hartmann",
-    salutation: (n) => n ? `Hej ${n}!` : "K\xE4ra g\xE4ster!",
+    salutation: "Hej {nome}!",
+    salutationNoName: "K\xE4ra g\xE4ster!",
     intro: "Vi \xE4r glada att f\xE5 v\xE4lkomna er.",
-    room: (r, f) => {
-      const where = {
-        first: " och ligger p\xE5 f\xF6rsta v\xE5ningen.",
-        second: " och ligger p\xE5 andra v\xE5ningen.",
-        garden: " och ligger p\xE5 tr\xE4dg\xE5rdsplanet \u2013 ta bara trappan ned."
-      };
-      return [t("Ert rum har nummer "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "Ert rum har nummer {camera} och ligger p\xE5 f\xF6rsta v\xE5ningen.",
+    roomSecond: "Ert rum har nummer {camera} och ligger p\xE5 andra v\xE5ningen.",
+    roomGarden: "Ert rum har nummer {camera} och ligger p\xE5 tr\xE4dg\xE5rdsplanet \u2013 ta bara trappan ned.",
+    roomOther: "Ert rum har nummer {camera}.",
     home: "K\xE4nn er som hemma.",
     bar: "Ta g\xE4rna f\xF6r er i baren \u2013 skriv bara upp vad ni tar.",
-    breakfast: (f, to) => `Frukost serveras kl. ${dotTime(f)}\u2013${dotTime(to)}.`,
+    breakfast: "Frukost serveras kl. {dalle}\u2013{alle}.",
     sauna: "Bastun ligger p\xE5 tr\xE4dg\xE5rdsplanet och kan anv\xE4ndas fram till kl. 21.00.",
     wifiLabel: "Wi-Fi-l\xF6senord",
-    emergency: (p) => [t("Vid en n\xF6dsituation kan ni ringa oss p\xE5 "), b(p), t(".")],
+    emergency: "Vid en n\xF6dsituation kan ni ringa oss p\xE5 {telefono}.",
     closing: "Vi \xF6nskar er en riktigt trevlig vistelse!",
     qr: "Skanna QR-koden f\xF6r all information om Chalet Hotel Hartmann.",
     noteLabel: "Ett meddelande till er"
   },
   // Cinese semplificato. I piani si descrivono «di quanti piani salire»: in Cina il piano terra è il «primo piano».
   zh: {
-    nameIt: "Cinese",
     roomLabel: "\u623F\u95F4",
     headline: "\u6B22\u8FCE\u5165\u4F4F Chalet Hotel Hartmann",
-    salutation: (n) => n ? `\u5C0A\u656C\u7684 ${n}\uFF1A` : "\u5C0A\u656C\u7684\u5BBE\u5BA2\uFF1A",
+    salutation: "\u5C0A\u656C\u7684 {nome}\uFF1A",
+    salutationNoName: "\u5C0A\u656C\u7684\u5BBE\u5BA2\uFF1A",
     intro: "\u6211\u4EEC\u975E\u5E38\u9AD8\u5174\u8FCE\u63A5\u60A8\u7684\u5230\u6765\u3002",
-    room: (r, f) => {
-      const where = {
-        first: "\uFF0C\u5728\u697C\u4E0A\u4E00\u5C42\u3002",
-        second: "\uFF0C\u5728\u697C\u4E0A\u4E24\u5C42\u3002",
-        garden: "\uFF0C\u4F4D\u4E8E\u82B1\u56ED\u5C42\uFF0C\u6CBF\u697C\u68AF\u4E0B\u697C\u5373\u53EF\u5230\u8FBE\u3002"
-      };
-      return [t("\u60A8\u7684\u623F\u95F4\u53F7\u4E3A "), b(r), t(f ? where[f] : "\u3002")];
-    },
+    roomFirst: "\u60A8\u7684\u623F\u95F4\u53F7\u4E3A {camera}\uFF0C\u5728\u697C\u4E0A\u4E00\u5C42\u3002",
+    roomSecond: "\u60A8\u7684\u623F\u95F4\u53F7\u4E3A {camera}\uFF0C\u5728\u697C\u4E0A\u4E24\u5C42\u3002",
+    roomGarden: "\u60A8\u7684\u623F\u95F4\u53F7\u4E3A {camera}\uFF0C\u4F4D\u4E8E\u82B1\u56ED\u5C42\uFF0C\u6CBF\u697C\u68AF\u4E0B\u697C\u5373\u53EF\u5230\u8FBE\u3002",
+    roomOther: "\u60A8\u7684\u623F\u95F4\u53F7\u4E3A {camera}\u3002",
     home: "\u8BF7\u628A\u8FD9\u91CC\u5F53\u4F5C\u81EA\u5DF1\u7684\u5BB6\u3002",
     bar: "\u5427\u53F0\u996E\u54C1\u53EF\u81EA\u884C\u53D6\u7528\uFF0C\u53EA\u9700\u8BB0\u4E0B\u60A8\u53D6\u7528\u7684\u7269\u54C1\u5373\u53EF\u3002",
-    breakfast: (f, to) => `\u65E9\u9910\u4F9B\u5E94\u65F6\u95F4\u4E3A ${f} \u81F3 ${to}\u3002`,
+    breakfast: "\u65E9\u9910\u4F9B\u5E94\u65F6\u95F4\u4E3A {dalle} \u81F3 {alle}\u3002",
     sauna: "\u6851\u62FF\u4F4D\u4E8E\u82B1\u56ED\u5C42\uFF0C\u5F00\u653E\u81F3\u665A\u4E0A 9 \u70B9\u3002",
     wifiLabel: "Wi-Fi \u5BC6\u7801",
-    emergency: (p) => [t("\u5982\u9047\u7D27\u6025\u60C5\u51B5\uFF0C\u8BF7\u62E8\u6253 "), b(p), t("\u3002")],
+    emergency: "\u5982\u9047\u7D27\u6025\u60C5\u51B5\uFF0C\u8BF7\u62E8\u6253 {telefono}\u3002",
     closing: "\u795D\u60A8\u5165\u4F4F\u6109\u5FEB\uFF01",
     qr: "\u626B\u63CF\u4E8C\u7EF4\u7801\uFF0C\u5373\u53EF\u67E5\u770B Chalet Hotel Hartmann \u7684\u5168\u90E8\u4FE1\u606F\u3002",
     noteLabel: "\u7ED9\u60A8\u7684\u7559\u8A00"
   },
   // Coreano, registro di cortesia. Piani descritti in modo relativo: in Corea il piano terra è il «1층».
   ko: {
-    nameIt: "Coreano",
     roomLabel: "\uAC1D\uC2E4",
     headline: "Chalet Hotel Hartmann\uC5D0 \uC624\uC2E0 \uAC83\uC744 \uD658\uC601\uD569\uB2C8\uB2E4",
-    salutation: (n) => n ? `${n} \uB2D8\uAED8` : "\uC18C\uC911\uD55C \uACE0\uAC1D\uB2D8\uAED8",
+    salutation: "{nome} \uB2D8\uAED8",
+    salutationNoName: "\uC18C\uC911\uD55C \uACE0\uAC1D\uB2D8\uAED8",
     intro: "\uC800\uD76C\uC640 \uD568\uAED8\uD574 \uC8FC\uC154\uC11C \uC9C4\uC2EC\uC73C\uB85C \uAE30\uC069\uB2C8\uB2E4.",
-    room: (r, f) => {
-      const where = {
-        first: "\uD638\uC774\uBA70, \uD55C \uCE35 \uC704\uC5D0 \uC788\uC2B5\uB2C8\uB2E4.",
-        second: "\uD638\uC774\uBA70, \uB450 \uCE35 \uC704\uC5D0 \uC788\uC2B5\uB2C8\uB2E4.",
-        garden: "\uD638\uC774\uBA70, \uC815\uC6D0 \uCE35\uC5D0 \uC788\uC2B5\uB2C8\uB2E4. \uACC4\uB2E8\uC73C\uB85C \uB0B4\uB824\uAC00\uC2DC\uBA74 \uB429\uB2C8\uB2E4."
-      };
-      return [t("\uACE0\uAC1D\uB2D8\uC758 \uAC1D\uC2E4\uC740 "), b(r), t(f ? where[f] : "\uD638\uC785\uB2C8\uB2E4.")];
-    },
+    roomFirst: "\uACE0\uAC1D\uB2D8\uC758 \uAC1D\uC2E4\uC740 {camera}\uD638\uC774\uBA70, \uD55C \uCE35 \uC704\uC5D0 \uC788\uC2B5\uB2C8\uB2E4.",
+    roomSecond: "\uACE0\uAC1D\uB2D8\uC758 \uAC1D\uC2E4\uC740 {camera}\uD638\uC774\uBA70, \uB450 \uCE35 \uC704\uC5D0 \uC788\uC2B5\uB2C8\uB2E4.",
+    roomGarden: "\uACE0\uAC1D\uB2D8\uC758 \uAC1D\uC2E4\uC740 {camera}\uD638\uC774\uBA70, \uC815\uC6D0 \uCE35\uC5D0 \uC788\uC2B5\uB2C8\uB2E4. \uACC4\uB2E8\uC73C\uB85C \uB0B4\uB824\uAC00\uC2DC\uBA74 \uB429\uB2C8\uB2E4.",
+    roomOther: "\uACE0\uAC1D\uB2D8\uC758 \uAC1D\uC2E4\uC740 {camera}\uD638\uC785\uB2C8\uB2E4.",
     home: "\uC9D1\uCC98\uB7FC \uD3B8\uC548\uD558\uAC8C \uC9C0\uB0B4\uC2DC\uAE30 \uBC14\uB78D\uB2C8\uB2E4.",
     bar: "\uBC14\uC5D0\uC11C\uB294 \uC790\uC720\uB86D\uAC8C \uC74C\uB8CC\uB97C \uB4DC\uC154\uB3C4 \uB429\uB2C8\uB2E4. \uB4DC\uC2E0 \uAC83\uB9CC \uC801\uC5B4 \uC8FC\uC138\uC694.",
-    breakfast: (f, to) => `\uC870\uC2DD\uC740 \uC624\uC804 ${f}\uBD80\uD130 ${to}\uAE4C\uC9C0 \uC81C\uACF5\uB429\uB2C8\uB2E4.`,
+    breakfast: "\uC870\uC2DD\uC740 \uC624\uC804 {dalle}\uBD80\uD130 {alle}\uAE4C\uC9C0 \uC81C\uACF5\uB429\uB2C8\uB2E4.",
     sauna: "\uC0AC\uC6B0\uB098\uB294 \uC815\uC6D0 \uCE35\uC5D0 \uC788\uC73C\uBA70 \uC624\uD6C4 9\uC2DC\uAE4C\uC9C0 \uC774\uC6A9\uD558\uC2E4 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
     wifiLabel: "Wi-Fi \uBE44\uBC00\uBC88\uD638",
-    emergency: (p) => [t("\uAE34\uAE09 \uC0C1\uD669 \uC2DC\uC5D0\uB294 "), b(p), t("\uBC88\uC73C\uB85C \uC5F0\uB77D\uD574 \uC8FC\uC138\uC694.")],
+    emergency: "\uAE34\uAE09 \uC0C1\uD669 \uC2DC\uC5D0\uB294 {telefono}\uBC88\uC73C\uB85C \uC5F0\uB77D\uD574 \uC8FC\uC138\uC694.",
     closing: "\uD3B8\uC548\uD558\uACE0 \uC990\uAC70\uC6B4 \uC2DC\uAC04 \uBCF4\uB0B4\uC2DC\uAE30 \uBC14\uB78D\uB2C8\uB2E4!",
     qr: "QR \uCF54\uB4DC\uB97C \uC2A4\uCE94\uD558\uC2DC\uBA74 Chalet Hotel Hartmann\uC5D0 \uAD00\uD55C \uBAA8\uB4E0 \uC815\uBCF4\uB97C \uD655\uC778\uD558\uC2E4 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
     noteLabel: "\uACE0\uAC1D\uB2D8\uAED8 \uB4DC\uB9AC\uB294 \uBA54\uBAA8"
@@ -403,30 +382,71 @@ var TEXTS = {
   // Arabo standard, plurale di cortesia. Saluto senza nome (il nome è già in alto). Le frasi non finiscono con
   // numeri o nomi latini quando si può evitare, così la lettura da destra a sinistra resta pulita anche nel PDF.
   ar: {
-    nameIt: "Arabo",
     roomLabel: "\u0627\u0644\u063A\u0631\u0641\u0629",
     headline: "\u0623\u0647\u0644\u0627\u064B \u0648\u0633\u0647\u0644\u0627\u064B \u0628\u0643\u0645 \u0641\u064A Chalet Hotel Hartmann",
-    salutation: () => "\u0636\u064A\u0648\u0641\u0646\u0627 \u0627\u0644\u0643\u0631\u0627\u0645\u060C",
+    salutation: "",
+    salutationNoName: "\u0636\u064A\u0648\u0641\u0646\u0627 \u0627\u0644\u0643\u0631\u0627\u0645\u060C",
     intro: "\u064A\u0633\u0639\u062F\u0646\u0627 \u0623\u0646 \u0646\u0631\u062D\u0628 \u0628\u0643\u0645 \u0628\u064A\u0646\u0646\u0627.",
-    room: (r, f) => {
-      const where = {
-        first: " \u0648\u062A\u0642\u0639 \u0641\u064A \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0648\u0644\u060C \u0623\u064A \u0637\u0627\u0628\u0642 \u0648\u0627\u062D\u062F \u0625\u0644\u0649 \u0627\u0644\u0623\u0639\u0644\u0649.",
-        second: " \u0648\u062A\u0642\u0639 \u0641\u064A \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u062B\u0627\u0646\u064A\u060C \u0623\u064A \u0637\u0627\u0628\u0642\u064A\u0646 \u0625\u0644\u0649 \u0627\u0644\u0623\u0639\u0644\u0649.",
-        garden: " \u0648\u062A\u0642\u0639 \u0641\u064A \u0637\u0627\u0628\u0642 \u0627\u0644\u062D\u062F\u064A\u0642\u0629\u060C \u0648\u064A\u0643\u0641\u064A \u0623\u0646 \u062A\u0646\u0632\u0644\u0648\u0627 \u0627\u0644\u062F\u0631\u062C \u0644\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u064A\u0647\u0627."
-      };
-      return [t("\u0631\u0642\u0645 \u063A\u0631\u0641\u062A\u0643\u0645 "), b(r), t(f ? where[f] : ".")];
-    },
+    roomFirst: "\u0631\u0642\u0645 \u063A\u0631\u0641\u062A\u0643\u0645 {camera} \u0648\u062A\u0642\u0639 \u0641\u064A \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0648\u0644\u060C \u0623\u064A \u0637\u0627\u0628\u0642 \u0648\u0627\u062D\u062F \u0625\u0644\u0649 \u0627\u0644\u0623\u0639\u0644\u0649.",
+    roomSecond: "\u0631\u0642\u0645 \u063A\u0631\u0641\u062A\u0643\u0645 {camera} \u0648\u062A\u0642\u0639 \u0641\u064A \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u062B\u0627\u0646\u064A\u060C \u0623\u064A \u0637\u0627\u0628\u0642\u064A\u0646 \u0625\u0644\u0649 \u0627\u0644\u0623\u0639\u0644\u0649.",
+    roomGarden: "\u0631\u0642\u0645 \u063A\u0631\u0641\u062A\u0643\u0645 {camera} \u0648\u062A\u0642\u0639 \u0641\u064A \u0637\u0627\u0628\u0642 \u0627\u0644\u062D\u062F\u064A\u0642\u0629\u060C \u0648\u064A\u0643\u0641\u064A \u0623\u0646 \u062A\u0646\u0632\u0644\u0648\u0627 \u0627\u0644\u062F\u0631\u062C \u0644\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u064A\u0647\u0627.",
+    roomOther: "\u0631\u0642\u0645 \u063A\u0631\u0641\u062A\u0643\u0645 {camera}.",
     home: "\u0646\u0631\u062C\u0648 \u0623\u0646 \u062A\u0634\u0639\u0631\u0648\u0627 \u0648\u0643\u0623\u0646\u0643\u0645 \u0641\u064A \u0628\u064A\u062A\u0643\u0645.",
     bar: "\u062A\u0641\u0636\u0644\u0648\u0627 \u0628\u062E\u062F\u0645\u0629 \u0623\u0646\u0641\u0633\u0643\u0645 \u0641\u064A \u0627\u0644\u0628\u0627\u0631\u060C \u0648\u064A\u0643\u0641\u064A \u0623\u0646 \u062A\u062F\u0648\u0651\u0646\u0648\u0627 \u0645\u0627 \u062A\u062A\u0646\u0627\u0648\u0644\u0648\u0646\u0647.",
-    breakfast: (f, to) => `\u064A\u0642\u062F\u0645 \u0627\u0644\u0641\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 ${f} \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 ${to} \u0635\u0628\u0627\u062D\u064B\u0627.`,
+    breakfast: "\u064A\u0642\u062F\u0645 \u0627\u0644\u0641\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 {dalle} \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 {alle} \u0635\u0628\u0627\u062D\u064B\u0627.",
     sauna: "\u062A\u0642\u0639 \u0627\u0644\u0633\u0627\u0648\u0646\u0627 \u0641\u064A \u0637\u0627\u0628\u0642 \u0627\u0644\u062D\u062F\u064A\u0642\u0629\u060C \u0648\u064A\u0645\u0643\u0646 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u0647\u0627 \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 \u0627\u0644\u062A\u0627\u0633\u0639\u0629 \u0645\u0633\u0627\u0621\u064B.",
     wifiLabel: "\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0627\u0644\u0648\u0627\u064A \u0641\u0627\u064A",
-    emergency: (p) => [t("\u0641\u064A \u062D\u0627\u0644\u0627\u062A \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0628\u0627\u0644\u0631\u0642\u0645 "), b(p), t(".")],
+    emergency: "\u0641\u064A \u062D\u0627\u0644\u0627\u062A \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0628\u0627\u0644\u0631\u0642\u0645 {telefono}.",
     closing: "\u0646\u062A\u0645\u0646\u0649 \u0644\u0643\u0645 \u0625\u0642\u0627\u0645\u0629 \u0631\u0627\u0626\u0639\u0629!",
     qr: "\u0627\u0645\u0633\u062D\u0648\u0627 \u0631\u0645\u0632 QR \u0636\u0648\u0626\u064A\u064B\u0627 \u0644\u062A\u062C\u062F\u0648\u0627 \u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0639\u0646 Chalet Hotel Hartmann.",
     noteLabel: "\u0645\u0644\u0627\u062D\u0638\u0629 \u0644\u0643\u0645"
   }
 };
+var BOLD_VARS = /* @__PURE__ */ new Set(["camera", "telefono"]);
+function fillSegments(template, vars) {
+  const out2 = [];
+  let last = 0;
+  for (const m of template.matchAll(/\{(\w+)\}/g)) {
+    const key = m[1];
+    if (!(key in vars)) continue;
+    if (m.index > last) out2.push(t(template.slice(last, m.index)));
+    out2.push(BOLD_VARS.has(key) ? b(vars[key]) : t(vars[key]));
+    last = m.index + m[0].length;
+  }
+  if (last < template.length) out2.push(t(template.slice(last)));
+  return out2.reduce((acc, s) => {
+    const prev = acc[acc.length - 1];
+    if (prev && prev.bold === true === (s.bold === true)) acc[acc.length - 1] = s.bold ? b(prev.text + s.text) : t(prev.text + s.text);
+    else if (s.text) acc.push(s);
+    return acc;
+  }, []);
+}
+var fillText = (template, vars) => fillSegments(template, vars).map((s) => s.text).join("");
+var ROOM_KEY = { first: "roomFirst", second: "roomSecond", garden: "roomGarden" };
+function compileLetter(lang, tpl) {
+  const time = TIME_FORMAT[lang] ?? ((hm) => hm);
+  return {
+    nameIt: LANG_NAMES[lang],
+    roomLabel: tpl.roomLabel,
+    headline: tpl.headline,
+    salutation: (n) => n && tpl.salutation.includes("{nome}") ? fillText(tpl.salutation, { nome: n }) : tpl.salutationNoName,
+    intro: tpl.intro,
+    room: (r, f) => fillSegments(tpl[f ? ROOM_KEY[f] : "roomOther"], { camera: r }),
+    home: tpl.home,
+    bar: tpl.bar,
+    breakfast: (from, to) => fillText(tpl.breakfast, { dalle: time(from), alle: time(to) }),
+    sauna: tpl.sauna,
+    wifiLabel: tpl.wifiLabel,
+    emergency: (p) => fillSegments(tpl.emergency, { telefono: p }),
+    closing: tpl.closing,
+    qr: tpl.qr,
+    noteLabel: tpl.noteLabel
+  };
+}
+var compileAll = (overrides = {}) => Object.fromEntries(
+  Object.keys(LETTER_DEFAULTS).map((l) => [l, compileLetter(l, { ...LETTER_DEFAULTS[l], ...overrides[l] })])
+);
+var TEXTS = compileAll();
 
 // src/letter.ts
 var SUPPORTED = new Set(Object.keys(TEXTS));

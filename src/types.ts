@@ -15,6 +15,36 @@ export interface Segment {
 /** Un paragrafo composto da segmenti. */
 export type Paragraph = readonly Segment[];
 
+/**
+ * Testi della lettera in una lingua come si modificano in Impostazioni: frasi intere con segnaposto
+ * {nome}, {camera}, {dalle}, {alle}, {telefono}.
+ */
+export interface LetterTemplate {
+  readonly roomLabel: string;
+  readonly headline: string;
+  /** Saluto con il nome ({nome}); vuoto = sempre il saluto senza nome. */
+  readonly salutation: string;
+  readonly salutationNoName: string;
+  readonly intro: string;
+  /** Frase della camera per piano ({camera}). */
+  readonly roomFirst: string;
+  readonly roomSecond: string;
+  readonly roomGarden: string;
+  /** Camera di cui non si conosce il piano. */
+  readonly roomOther: string;
+  readonly home: string;
+  readonly bar: string;
+  /** Orario della colazione ({dalle}, {alle}). */
+  readonly breakfast: string;
+  readonly sauna: string;
+  readonly wifiLabel: string;
+  /** Numero per le emergenze ({telefono}). */
+  readonly emergency: string;
+  readonly closing: string;
+  readonly qr: string;
+  readonly noteLabel: string;
+}
+
 /** Testi della lettera in una lingua. */
 export interface LetterTexts {
   /** Nome della lingua in italiano, per il menu della receptionist. */
