@@ -493,39 +493,83 @@ function renderSchede(): void {
 
 // ───────────────────────── Render: parti di una riga ─────────────────────────
 
-function cellaEmail(r: RigaCheckin): string {
+// Ogni riga si legge in tre colpi d'occhio: CAMERA grande · tre segnali (check-in, email, Guest Pass) con ✓ verde,
+// ✗ rosso, ! ambra · un solo pulsante verde per l'azione da fare (le altre azioni sotto, come link).
+
+type TonoChip = "ok" | "no" | "attenzione" | "pronto";
+const ICONA_CHIP: Readonly<Record<TonoChip, string>> = { ok: "✓", no: "✗", attenzione: "!", pronto: "→" };
+
+function chip(tono: TonoChip, testo: string, titolo = ""): string {
+  return `<span class="chip chip-${tono}"${titolo ? ` title="${esc(titolo)}"` : ""}><span class="chip-icona" aria-hidden="true">${ICONA_CHIP[tono]}</span>${esc(testo)}</span>`;
+}
+
+/** I tre segnali della prenotazione: check-in online, email in Slope, Guest Pass. */
+function segnali(r: RigaCheckin): string {
   const e = r.controlloEmail;
-  if (e.tipo === "portale") {
-    return `<span class="badge badge-no" title="Indirizzo di inoltro del portale: non vale come email dell'ospite">nessuna email</span> <span class="inoltro" title="Inoltro ${esc(e.portale ?? "")}: si può usare per scrivere, da info@alpstay.eu">inoltro ${esc(e.portale ?? "portale")}</span>`;
-  }
-  if (e.tipo === "mancante") return '<span class="badge badge-no">nessuna email</span>';
-  const badge =
-    e.tipo === "sospetta"
-      ? `<span class="badge badge-portale" title="Il dominio sembra scritto male">forse ${esc(e.suggerita ?? "")}</span>`
-      : '<span class="badge badge-ok">diretta</span>';
-  return `<span class="email">${esc(r.email ?? "")}</span> ${badge}`;
+  const checkin = r.checkinFatto
+    ? chip("ok", "Check-in fatto")
+    : chip("no", r.checkinUrl ? "Check-in da fare" : "Check-in da fare · senza link", r.checkinUrl ? "" : "Slope non ha fornito il link personale di check-in");
+  const email =
+    e.tipo === "diretta"
+      ? chip("ok", "Email diretta")
+      : e.tipo === "sospetta"
+        ? chip("attenzione", "Email da controllare", `Il dominio sembra scritto male: forse ${e.suggerita ?? ""}`)
+        : e.tipo === "portale"
+          ? chip("no", "Email mancante", `In Slope c'è solo l'inoltro di ${e.portale ?? "un portale"}: non vale come email dell'ospite`)
+          : chip("no", "Email mancante");
+  const gp = statoGuestPass(r, stato.inviiGP, abbinamentiGP());
+  const inviato = gp.stato === "inviato" ? stato.inviiGP.get(r.reservationId) : undefined;
+  const pass =
+    gp.stato === "inviato"
+      ? chip("ok", "Guest Pass inviato", inviato ? `Inviato ${quandoIso(inviato.inviatoIl)}` : "")
+      : gp.stato === "pronto"
+        ? chip("pronto", gp.abbinamento && !gp.abbinamento.sicura ? "Guest Pass pronto · controlla il nome" : "Guest Pass pronto")
+        : gp.stato === "da-generare"
+          ? chip("attenzione", "Guest Pass da generare")
+          : "";
+  return `<div class="col-segnali">${checkin}${email}${pass}</div>`;
+}
+
+/** Email e telefono in una riga sola, in piccolo: servono quando si scrive o si chiama. */
+function contatti(r: RigaCheckin): string {
+  const e = r.controlloEmail;
+  const lingua = r.linguaSlope && r.linguaSlope !== r.lingua ? `${r.linguaSlope.toUpperCase()}→${r.lingua.toUpperCase()}` : r.lingua.toUpperCase();
+  const email =
+    e.tipo === "diretta"
+      ? `<span class="email">${esc(r.email ?? "")}</span>`
+      : e.tipo === "sospetta"
+        ? `<span class="email">${esc(r.email ?? "")}</span> <span class="suggerita">forse ${esc(e.suggerita ?? "")}</span>`
+        : e.tipo === "portale"
+          ? `<span class="vuoto-campo" title="Si può usare per scrivere, solo da info@alpstay.eu">inoltro ${esc(e.portale ?? "portale")}</span>`
+          : '<span class="vuoto-campo">nessuna</span>';
+  return `<div class="col-contatti">
+    <span class="contatto"><span class="etichetta">Email</span>${email}</span>
+    <span class="contatto"><span class="etichetta">Tel.</span>${cellaTelefono(r)}</span>
+    <span class="contatto"><span class="etichetta">Lingua</span><span class="codice" title="Lingua dei messaggi (Slope → testo)">${esc(lingua)}</span></span>
+  </div>`;
 }
 
 function cellaTelefono(r: RigaCheckin): string {
-  if (!r.telefono) return '<span class="vuoto-campo">nessun telefono</span>';
+  if (!r.telefono) return '<span class="vuoto-campo">nessuno</span>';
   const mostrato = r.whatsapp ? mostraNumero(r.whatsapp) : r.telefono;
   const tel = r.whatsapp ? `+${r.whatsapp}` : r.telefono.replace(/[^\d+]/g, "");
-  return `<a class="tel" href="tel:${esc(tel)}">${esc(mostrato)}</a>${r.whatsapp ? "" : ' <span class="badge badge-portale" title="Numero segnaposto del portale o senza prefisso internazionale: WhatsApp non disponibile">da controllare</span>'}`;
-}
-
-function cellaCheckin(r: RigaCheckin): string {
-  if (r.checkinFatto) return '<span class="esito esito-ok">✓ fatto</span>';
-  if (!r.checkinUrl) return '<span class="esito esito-no">da fare</span> <span class="badge badge-no" title="Slope non ha fornito il link personale">senza link</span>';
-  return `<span class="esito esito-no">da fare</span>
-    <span class="link-checkin">
-      <button type="button" class="btn btn-piccolo" data-azione="copia-link" data-id="${esc(r.reservationId)}">Copia link</button>
-      <a class="btn btn-piccolo" href="${esc(r.checkinUrl)}" target="_blank" rel="noopener noreferrer" title="Apre il check-in online di Slope (anche sul tablet della reception, con l'ospite al banco)">Apri</a>
-    </span>`;
+  return `<a class="tel" href="tel:${esc(tel)}">${esc(mostrato)}</a>${r.whatsapp ? "" : ' <span class="suggerita" title="Numero segnaposto del portale o senza prefisso internazionale: WhatsApp non disponibile">da controllare</span>'}`;
 }
 
 function rif(r: RigaCheckin): string {
   if (!r.riferimento) return "";
   return `<span class="rif" title="Numero della prenotazione: va anche nell'oggetto delle email">${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}</span>`;
+}
+
+/** Nome, date e numero di prenotazione. */
+function ospite(r: RigaCheckin, conNotti = true): string {
+  return `<div class="col-ospite">
+    <span class="nome">${esc(r.nome)}</span>
+    <span class="date"><span class="tra tra-${Math.min(r.giorniAllArrivo, 2)}">${esc(quandoArriva(r.giorniAllArrivo))}</span> ${esc(giorno(r.arrivo))} → ${esc(giorno(r.partenza))}${
+      conNotti ? ` · ${r.notti === 1 ? "1 notte" : `${r.notti} notti`}` : ""
+    }</span>
+    ${rif(r)}
+  </div>`;
 }
 
 /** «Apri in Slope»: la prenotazione (ordine) nel backoffice di Slope, in una nuova scheda. Vuoto se manca l'ordine. */
@@ -536,57 +580,54 @@ function apriInSlope(r: RigaCheckin, aspetto: "primario" | "normale" | "link" = 
   return `<a class="${classe}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="Apre la prenotazione nel backoffice di Slope (scheda cliente ed estensione «Slope X LTS Guest Pass»)">Apri in Slope</a>`;
 }
 
-/** Un solo pulsante: apre la finestra con il messaggio già scritto, i canali disponibili e «Segna inviato». */
+/** Azioni secondarie, in piccolo sotto il pulsante: link di check-in, annotare l'email, aprire Slope. */
+function altreAzioni(r: RigaCheckin, conSlope = true): string {
+  const id = esc(r.reservationId);
+  const voci: string[] = [];
+  if (!r.checkinFatto && r.checkinUrl) {
+    voci.push(`<button type="button" class="link link-piccolo" data-azione="copia-link" data-id="${id}">Copia link check-in</button>`);
+    voci.push(`<a class="link link-piccolo" href="${esc(r.checkinUrl)}" target="_blank" rel="noopener noreferrer" title="Apre il check-in online di Slope (anche sul tablet della reception, con l'ospite al banco)">Apri check-in</a>`);
+  }
+  if (serveEmail(r) && !stato.emailNuove.has(r.reservationId) && stato.campoAperto !== r.reservationId) {
+    voci.push(`<button type="button" class="link link-piccolo" data-azione="apri-campo" data-id="${id}" title="L'ospite ha mandato la sua email: annotala qui per non perderla">Annota email ricevuta</button>`);
+  }
+  if (conSlope) voci.push(apriInSlope(r, "link"));
+  const piene = voci.filter(Boolean);
+  return piene.length ? `<div class="azioni-altre">${piene.join("")}</div>` : "";
+}
+
+/** Un solo pulsante principale (verde): apre la finestra con il messaggio già scritto e «Segna inviato». */
 function azioni(r: RigaCheckin): string {
   const motivo = motivoPer(r);
   const gp = statoGuestPass(r, stato.inviiGP, abbinamentiGP());
   const id = esc(r.reservationId);
-  const bGp =
+  const principali =
     gp.stato === "pronto"
-      ? `<button type="button" class="btn btn-piccolo btn-primario btn-gp" data-azione="invia-gp" data-id="${id}">Invia il Guest Pass</button>`
+      ? `<button type="button" class="btn btn-primario" data-azione="invia-gp" data-id="${id}">Invia il Guest Pass</button>`
       : gp.stato === "da-generare"
-        ? `${apriInSlope(r, "primario")}<button type="button" class="btn btn-piccolo" data-azione="copia-casella" title="Destinatario da scrivere in LTS, «Invia carta d'ospite»">Copia indirizzo per LTS</button>`
-        : "";
-  const slope = gp.stato === "da-generare" ? "" : apriInSlope(r, "link");
-  if (!motivo && !bGp && !slope) return "";
-  return `<div class="azioni">
-    ${bGp}
-    ${
-      motivo
-        ? `<button type="button" class="btn btn-piccolo${bGp ? "" : " btn-primario"}" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"}</button>`
-        : ""
-    }
-    ${slope}
-  </div>`;
-}
-
-/** Stato del Guest Pass sotto quello del check-in. */
-function cellaGuestPass(r: RigaCheckin): string {
-  const gp = statoGuestPass(r, stato.inviiGP, abbinamentiGP());
-  if (gp.stato === "inviato") {
-    const i = stato.inviiGP.get(r.reservationId);
-    return `<span class="etichetta">Guest Pass</span><span class="esito esito-ok">✓ inviato</span> <span class="nota">${esc(quandoIso(i?.inviatoIl ?? null))}</span>`;
-  }
-  if (gp.stato === "pronto") return `<span class="etichetta">Guest Pass</span><span class="esito esito-gp">pronto da inviare</span>${gp.abbinamento && !gp.abbinamento.sicura ? ' <span class="badge badge-portale">controlla il nome</span>' : ""}`;
-  if (gp.stato === "da-generare") return `<span class="etichetta">Guest Pass</span><span class="esito esito-no">da generare in LTS</span>`;
-  return "";
+        ? `${apriInSlope(r, "primario")}<button type="button" class="btn" data-azione="copia-casella" title="Destinatario da scrivere in LTS, «Invia carta d'ospite»">Copia indirizzo per LTS</button>`
+        : motivo
+          ? `<button type="button" class="btn btn-primario" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"}</button>`
+          : "";
+  const altre = altreAzioni(r, gp.stato !== "da-generare");
+  if (!principali && !altre) return "";
+  return `<div class="azioni">${principali ? `<div class="azioni-principali">${principali}</div>` : ""}${altre}</div>`;
 }
 
 function rigaContatto(r: RigaCheckin): string {
   const c = contattoAttuale(r, stato.registro);
   if (!c) return "";
-  return `<p class="contattato">✓ Contattato ${esc(quandoIso(c.quando))} · ${esc(NOMI_CANALE[c.canale])}. Quando l'ospite risponde, annota qui sotto la sua email. <button type="button" class="link link-piccolo" data-azione="togli-contatto" data-id="${esc(r.reservationId)}">Annulla</button></p>`;
+  return `<p class="contattato">✓ Contattato ${esc(quandoIso(c.quando))} · ${esc(NOMI_CANALE[c.canale])}. Quando risponde: «Annota email ricevuta». <button type="button" class="link link-piccolo" data-azione="togli-contatto" data-id="${esc(r.reservationId)}">Annulla</button></p>`;
 }
 
 /** Riga completa. Con `p` (promemoria) mostra anche cosa fare e se è in ritardo. */
 function riga(r: RigaCheckin, p?: Promemoria, nelGruppo = false): string {
   const contattato = Boolean(contattoAttuale(r, stato.registro));
-  const lingua = r.linguaSlope && r.linguaSlope !== r.lingua ? `${r.linguaSlope.toUpperCase()}→${r.lingua.toUpperCase()}` : r.lingua.toUpperCase();
   const ritardo = p && p.quando === "in-ritardo" ? differenzaGiorni(p.giorno, stato.oggi) : 0;
   if (p?.sollecito && p.contatto) return rigaSollecito(r, p.contatto);
-  // dentro i gruppi di «Da fare oggi» il titolo dice già cosa fare: restano solo ritardo e arrivo di oggi
-  const avvisiRiga = `${ritardo > 0 ? ` <span class="ritardo">in ritardo di ${ritardo === 1 ? "1 giorno" : `${ritardo} giorni`}</span>` : ""}${
-    r.giorniAllArrivo === 0 ? ' <span class="ritardo">arriva oggi: fallo al banco</span>' : ""
+  // dentro i gruppi di oggi il titolo dice già cosa fare: restano solo ritardo e arrivo di oggi
+  const avvisiRiga = `${ritardo > 0 ? `<span class="ritardo">in ritardo di ${ritardo === 1 ? "1 giorno" : `${ritardo} giorni`}</span>` : ""}${
+    r.giorniAllArrivo === 0 ? '<span class="ritardo">arriva oggi: fallo al banco</span>' : ""
   }`;
   const compito = !p
     ? ""
@@ -594,24 +635,19 @@ function riga(r: RigaCheckin, p?: Promemoria, nelGruppo = false): string {
       ? avvisiRiga
         ? `<p class="compito compito-${r.stato}">${avvisiRiga}</p>`
         : ""
-      : `<p class="compito compito-${r.stato}"><span class="pallino" aria-hidden="true"></span><b>${esc(cosaFare(r))}</b>${avvisiRiga}</p>`;
+      : `<p class="compito compito-${r.stato}"><b>${esc(cosaFare(r))}</b>${avvisiRiga}</p>`;
+  const nuova = stato.emailNuove.get(r.reservationId);
+  const conAzioni = !(nuova && confrontaConSlope(r, nuova) !== "inserita");
   return `
     <li class="riga${contattato ? " contattata" : ""}">
       <div class="col-camera"><span class="camera" title="Camera">${esc(r.camera ?? "—")}</span></div>
       ${compito}
-      <div class="col-ospite">
-        <span class="nome">${esc(r.nome)}</span>
-        <span class="date"><span class="tra tra-${Math.min(r.giorniAllArrivo, 2)}">${esc(quandoArriva(r.giorniAllArrivo))}</span> ${esc(giorno(r.arrivo))} → ${esc(giorno(r.partenza))} · ${r.notti === 1 ? "1 notte" : `${r.notti} notti`}</span>
-        ${rif(r)}
-      </div>
-      <div class="col-contatti">
-        <span class="campo-riga"><span class="etichetta">Email</span>${cellaEmail(r)}</span>
-        <span class="campo-riga"><span class="etichetta">Tel.</span>${cellaTelefono(r)} <span class="codice" title="Lingua dei messaggi (Slope → testo)">${esc(lingua)}</span></span>
-      </div>
-      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}${cellaGuestPass(r) ? `<span class="gp-riga">${cellaGuestPass(r)}</span>` : ""}</div>
+      ${ospite(r)}
+      ${segnali(r)}
+      ${contatti(r)}
       ${campoEmailNuova(r)}
-      ${stato.emailNuove.has(r.reservationId) && confrontaConSlope(r, stato.emailNuove.get(r.reservationId)!) !== "inserita" ? "" : azioni(r)}
-      ${stato.emailNuove.has(r.reservationId) ? "" : rigaContatto(r)}
+      ${conAzioni ? azioni(r) : ""}
+      ${nuova ? "" : rigaContatto(r)}
     </li>`;
 }
 
@@ -622,31 +658,28 @@ function rigaSollecito(r: RigaCheckin, c: Contatto): string {
   const cosa = motivo === "checkin" ? "il check-in online (con l'email)" : "l'email";
   const giaChiamato = c.canale === "telefono";
   const chiama = r.whatsapp
-    ? `<a class="btn btn-piccolo btn-primario btn-chiama" href="tel:+${esc(r.whatsapp)}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
-    : r.telefono
-      ? '<span class="badge badge-no badge-lungo" title="Numero segnaposto del portale o senza prefisso internazionale">numero non valido: scrivi nella chat dell\'extranet o chiedi al banco</span>'
-      : '<span class="badge badge-no badge-lungo">nessun telefono in Slope: scrivi nella chat dell\'extranet o chiedi al banco</span>';
+    ? `<a class="btn btn-primario btn-chiama" href="tel:+${esc(r.whatsapp)}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
+    : `<span class="nota-rossa">${r.telefono ? "Numero non valido" : "Nessun telefono in Slope"}: scrivi nella chat dell'extranet o chiedi al banco.</span>`;
   return `
     <li class="riga riga-sollecito">
       <div class="col-camera"><span class="camera" title="Camera">${esc(r.camera ?? "—")}</span></div>
-      <p class="compito compito-telefonare"><span class="pallino" aria-hidden="true"></span><b>${giaChiamato ? "Telefonare di nuovo" : "Telefonare"}</b> <span>nessuna risposta: chiedere ${esc(cosa)} · richiesta ${esc(quandoIso(c.quando))} via ${esc(NOMI_CANALE[c.canale])}</span>${
-        r.giorniAllArrivo === 0 ? ' <span class="ritardo">arriva oggi: chiedila al banco</span>' : ""
+      <p class="compito compito-telefonare">${giaChiamato ? '<span class="ritardo">già chiamato: richiama</span>' : ""}<span>Chiedere ${esc(cosa)} · nessuna risposta alla richiesta ${esc(quandoIso(c.quando))} (${esc(NOMI_CANALE[c.canale])})</span>${
+        r.giorniAllArrivo === 0 ? '<span class="ritardo">arriva oggi: chiedila al banco</span>' : ""
       }</p>
-      <div class="col-ospite">
-        <span class="nome">${esc(r.nome)}</span>
-        <span class="date"><span class="tra tra-${Math.min(r.giorniAllArrivo, 2)}">${esc(quandoArriva(r.giorniAllArrivo))}</span> ${esc(giorno(r.arrivo))} → ${esc(giorno(r.partenza))}</span>
-        ${rif(r)}
-      </div>
-      <div class="col-contatti">
-        <span class="campo-riga"><span class="etichetta">Email</span>${cellaEmail(r)}</span>
-        <span class="campo-riga"><span class="etichetta">Tel.</span>${cellaTelefono(r)}</span>
-      </div>
-      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}${cellaGuestPass(r) ? `<span class="gp-riga">${cellaGuestPass(r)}</span>` : ""}</div>
+      ${ospite(r, false)}
+      ${segnali(r)}
+      ${contatti(r)}
       ${campoEmailNuova(r)}
       <div class="azioni">
-        ${chiama}
-        <button type="button" class="btn btn-piccolo" data-azione="segna" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Segna telefonato</button>
-        <button type="button" class="btn btn-piccolo" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">Scrivi di nuovo</button>
+        <div class="azioni-principali">
+          ${chiama}
+          <button type="button" class="btn" data-azione="segna" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Segna telefonato</button>
+        </div>
+        <div class="azioni-altre">
+          <button type="button" class="link link-piccolo" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">Scrivi di nuovo</button>
+          ${serveEmail(r) && !stato.emailNuove.has(r.reservationId) && stato.campoAperto !== r.reservationId ? `<button type="button" class="link link-piccolo" data-azione="apri-campo" data-id="${id}">Annota email ricevuta</button>` : ""}
+          ${apriInSlope(r, "link")}
+        </div>
       </div>
     </li>`;
 }
@@ -702,7 +735,8 @@ function campoEmailNuova(r: RigaCheckin): string {
       }
     </form>`;
   }
-  return `<button type="button" class="link link-piccolo aggiungi-email" data-azione="apri-campo" data-id="${id}">+ Annota l'email mandata dall'ospite</button>`;
+  // il comando per annotarla è tra le azioni della riga («Annota email ricevuta»)
+  return "";
 }
 
 function salvaEmailNuova(r: RigaCheckin, valore: string, forza = false): void {
@@ -771,7 +805,7 @@ function vistaCalendario(): string {
   const sezioneSlope = daInserire.length
     ? `<section class="gruppo gruppo-slope" aria-labelledby="g-slope">
         <div class="gruppo-testa"><h3 id="g-slope"><span class="pallino" aria-hidden="true"></span>Email da inserire in Slope <span class="conta">${daInserire.length}</span></h3>
-        <p class="nota">L'ospite ha mandato la sua email: scrivila nella scheda cliente in Slope. Esce da qui quando l'aggiornamento orario la trova in Slope.</p></div>
+        <p class="nota">Scrivila nella scheda cliente in Slope: esce da qui quando Slope la mostra.</p></div>
         <ul class="righe">${daInserire.map((x) => riga(x.riga)).join("")}</ul>
       </section>`
     : "";
@@ -788,8 +822,18 @@ function vistaCalendario(): string {
         <ul class="righe">${fatti.map((p) => riga(p.riga, p)).join("")}</ul>
       </details>`
     : "";
+  const tessereOggi = cruscotto([
+    { gruppo: "g-slope", n: daInserire.length, titolo: "Email da inserire in Slope", tono: "urgente" },
+    { gruppo: "g-gp", n: gp.pronti.length, titolo: "Guest Pass da inviare", tono: "pass" },
+    { gruppo: "g-telefonare", n: daFare.filter((p) => p.sollecito).length, titolo: "Telefonare", tono: "urgente" },
+    { gruppo: "g-link", n: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "checkin").length, titolo: "Link di check-in", tono: "lavoro" },
+    { gruppo: "g-email", n: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "email").length, titolo: "Chiedere l'email", tono: "lavoro" },
+    { gruppo: "g-gp-lts", n: perOrdine(gp.daGenerare).length, titolo: "Guest Pass da generare", tono: "attenzione" },
+    ...(gp.daAbbinare.length ? [{ gruppo: "g-gp-abbina", n: gp.daAbbinare.length, titolo: "Guest Pass da abbinare", tono: "attenzione" as const }] : []),
+  ]);
   const oggi = `<section class="giorno giorno-oggi" id="giorno-${stato.oggi}" aria-labelledby="t-oggi">
-      <h2 id="t-oggi">${esc(etichettaGiornoCalendario(stato.oggi))} <span class="conta">${contaOggi}</span></h2>
+      <h2 id="t-oggi" class="titolo-giorno">${esc(etichettaGiornoCalendario(stato.oggi))} <span class="conta">${contaOggi}</span></h2>
+      ${tessereOggi}
       ${sezioneSlope}${lavoroOggi}${giaFatti}
     </section>`;
 
@@ -813,20 +857,33 @@ function vistaCalendario(): string {
     .map((g) => {
       const voci = futuri.filter((p) => p.giorno === g);
       const parziale = g > completo;
-      return `<section class="giorno${parziale ? " giorno-parziale" : ""}" id="giorno-${g}" aria-label="${esc(giornoLungo(g))}">
-        <h3>${esc(etichettaGiornoCalendario(g))} <span class="conta">${voci.length}</span></h3>
-        ${voci.length ? `<ul class="voci">${voci.map(voce).join("")}</ul>` : `<p class="nota">${parziale ? "Nessun promemoria per ora: arrivano con le prenotazioni successive." : "Nessun promemoria."}</p>`}
+      return `<section class="giorno${parziale ? " giorno-parziale" : ""}${voci.length ? "" : " giorno-vuoto"}" id="giorno-${g}" aria-label="${esc(giornoLungo(g))}">
+        <h3>${esc(etichettaGiornoCalendario(g))} <span class="conta">${voci.length || (parziale ? "per ora nessuno" : "nessuno")}</span></h3>
+        ${voci.length ? `<ul class="voci">${voci.map(voce).join("")}</ul>` : ""}
       </section>`;
     })
     .join("");
 
   return `
-    <div class="vista-testa">
-      <h2 class="sr">Calendario dei contatti</h2>
-      <p class="nota">Link di check-in <b>5 giorni prima</b> dell'arrivo · email mancante o da correggere <b>3 giorni prima</b> · senza risposta si <b>telefona</b> (dopo 2 giorni per il check-in, dopo 1 per l'email). Ogni ora la pagina rilegge Slope: chi ha inserito un'email valida esce da solo.</p>
-    </div>
+    <h2 class="sr">Calendario dei contatti</h2>
     <div class="settimana" role="group" aria-label="Settimana">${striscia}</div>
     <div class="agenda">${oggi}${seguenti}</div>`;
+}
+
+type TonoTessera = "urgente" | "lavoro" | "pass" | "attenzione";
+
+/**
+ * Il lavoro di oggi a colpo d'occhio: un numero grande per tipo, nello stesso ordine dei gruppi qui sotto.
+ * Le tessere a zero restano al loro posto, spente: la reception le ritrova sempre nello stesso punto.
+ */
+function cruscotto(voci: readonly { gruppo: string; n: number; titolo: string; tono: TonoTessera }[]): string {
+  return `<div class="cruscotto" role="group" aria-label="Lavoro di oggi">${voci
+    .map((v) =>
+      v.n
+        ? `<button type="button" class="tile tile-${v.tono}" data-azione="vai-gruppo" data-gruppo="${v.gruppo}"><span class="tile-n">${v.n}</span><span class="tile-t">${esc(v.titolo)}</span></button>`
+        : `<div class="tile tile-zero" aria-label="${esc(v.titolo)}: niente"><span class="tile-n">0</span><span class="tile-t">${esc(v.titolo)}</span></div>`,
+    )
+    .join("")}</div>`;
 }
 
 /** Lavoro di oggi sui Guest Pass: da inviare (arrivati e abbinati), da generare in LTS, da abbinare a mano. */
@@ -840,14 +897,14 @@ function lavoroGuestPass(): { pronti: RigaCheckin[]; daGenerare: RigaCheckin[]; 
     else if (g === "da-generare") daGenerare.push(r);
   }
   const daAbbinare = ab.filter((a) => a.id === null);
-  return { pronti, daGenerare, daAbbinare, totale: pronti.length + daGenerare.length + daAbbinare.length };
+  return { pronti, daGenerare, daAbbinare, totale: pronti.length + perOrdine(daGenerare).length + daAbbinare.length };
 }
 
 function gruppoGuestPassPronti(righe: readonly RigaCheckin[]): string {
   if (!righe.length) return "";
   return `<section class="gruppo gruppo-oggi gruppo-gp" aria-labelledby="g-gp">
     <div class="gruppo-testa"><h3 id="g-gp"><span class="pallino" aria-hidden="true"></span>Inviare il Guest Pass <span class="conta">${righe.length}</span></h3>
-    <p class="nota">I pass sono arrivati nella casella e sono abbinati alla prenotazione: si mandano all'email diretta dell'ospite.</p></div>
+    <p class="nota">Pass arrivati e abbinati alla prenotazione: mandali all'ospite.</p></div>
     <ul class="righe">${righe.map((r) => riga(r)).join("")}</ul>
   </section>`;
 }
@@ -861,7 +918,7 @@ function gruppoGuestPassDaGenerare(righe: readonly RigaCheckin[]): string {
   const ordini = perOrdine(righe);
   return `<section class="gruppo gruppo-oggi gruppo-gp-lts" aria-labelledby="g-gp-lts">
     <div class="gruppo-testa"><h3 id="g-gp-lts"><span class="pallino" aria-hidden="true"></span>Generare il Guest Pass in LTS <span class="conta">${ordini.length}</span></h3>
-    <p class="nota">Check-in fatto ed email diretta in Slope. <b>1</b> «Apri in Slope» · <b>2</b> estensione «Slope X LTS Guest Pass» · <b>3</b> in LTS «Invia carta d'ospite» a <b>${esc(CASELLA_GUESTPASS)}</b> («Copia indirizzo»). Il pass compare qui in «Inviare il Guest Pass» appena la casella viene letta (la pagina ricontrolla ogni 5 minuti).</p></div>
+    <p class="nota"><b>1</b> «Apri in Slope» · <b>2</b> estensione «Slope X LTS Guest Pass» · <b>3</b> in LTS «Invia carta d'ospite» a <b>${esc(CASELLA_GUESTPASS)}</b> («Copia indirizzo»). Poi il pass compare in «Inviare il Guest Pass».</p></div>
     <ul class="voci voci-gp">${ordini
       .map((camere) => {
         const r = camere[0];
@@ -883,7 +940,7 @@ function gruppoGuestPassDaAbbinare(lista: readonly AbbinamentoGuestPass[]): stri
   const opzioni = stato.righe.map((r) => `<option value="${esc(r.reservationId)}">${esc(r.camera ?? "—")} · ${esc(r.nome)} · ${esc(giorno(r.arrivo))}</option>`).join("");
   return `<section class="gruppo gruppo-oggi gruppo-gp-abbina" aria-labelledby="g-gp-abbina">
     <div class="gruppo-testa"><h3 id="g-gp-abbina"><span class="pallino" aria-hidden="true"></span>Guest Pass da abbinare <span class="conta">${lista.length}</span></h3>
-    <p class="nota">Arrivati nella casella ma il nome non corrisponde con certezza a una prenotazione: scegli a chi vanno.</p></div>
+    <p class="nota">Il nome non corrisponde con certezza a una prenotazione: scegli a chi vanno.</p></div>
     <ul class="voci">${lista
       .map((a) => {
         const nomi = a.email.pass.map((p) => p.nome || "senza nome").join(", ");
@@ -908,19 +965,19 @@ function gruppiOggi(daFare: readonly Promemoria[]): string {
     {
       chiave: "telefonare",
       titolo: "Telefonare",
-      nota: "Richieste rimaste senza risposta. Dopo la chiamata annota l'email o segna «telefonato».",
+      nota: "Nessuna risposta alla richiesta: chiama, poi «Annota email ricevuta» o «Segna telefonato».",
       voci: daFare.filter((p) => p.sollecito),
     },
     {
       chiave: "link",
       titolo: "Mandare il link di check-in",
-      nota: "5 giorni prima dell'arrivo. Nel modulo di Slope l'ospite inserisce la sua email.",
+      nota: "5 giorni prima dell'arrivo: nel modulo l'ospite inserisce la sua email.",
       voci: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "checkin"),
     },
     {
       chiave: "email",
       titolo: "Chiedere o correggere l'email",
-      nota: "3 giorni prima dell'arrivo, per chi ha fatto il check-in senza un'email valida.",
+      nota: "3 giorni prima dell'arrivo: check-in fatto, ma senza un'email valida.",
       voci: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "email"),
     },
   ];
@@ -998,15 +1055,13 @@ function renderLista(): void {
   }
   if (stato.caricamento === "password") {
     box.innerHTML = `
-      <form class="vuoto sblocco" id="form-sblocco" autocomplete="on">
-        <p class="vuoto-titolo">Password reception</p>
-        <p>È la stessa delle lettere di benvenuto e degli avvisi arrivo. Su questo computer basta inserirla una volta.</p>
-        <div class="riga-sblocco">
-          <label class="sr" for="sblocco-pw">Password reception</label>
-          <input id="sblocco-pw" type="password" autocomplete="current-password" required>
-          <button class="btn btn-primario" type="submit">Apri</button>
-        </div>
+      <form class="sblocco" id="form-sblocco" autocomplete="on">
+        <p class="titolo-linea"><span>Accesso reception</span></p>
+        <label class="etichetta-campo" for="sblocco-pw">Password reception</label>
+        <input id="sblocco-pw" type="password" autocomplete="current-password" required>
         ${stato.erroreSblocco ? `<p class="errore" role="alert">${esc(stato.erroreSblocco)}</p>` : ""}
+        <button class="btn btn-primario btn-largo" type="submit"><svg class="icona" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Apri</button>
+        <p class="nota-centro">È la stessa delle lettere di benvenuto e degli avvisi arrivo. Su questo computer basta inserirla una volta.</p>
       </form>`;
     window.setTimeout(() => (document.getElementById("sblocco-pw") as HTMLInputElement | null)?.focus(), 30);
     return;
@@ -1374,6 +1429,12 @@ function collegaEventi(): void {
       case "togli-contatto":
         if (el.dataset.id) togliContatto(el.dataset.id);
         break;
+      case "vai-gruppo": {
+        const titolo = el.dataset.gruppo ? document.getElementById(el.dataset.gruppo) : null;
+        const dest = titolo?.closest("section") ?? titolo;
+        if (dest) dest.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        break;
+      }
       case "vai-giorno": {
         const g = el.dataset.giorno;
         const dest = g ? document.getElementById(`giorno-${g}`) : null;
