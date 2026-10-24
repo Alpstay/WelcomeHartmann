@@ -2,8 +2,8 @@
  * Check-in online & email · Chalet Hotel Hartmann — interfaccia della reception (comune a pagina vera e prova).
  * La fonte dei dati arriva da fuori: app.ts legge ../arrivi.json cifrato, prova.ts usa ospiti inventati.
  *
- * Tre viste: «Da fare oggi» (i promemoria arrivati: check-in da fare 5 giorni prima dell'arrivo, email mancante o
- * da correggere 3 giorni prima; sotto, i promemoria dei prossimi giorni) e «Tutte» (le prenotazioni per stato).
+ * Due viste: «Calendario» (oggi per primo, con tutto il lavoro del giorno: check-in da fare 5 giorni prima
+ * dell'arrivo, email mancante o da correggere 3 giorni prima, telefonate; poi i giorni seguenti) e «Tutte».
  *
  * Sul computer (localStorage): solo il registro «contattato» (id Slope, motivo, canale, data), cancellato 14 giorni
  * dopo l'arrivo. Email, telefoni e link di check-in restano in memoria, mai salvati.
@@ -415,7 +415,7 @@ function renderSchede(): void {
   const pendenti = new Set(emailDaInserire(stato.righe, stato.emailNuove).map((x) => x.riga.reservationId));
   const oggi = daFareOggi(lista).filter((p) => !pendenti.has(p.riga.reservationId)).length + pendenti.size;
   const conta: Record<Vista, string> = { oggi: String(oggi), tutte: String(stato.righe.length) };
-  const nomi: Record<Vista, string> = { oggi: "Da fare oggi", tutte: "Tutte le prenotazioni" };
+  const nomi: Record<Vista, string> = { oggi: "Calendario", tutte: "Tutte le prenotazioni" };
   nav.innerHTML = VISTE.map(
     (v) =>
       `<button type="button" role="tab" class="scheda${stato.vista === v ? " attiva" : ""}${v === "oggi" && oggi > 0 ? " urgente" : ""}" aria-selected="${stato.vista === v}" data-azione="vista" data-vista="${v}">${esc(nomi[v])} <span class="scheda-conta">${conta[v]}</span></button>`,
@@ -626,7 +626,11 @@ function salvaEmailNuova(r: RigaCheckin, valore: string, forza = false): void {
 
 // ───────────────────────── Render: viste ─────────────────────────
 
-function vistaOggi(): string {
+/**
+ * Calendario dei contatti: striscia della settimana in cima, poi OGGI per primo (con tutto il lavoro del giorno,
+ * diviso per tipo) e sotto i giorni seguenti, ognuno con i suoi promemoria e il pulsante per anticipare.
+ */
+function vistaCalendario(): string {
   const lista = promemoria(stato.righe, stato.registro, stato.oggi);
   const daInserire = emailDaInserire(stato.righe, stato.emailNuove);
   const pendenti = new Set(daInserire.map((x) => x.riga.reservationId));
@@ -636,6 +640,26 @@ function vistaOggi(): string {
     .filter((p) => !pendenti.has(p.riga.reservationId))
     .sort((a, b) => peso(a) - peso(b) || a.riga.arrivo.localeCompare(b.riga.arrivo));
   const fatti = lista.filter((p) => p.contatto && !p.sollecito && !pendenti.has(p.riga.reservationId) && p.giorno <= stato.oggi);
+  const futuri = lista.filter((p) => p.quando === "prossimamente" && !pendenti.has(p.riga.reservationId));
+  const ultimoArrivo = stato.dati?.a ?? stato.oggi;
+  const completo = calendarioCompletoFino(ultimoArrivo);
+  const giorni = Array.from({ length: 7 }, (_, i) => aggiungiGiorni(stato.oggi, i));
+  const contaOggi = daFare.length + daInserire.length;
+
+  // striscia della settimana: un clic porta al giorno
+  const fmtSett = new Intl.DateTimeFormat("it-IT", { weekday: "short", timeZone: "UTC" });
+  const striscia = giorni
+    .map((g, i) => {
+      const n = i === 0 ? contaOggi : futuri.filter((p) => p.giorno === g).length;
+      const d = new Date(`${g}T12:00:00Z`);
+      return `<button type="button" class="giorno-chip${i === 0 ? " giorno-chip-oggi" : ""}${n ? " giorno-chip-pieno" : ""}${g > completo ? " giorno-chip-parziale" : ""}" data-azione="vai-giorno" data-giorno="${g}" aria-label="${esc(giornoLungo(g))}: ${n} promemoria">
+        <span class="chip-sett">${i === 0 ? "Oggi" : esc(fmtSett.format(d))}</span>
+        <span class="chip-num">${d.getUTCDate()}</span>
+        <span class="chip-conta">${n || "–"}</span>
+      </button>`;
+    })
+    .join("");
+
   const sezioneSlope = daInserire.length
     ? `<section class="gruppo gruppo-slope" aria-labelledby="g-slope">
         <div class="gruppo-testa"><h3 id="g-slope"><span class="pallino" aria-hidden="true"></span>Email da inserire in Slope <span class="conta">${daInserire.length}</span></h3>
@@ -643,24 +667,58 @@ function vistaOggi(): string {
         <ul class="righe">${daInserire.map((x) => riga(x.riga)).join("")}</ul>
       </section>`
     : "";
-  const prossimo = lista.find((p) => p.quando === "prossimamente");
-  const testa = `
-    <div class="vista-testa">
-      <h2>${esc(etichettaGiornoCalendario(stato.oggi))}</h2>
-      <p class="nota">Check-in online da fare: si scrive <b>5 giorni prima</b> dell'arrivo. Check-in fatto ma email mancante o da correggere: <b>3 giorni prima</b>. Senza risposta si <b>telefona</b> (dopo 2 giorni per il check-in, dopo 1 giorno per l'email). Ogni ora la pagina rilegge Slope: chi ha inserito un'email valida esce da solo dalla lista. In fondo, i promemoria dei prossimi giorni.</p>
-    </div>`;
-  const vuoto = !daFare.length
-    ? `<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Nessun ospite da contattare oggi.</p><p>${
-        prossimo ? `Prossimo promemoria: ${esc(giornoLungo(prossimo.giorno))}, camera ${esc(prossimo.riga.camera ?? "—")}.` : "Nessun promemoria nei prossimi giorni."
-      }</p></div>`
-    : gruppiOggi(daFare);
+  const lavoroOggi = daFare.length
+    ? gruppiOggi(daFare)
+    : daInserire.length
+      ? ""
+      : `<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Nessun ospite da contattare oggi.</p><p>${
+          futuri[0] ? `Prossimo promemoria: ${esc(giornoLungo(futuri[0].giorno))}, camera ${esc(futuri[0].riga.camera ?? "—")}.` : "Nessun promemoria nei prossimi giorni."
+        }</p></div>`;
   const giaFatti = fatti.length
     ? `<details class="gruppo gruppo-fatti" data-chiave="fatti">
         <summary><h3>Già contattati, in attesa dell'email in Slope <span class="conta">${fatti.length}</span></h3></summary>
         <ul class="righe">${fatti.map((p) => riga(p.riga, p)).join("")}</ul>
       </details>`
     : "";
-  return testa + sezioneSlope + vuoto + giaFatti + prossimiGiorni(lista, pendenti);
+  const oggi = `<section class="giorno giorno-oggi" id="giorno-${stato.oggi}" aria-labelledby="t-oggi">
+      <h2 id="t-oggi">${esc(etichettaGiornoCalendario(stato.oggi))} <span class="conta">${contaOggi}</span></h2>
+      ${sezioneSlope}${lavoroOggi}${giaFatti}
+    </section>`;
+
+  const voce = (p: Promemoria): string => {
+    const r = p.riga;
+    const aperta = stato.espansi.has(r.reservationId);
+    return `<li class="voce voce-${r.stato}">
+      <div class="voce-riga">
+        <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
+        <span class="voce-testo"><b>${esc(r.nome)}</b><span>${esc(cosaFare(r).replace(/ \(.*\)$/, ""))} · arrivo ${esc(giorno(r.arrivo))}</span></span>
+        <span class="voce-azioni">
+          ${azionePrimaria(r, p, false)}
+          <button type="button" class="link link-piccolo" data-azione="espandi" data-id="${esc(r.reservationId)}" aria-expanded="${aperta}">${aperta ? "Chiudi" : "Tutte le azioni"}</button>
+        </span>
+      </div>
+      ${aperta ? `<ul class="righe voce-dettaglio">${riga(r, p)}</ul>` : ""}
+    </li>`;
+  };
+  const seguenti = giorni
+    .slice(1)
+    .map((g) => {
+      const voci = futuri.filter((p) => p.giorno === g);
+      const parziale = g > completo;
+      return `<section class="giorno${parziale ? " giorno-parziale" : ""}" id="giorno-${g}" aria-label="${esc(giornoLungo(g))}">
+        <h3>${esc(etichettaGiornoCalendario(g))} <span class="conta">${voci.length}</span></h3>
+        ${voci.length ? `<ul class="voci">${voci.map(voce).join("")}</ul>` : `<p class="nota">${parziale ? "Nessun promemoria per ora: arrivano con le prenotazioni successive." : "Nessun promemoria."}</p>`}
+      </section>`;
+    })
+    .join("");
+
+  return `
+    <div class="vista-testa">
+      <h2 class="sr">Calendario dei contatti</h2>
+      <p class="nota">Link di check-in <b>5 giorni prima</b> dell'arrivo · email mancante o da correggere <b>3 giorni prima</b> · senza risposta si <b>telefona</b> (dopo 2 giorni per il check-in, dopo 1 per l'email). Ogni ora la pagina rilegge Slope: chi ha inserito un'email valida esce da solo.</p>
+    </div>
+    <div class="settimana" role="group" aria-label="Settimana">${striscia}</div>
+    <div class="agenda">${oggi}${seguenti}</div>`;
 }
 
 /** Le cose di oggi divise per tipo di lavoro, nell'ordine in cui farle: telefonate, link di check-in, email. */
@@ -711,48 +769,6 @@ function azionePrimaria(r: RigaCheckin, p: Promemoria, pendente: boolean): strin
   // già contattato e in attesa: quando l'ospite risponde si annota l'email
   if (p.contatto) return `<button type="button" class="btn btn-piccolo" data-azione="apri-campo" data-id="${id}">Annota email</button>`;
   return `<button type="button" class="btn btn-piccolo btn-primario" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link" : "Chiedi l'email"}</button>`;
-}
-
-/**
- * Prossimi giorni, sotto le cose di oggi: solo i promemoria futuri, giorno per giorno, ognuno con il suo pulsante
- * (si può anticipare) e «Tutte le azioni» per la riga completa. I giorni senza promemoria non compaiono.
- */
-function prossimiGiorni(lista: readonly Promemoria[], pendenti: ReadonlySet<string>): string {
-  const ultimoArrivo = stato.dati?.a ?? stato.oggi;
-  const completo = calendarioCompletoFino(ultimoArrivo);
-  const futuri = lista.filter((p) => p.quando === "prossimamente" && !pendenti.has(p.riga.reservationId));
-  const voce = (p: Promemoria): string => {
-    const r = p.riga;
-    const aperta = stato.espansi.has(r.reservationId);
-    return `<li class="voce voce-${r.stato}">
-      <div class="voce-riga">
-        <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
-        <span class="voce-testo"><b>${esc(r.nome)}</b><span>${esc(cosaFare(r).replace(/ \(.*\)$/, ""))} · arrivo ${esc(giorno(r.arrivo))}</span></span>
-        <span class="voce-azioni">
-          ${azionePrimaria(r, p, false)}
-          <button type="button" class="link link-piccolo" data-azione="espandi" data-id="${esc(r.reservationId)}" aria-expanded="${aperta}">${aperta ? "Chiudi" : "Tutte le azioni"}</button>
-        </span>
-      </div>
-      ${aperta ? `<ul class="righe voce-dettaglio">${riga(r, p)}</ul>` : ""}
-    </li>`;
-  };
-  const giorni = [...new Set(futuri.map((p) => p.giorno))].sort();
-  const sezioni = giorni
-    .map((g) => {
-      const voci = futuri.filter((p) => p.giorno === g);
-      return `<section class="giorno" aria-label="${esc(giornoLungo(g))}">
-        <h4>${esc(etichettaGiornoCalendario(g))} <span class="conta">${voci.length}</span></h4>
-        <ul class="voci">${voci.map(voce).join("")}</ul>
-      </section>`;
-    })
-    .join("");
-  return `<section class="prossimi" aria-labelledby="g-prossimi">
-    <div class="gruppo-testa"><h3 id="g-prossimi">Prossimi giorni <span class="conta">${futuri.length}</span></h3>
-    <p class="nota">${
-      futuri.length ? "Si può anticipare con il pulsante della riga. " : "Nessun promemoria per ora. "
-    }I promemoria «link di check-in» sono completi fino a ${esc(giorno(completo))}: per i giorni dopo arrivano con le prenotazioni oltre il ${esc(giorno(ultimoArrivo))}.</p></div>
-    ${sezioni ? `<div class="agenda">${sezioni}</div>` : ""}
-  </section>`;
 }
 
 function vistaTutte(): string {
@@ -822,7 +838,7 @@ function renderLista(): void {
   const scritto = stato.campoAperto ? (document.getElementById(`email-nuova-${stato.campoAperto}`) as HTMLInputElement | null) : null;
   const valore = scritto?.value ?? null;
   const fuoco = scritto !== null && document.activeElement === scritto;
-  box.innerHTML = stato.vista === "oggi" ? vistaOggi() : vistaTutte();
+  box.innerHTML = stato.vista === "oggi" ? vistaCalendario() : vistaTutte();
   if (stato.campoAperto && valore !== null) {
     const nuovo = document.getElementById(`email-nuova-${stato.campoAperto}`) as HTMLInputElement | null;
     if (nuovo) {
@@ -1116,6 +1132,12 @@ function collegaEventi(): void {
       case "togli-contatto":
         if (el.dataset.id) togliContatto(el.dataset.id);
         break;
+      case "vai-giorno": {
+        const g = el.dataset.giorno;
+        const dest = g ? document.getElementById(`giorno-${g}`) : null;
+        if (dest) dest.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        break;
+      }
       case "espandi":
         if (r) {
           if (stato.espansi.has(r.reservationId)) stato.espansi.delete(r.reservationId);

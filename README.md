@@ -72,16 +72,16 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password r
 - Una riga per prenotazione confermata (oggi → +6 giorni): camera, nome, numero di prenotazione, arrivo, partenza,
   link di check-in online, email, telefono. Stati: check-in online da fare · fatto con email mancante · fatto con
   email da correggere (dominio scritto male) · tutto a posto. Check-in fatto = documento e privacy in Slope.
-- «Da fare oggi» (con i prossimi giorni in fondo): il link di check-in si manda 5 giorni prima dell'arrivo, la richiesta
-  dell'email 3 giorni prima; senza risposta il promemoria torna come «Telefonare» (dopo 2 giorni per il check-in, 1 per l'email).
+- «Calendario» (scheda principale): striscia della settimana, oggi per primo con tutto il lavoro del giorno, poi i
+  giorni seguenti. Il link di check-in si manda 5 giorni prima dell'arrivo, la richiesta dell'email 3 giorni prima; senza risposta il promemoria torna come «Telefonare» (dopo 2 giorni per il check-in, 1 per l'email).
 - L'email che l'ospite manda si annota nella riga della camera: lampeggia in rosso «da inserire in Slope» finché
   l'aggiornamento orario non la trova in Slope, poi sparisce da sola.
 - «Manda il link di check-in» / «Chiedi l'email» apre la finestra del messaggio: testo già scritto nella lingua
   dell'ospite (DE, IT, EN per le altre, cambiabile), visibile com'è; canali Email, WhatsApp, Extranet. Email: «Copia
   il testo e apri l'email» → destinatario e oggetto (numero di prenotazione e nome) già scritti, nel corpo Ctrl+V
   incolla il testo con il link come pulsante «START». Poi «Segna inviata».
-- «Da fare oggi» è diviso per lavoro: email da inserire in Slope, telefonare, mandare il link, chiedere l'email.
-  In fondo, «Prossimi giorni»: ogni promemoria futuro con il suo pulsante, per anticipare.
+- Oggi è diviso per lavoro: email da inserire in Slope, telefonare, mandare il link, chiedere l'email. Nei giorni
+  seguenti ogni promemoria ha il suo pulsante, per anticipare.
 - Dati: blocco `avvisi` di `arrivi.json`; il numero di prenotazione arriva da `curated_reservations` (portali) e
   `curated_order_balances` (ordine Slope), passi facoltativi 3a/3b di `tools/AGGIORNA.md`. Nel browser restano il
   registro «contattato» e le email annotate, cancellati 14 giorni dopo l'arrivo.
