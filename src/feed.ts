@@ -61,6 +61,14 @@ export interface AvvisoItem {
   readonly checkinFatto?: boolean;
   /** Camera assegnata (room_name di Slope), per distinguere i link quando un intestatario ha più camere. */
   readonly room?: string | null;
+  /** Numero di prenotazione del portale (agency_code di Slope), solo per le prenotazioni dai portali. */
+  readonly codicePortale?: string | null;
+  /** Nome del portale per il riferimento («Booking.com», «Expedia»); null per le dirette. */
+  readonly portale?: string | null;
+  /** Numero dell'ordine in Slope (order_number), per le prenotazioni dirette. */
+  readonly numeroOrdine?: number | null;
+  /** order_id di Slope, invariato: apre la prenotazione nel backoffice (…/orders/<order_id>/view). */
+  readonly ordineSlope?: string | null;
 }
 
 export interface AvvisiPayload {

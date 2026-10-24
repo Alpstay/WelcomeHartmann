@@ -132,6 +132,41 @@ console.log("ok", Math.round(full.length / 1024), "KB");
   writeFileSync("avvisi/index.html", pagina);
   console.log("ok avvisi/index.html", Math.round(pagina.length / 1024), "KB");
 }
+// Pagina checkin/ (check-in online ed email diretta degli ospiti): legge lo stesso blocco «avvisi» di ../arrivi.json con
+// la password reception. Content-Security-Policy come avvisi/: solo il proprio script e dati solo dal proprio sito, così
+// email e link di check-in non possono partire verso altri indirizzi. In più dist/checkin-prova.html: la stessa pagina
+// con ospiti inventati, per l'anteprima (artifact) senza password e senza dati reali.
+{
+  const tpl = readFileSync("src/checkin/page.html", "utf8");
+  if (!tpl.includes("/*__APP__*/")) throw new Error("segnaposto mancante in src/checkin/page.html");
+  const cut = tpl.indexOf('<div id="app">');
+  if (cut < 0) throw new Error("<div id=\"app\"> mancante in src/checkin/page.html");
+  const head = tpl.slice(0, cut).trim();
+  const bundle = async (entry) => {
+    const r = await build({ entryPoints: [entry], bundle: true, format: "iife", target: "es2020", minify: true, write: false, legalComments: "none" });
+    return r.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
+  };
+  const appJs = await bundle("src/checkin/app.ts");
+  const bodyPart = tpl.slice(cut).replace("/*__APP__*/", () => appJs).trim();
+  const checkinCsp = [
+    "default-src 'none'",
+    `script-src ${inlineHashes(bodyPart).join(" ")}`,
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "form-action 'none'",
+  ].join("; ");
+  mkdirSync("checkin", { recursive: true });
+  const pagina = `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${checkinCsp}">\n<meta name="referrer" content="no-referrer">\n<meta name="robots" content="noindex, nofollow">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`;
+  writeFileSync("checkin/index.html", pagina);
+  console.log("ok checkin/index.html", Math.round(pagina.length / 1024), "KB");
+  const provaJs = await bundle("src/checkin/prova.ts");
+  const prova = `<meta name="claude:viewport-fit-sides" content="cover">\n${head}\n${tpl.slice(cut).replace("/*__APP__*/", () => provaJs).trim()}\n`;
+  writeFileSync("dist/checkin-prova.html", prova);
+}
 // Pagina collega.html (collegamento una tantum di GitHub a La Scatola)
 {
   const c = await build({ entryPoints: ["src/collega.ts"], bundle: true, format: "iife", target: "es2020", minify: true, write: false, legalComments: "none" });
@@ -155,5 +190,20 @@ console.log("ok", Math.round(full.length / 1024), "KB");
   writeFileSync(
     "collega.html",
     `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${collegaCsp}">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta name="referrer" content="no-referrer">\n${head}\n</head>\n<body>\n${bodyPart}\n</body>\n</html>\n`,
+  );
+}
+
+// Avviso «Guest Pass arrivato» per Google Apps Script (Gmail dedicata): stesso codice di
+// tools/gmail-avviso/avviso-guestpass.ts senza tipi, da incollare nell'editor di Apps Script (vedi LEGGIMI.md).
+{
+  const { transform } = await import("esbuild");
+  const sorgente = readFileSync("tools/gmail-avviso/avviso-guestpass.ts", "utf8");
+  const js = await transform(sorgente, { loader: "ts", target: "es2020", charset: "utf8" });
+  writeFileSync(
+    "tools/gmail-avviso/avviso-guestpass.gs",
+    "// Avviso «Guest Pass arrivato» · Gmail guestpass.hartmann@gmail.com → GitHub «Guest Pass dalla casella».\n" +
+      "// Generato da avviso-guestpass.ts con build.mjs: si incolla così com'è in Apps Script (Codice.gs).\n" +
+      "// Ogni 5 minuti: se c'è un'email nuova di sgp01@feratel.tv avvia subito il workflow. Token in Proprietà script: GITHUB_TOKEN.\n" +
+      js.code,
   );
 }

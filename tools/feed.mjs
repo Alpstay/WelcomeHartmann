@@ -557,9 +557,37 @@ var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
 var EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i;
 var CHECKIN = /^https:\/\/booking\.slope\.it\/g\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/reservations\/[0-9a-f-]{36}\/check-in$/i;
 var clean = (v) => typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var titolo = (s) => s && s === s.toUpperCase() ? s.toLowerCase().replace(new RegExp("(^|[\\s'\u2019-])(\\p{L})", "gu"), (_, a, b2) => a + b2.toUpperCase()) : s;
-function avvisiItems(rows, contacts) {
+function nomePortale(agencyName, otaChannel) {
+  const canale = clean(otaChannel).toUpperCase();
+  if (!canale) return null;
+  if (canale === "BOOKING") return "Booking.com";
+  if (canale === "EXPEDIA") return "Expedia";
+  return clean(agencyName) || canale.charAt(0) + canale.slice(1).toLowerCase();
+}
+function riferimentiPer(rows, references = [], orders = []) {
+  const refById = new Map(references.map((x) => [x.reservation_id, x]));
+  const numeri = new Map(orders.filter((o) => typeof o.order_number === "number").map((o) => [o.order_id, o.order_number]));
+  const out2 = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const ref = refById.get(r.reservation_id);
+    const portale = nomePortale(ref?.agency_name ?? r.agency_name, ref?.ota_channel ?? r.ota_channel);
+    const codice = clean(ref?.agency_code);
+    const idOrdine = clean(ref?.order_id) || clean(r.order_id);
+    const ordine = numeri.get(idOrdine) ?? null;
+    out2.set(r.reservation_id, {
+      codicePortale: portale && codice ? codice : null,
+      portale: portale && codice ? portale : null,
+      numeroOrdine: ordine,
+      ordineSlope: UUID.test(idOrdine) ? idOrdine : null
+    });
+  }
+  return out2;
+}
+function avvisiItems(rows, contacts, references = [], orders = []) {
   const byId = new Map(contacts.map((c) => [c.reservation_id, c]));
+  const rif = riferimentiPer(rows, references, orders);
   return rows.filter((r) => !r.is_option && r.booking_status !== "OPTION" && r.booking_status !== "CANCELLED").map((r) => {
     const c = byId.get(r.reservation_id);
     const azienda = c?.booker_type === "COMPANY" ? clean(c.organization_name) : "";
@@ -578,7 +606,8 @@ function avvisiItems(rows, contacts) {
       lang: lang || null,
       checkinUrl: CHECKIN.test(url) ? url : null,
       checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null,
-      room: clean(r.room_name) || null
+      room: clean(r.room_name) || null,
+      ...rif.get(r.reservation_id)
     };
   }).sort((a, b2) => a.arrival.localeCompare(b2.arrival) || a.name.localeCompare(b2.name));
 }
@@ -595,7 +624,7 @@ async function buildFeed(src, password) {
   const times = src.freshness.flatMap((f) => f.sources).filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at).map((s) => Date.parse(s.last_success_at)).filter(Number.isFinite);
   const from = src.dates[0];
   const payload = { days };
-  const avvisi = { items: avvisiItems(src.rows, src.contacts) };
+  const avvisi = { items: avvisiItems(src.rows, src.contacts, src.references, src.orders) };
   const envelope = {
     format: 1,
     app: "WelcomeHartmann",
@@ -621,7 +650,7 @@ async function buildFeed(src, password) {
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`,
-      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in \xB7 ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in gi\xE0 fatto`
+      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in \xB7 ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in gi\xE0 fatto \xB7 ${avvisi.items.filter((i) => i.codicePortale || i.numeroOrdine).length} con numero di prenotazione`
     ]
   };
 }
@@ -630,12 +659,14 @@ async function buildFeed(src, password) {
 import { existsSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
 var isRec = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var VIEW_KIND = {
   curated_operational_stays: "arrivi",
   list_arrivals: "arrivi",
   curated_guest_stays: "ospiti",
-  curated_reservation_contacts: "intestatari"
+  curated_reservation_contacts: "intestatari",
+  curated_reservations: "riferimenti",
+  curated_order_balances: "ordini"
 };
 function kindOf(vista, rows) {
   if (typeof vista === "string" && VIEW_KIND[vista]) return VIEW_KIND[vista];
@@ -643,6 +674,8 @@ function kindOf(vista, rows) {
   if (!r) return null;
   if ("booker_type" in r) return "intestatari";
   if ("guest_type" in r || "is_primary_guest" in r || "stay_start" in r) return "ospiti";
+  if ("order_number" in r) return "ordini";
+  if ("agency_code" in r) return "riferimenti";
   if ("room_name" in r || "adults" in r || "lodging_type_id" in r) return "arrivi";
   return null;
 }
@@ -685,9 +718,10 @@ function readBundle(path) {
     if (rows.length === 0) throw new FileError(`${name}: vuoto e senza "vista": indica quale vista \xE8`);
     throw new FileError(`${name}: vista non riconosciuta (aggiungi "vista")`);
   }
+  const chiave = kind === "ordini" ? "order_id" : "reservation_id";
   rows.forEach((r, i) => {
-    if (!isRec(r) || typeof r.reservation_id !== "string" || !UUID.test(r.reservation_id))
-      throw new FileError(`${name}: reservation_id mancante o non valido alla riga ${i + 1}`);
+    if (!isRec(r) || typeof r[chiave] !== "string" || !UUID2.test(r[chiave]))
+      throw new FileError(`${name}: ${chiave} mancante o non valido alla riga ${i + 1}`);
   });
   const freshness = isRec(v.freshness) && isRec(v.freshness.overall) ? v.freshness : null;
   return { file: name, kind, rows, freshness, total, more };
@@ -913,8 +947,37 @@ async function next() {
 var VIEW_OF = {
   arrivi: "curated_operational_stays",
   ospiti: "curated_guest_stays",
-  intestatari: "curated_reservation_contacts"
+  intestatari: "curated_reservation_contacts",
+  riferimenti: "curated_reservations",
+  ordini: "curated_order_balances"
 };
+var MAX_IN = 50;
+function ordini(args) {
+  const files = splitPaths(args);
+  if (files.length === 0) fail("uso: node tools/feed.mjs ordini <file di curated_reservations> [...]");
+  let bundles = [];
+  try {
+    bundles = files.map(readBundle);
+    checkPages(bundles);
+  } catch (e) {
+    fail(e instanceof FileError ? e.message : "file non leggibili");
+  }
+  if (bundles.some((b2) => b2.kind !== "riferimenti")) fail("indica solo i file della vista curated_reservations");
+  const dates = feedDates();
+  const ids = [
+    ...new Set(
+      bundles.flatMap((b2) => b2.rows).filter((r) => (r.property_id === void 0 || r.property_id === HARTMANN_ID) && r.booking_status !== "CANCELLED").filter((r) => typeof r.arrival !== "string" || r.arrival >= dates[0] && r.arrival <= dates[dates.length - 1]).filter((r) => !(typeof r.agency_code === "string" && r.agency_code.trim())).map((r) => r.order_id).filter((id) => typeof id === "string" && id !== "")
+    )
+  ].sort();
+  if (ids.length === 0) {
+    out("NESSUNA chiamata: tutte le prenotazioni hanno il numero del portale");
+    return;
+  }
+  for (let i = 0; i < ids.length; i += MAX_IN) {
+    const value = ids.slice(i, i + MAX_IN);
+    out(`ARGOMENTI ${JSON.stringify({ view: "curated_order_balances", filters: [{ field: "order_id", op: "in", value }], limit: 100 })}`);
+  }
+}
 async function build(args) {
   const force = args.includes("--forza");
   const rest2 = args.filter((a) => a !== "--forza");
@@ -940,6 +1003,8 @@ async function build(args) {
   const stays = of("ospiti").flatMap((b2) => b2.rows);
   const contactRows = of("intestatari").flatMap((b2) => b2.rows);
   const contacts = contactRows;
+  const references = of("riferimenti").flatMap((b2) => b2.rows);
+  const orders = of("ordini").flatMap((b2) => b2.rows);
   const ids = new Set(rows.map((r) => r.reservation_id));
   const withBooker = new Set(contactRows.map((c) => c.reservation_id));
   const warnings = [];
@@ -955,7 +1020,7 @@ async function build(args) {
   for (const w of warnings) out(w);
   if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
   const freshness = bundles.map((b2) => b2.freshness).filter((f) => f !== null);
-  const built = await buildFeed({ dates, rows, stays, contacts, freshness }, password).catch(
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders }, password).catch(
     (e) => fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`)
   );
   writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}
@@ -982,6 +1047,6 @@ async function verify(args) {
   out(`verifica OK: ${env.from} \u2192 ${env.to}, ${total} arrivi, ${avvisi}, scritto ${env.generated_at}`);
 }
 var [cmd, ...rest] = process.argv.slice(2);
-var run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : cmd === "build" ? () => build(rest) : null;
-if (!run) fail('comandi: build "<PASSWORD>" <file>\u2026 \xB7 verify [file] "<PASSWORD>" \xB7 start "<PASSWORD>" \xB7 next');
+var run = cmd === "start" ? async () => start(rest) : cmd === "next" ? next : cmd === "verify" ? () => verify(rest) : cmd === "build" ? () => build(rest) : cmd === "ordini" ? async () => ordini(rest) : null;
+if (!run) fail('comandi: build "<PASSWORD>" <file>\u2026 \xB7 ordini <file>\u2026 \xB7 verify [file] "<PASSWORD>" \xB7 start "<PASSWORD>" \xB7 next');
 run().catch((e) => fail(e instanceof Error ? e.message : String(e)));

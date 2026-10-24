@@ -3,6 +3,7 @@
 //   node tools/feed.mjs start "<PASSWORD>"   prepara l'esecuzione (giorni da oggi a +6)
 //   node tools/feed.mjs next                  dice quale chiamata fare a La Scatola, oppure scrive arrivi.json
 //   node tools/feed.mjs verify [file] "<PASSWORD>"
+//   node tools/feed.mjs ordini <file riferimenti…>   stampa gli argomenti della lettura dei numeri d'ordine Slope
 //   node tools/feed.mjs build "<PASSWORD>" <file> [<file> ...]
 //       come l'app colazioni: legge solo i file indicati (risposte salvate dal sistema o scritte nello
 //       scratchpad con {"vista", "total", "rows"}) e scrive arrivi.json. Non apre i registri della sessione.
@@ -18,7 +19,7 @@ import type { AvvisiPayload, FeedPayload } from "../feed";
 import { HARTMANN_ID, buildFeed, dm, feedDates, hartmannRows } from "../feed-build";
 import { FileError, checkPages, readBundle, splitPaths } from "./feed-files";
 import type { Bundle, Kind } from "./feed-files";
-import type { ArrivalRow, BookerFields, Freshness, GuestStayFields } from "../types";
+import type { ArrivalRow, BookerFields, Freshness, GuestStayFields, OrderFields, ReferenceFields } from "../types";
 const RUN_FILE = join(tmpdir(), "welcome-hartmann-run.json");
 const MAX_TRIES = 3;
 
@@ -294,7 +295,50 @@ const VIEW_OF: Record<Kind, string> = {
   arrivi: "curated_operational_stays",
   ospiti: "curated_guest_stays",
   intestatari: "curated_reservation_contacts",
+  riferimenti: "curated_reservations",
+  ordini: "curated_order_balances",
 };
+
+/** Massimo di valori per un filtro «in» di La Scatola. */
+const MAX_IN = 50;
+
+/**
+ * Numeri d'ordine Slope delle prenotazioni dirette (quelle senza numero del portale): stampa gli argomenti esatti
+ * di query_curated_view su curated_order_balances, una riga ARGOMENTI per chiamata (al massimo 50 ordini ciascuna).
+ * Gli order_id escono dal file così come sono: si copiano identici nella chiamata.
+ */
+function ordini(args: string[]): void {
+  const files = splitPaths(args);
+  if (files.length === 0) fail("uso: node tools/feed.mjs ordini <file di curated_reservations> [...]");
+  let bundles: Bundle[] = [];
+  try {
+    bundles = files.map(readBundle);
+    checkPages(bundles);
+  } catch (e) {
+    fail(e instanceof FileError ? e.message : "file non leggibili");
+  }
+  if (bundles.some((b) => b.kind !== "riferimenti")) fail("indica solo i file della vista curated_reservations");
+  const dates = feedDates();
+  const ids = [
+    ...new Set(
+      bundles
+        .flatMap((b) => b.rows as unknown as (ReferenceFields & { property_id?: string; arrival?: string; booking_status?: string })[])
+        .filter((r) => (r.property_id === undefined || r.property_id === HARTMANN_ID) && r.booking_status !== "CANCELLED")
+        .filter((r) => typeof r.arrival !== "string" || (r.arrival >= dates[0] && r.arrival <= dates[dates.length - 1]))
+        .filter((r) => !(typeof r.agency_code === "string" && r.agency_code.trim()))
+        .map((r) => r.order_id)
+        .filter((id): id is string => typeof id === "string" && id !== ""),
+    ),
+  ].sort();
+  if (ids.length === 0) {
+    out("NESSUNA chiamata: tutte le prenotazioni hanno il numero del portale");
+    return;
+  }
+  for (let i = 0; i < ids.length; i += MAX_IN) {
+    const value = ids.slice(i, i + MAX_IN);
+    out(`ARGOMENTI ${JSON.stringify({ view: "curated_order_balances", filters: [{ field: "order_id", op: "in", value }], limit: 100 })}`);
+  }
+}
 
 async function build(args: string[]): Promise<void> {
   const force = args.includes("--forza");
@@ -322,6 +366,9 @@ async function build(args: string[]): Promise<void> {
   const stays = of("ospiti").flatMap((b) => b.rows) as unknown as GuestStayFields[];
   const contactRows = of("intestatari").flatMap((b) => b.rows);
   const contacts = contactRows as unknown as BookerFields[];
+  // Facoltativi: senza questi file l'oggetto delle email resta senza numero di prenotazione.
+  const references = of("riferimenti").flatMap((b) => b.rows) as unknown as ReferenceFields[];
+  const orders = of("ordini").flatMap((b) => b.rows) as unknown as OrderFields[];
 
   // Controlli incrociati, come le righe ATTENZIONE delle colazioni: un reservation_id trascritto male non trova
   // il suo intestatario. Nei messaggi solo camere e date, mai nomi.
@@ -341,7 +388,7 @@ async function build(args: string[]): Promise<void> {
   if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
 
   const freshness = bundles.map((b) => b.freshness).filter((f): f is Freshness => f !== null);
-  const built = await buildFeed({ dates, rows, stays, contacts, freshness }, password).catch((e: unknown) =>
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders }, password).catch((e: unknown) =>
     fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`),
   );
   writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}\n`);
@@ -374,6 +421,7 @@ const run =
   : cmd === "next" ? next
   : cmd === "verify" ? () => verify(rest)
   : cmd === "build" ? () => build(rest)
+  : cmd === "ordini" ? async () => ordini(rest)
   : null;
-if (!run) fail('comandi: build "<PASSWORD>" <file>… · verify [file] "<PASSWORD>" · start "<PASSWORD>" · next');
+if (!run) fail('comandi: build "<PASSWORD>" <file>… · ordini <file>… · verify [file] "<PASSWORD>" · start "<PASSWORD>" · next');
 run().catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));

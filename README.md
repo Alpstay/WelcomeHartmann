@@ -62,6 +62,42 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/avvisi/ — stessa password re
 - Registro degli invii, contatti aggiunti a mano e testi restano nel browser del computer della
   reception (cancellati 30 giorni dopo l'arrivo).
 
+## Check-in online & email (piattaforma reception)
+
+Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password reception di lettere e avvisi.
+
+- Scopo: avere nella scheda cliente di Slope l'email diretta dell'ospite. Chi prenota dai portali ha in Slope solo
+  l'indirizzo di inoltro (…@guest.booking.com, …@m.expediapartnercentral.com), che qui vale come email nulla;
+  l'indirizzo vero entra con il check-in online.
+- Una riga per prenotazione confermata (oggi → +6 giorni): camera, nome, numero di prenotazione, arrivo, partenza,
+  link di check-in online, email, telefono. Stati: check-in online da fare · fatto con email mancante · fatto con
+  email da correggere (dominio scritto male) · tutto a posto. Check-in fatto = documento e privacy in Slope.
+- «Calendario» (scheda principale): striscia della settimana, oggi per primo con tutto il lavoro del giorno, poi i
+  giorni seguenti. Il link di check-in si manda 5 giorni prima dell'arrivo, la richiesta dell'email 3 giorni prima; senza risposta il promemoria torna come «Telefonare» (dopo 2 giorni per il check-in, 1 per l'email).
+- L'email che l'ospite manda si annota nella riga della camera: lampeggia in rosso «da inserire in Slope» finché
+  l'aggiornamento orario non la trova in Slope, poi sparisce da sola.
+- «Manda il link di check-in» / «Chiedi l'email» apre la finestra del messaggio: testo già scritto nella lingua
+  dell'ospite (DE, IT, EN per le altre, cambiabile), visibile com'è; canali Email, WhatsApp, Extranet. Email: «Copia
+  il testo e apri l'email» → destinatario e oggetto (numero di prenotazione e nome) già scritti, nel corpo Ctrl+V
+  incolla il testo con il link come pulsante «START». Poi «Segna inviata».
+- Oggi è diviso per lavoro: email da inserire in Slope, telefonare, mandare il link, chiedere l'email. Nei giorni
+  seguenti ogni promemoria ha il suo pulsante, per anticipare.
+- Guest Pass: con check-in fatto ed email diretta in Slope il calendario ricorda di generarlo in LTS (destinatario la
+  casella dedicata); quando il workflow «Guest Pass dalla casella» lo pubblica in `guestpass.json`, la pagina lo abbina
+  alla prenotazione dal nome e propone «Invia il Guest Pass» (email con il pulsante GUEST PASS verso la pagina d'arrivo,
+  stessi testi e link della pagina avvisi/). Registri «inviato» e «email gestite» condivisi con avvisi/.
+  Il link apre la pagina personale dell'ospite: check-in (`#ci=`) e pass (`#gp=`) della stessa prenotazione; nella
+  finestra del messaggio «Manda anche su WhatsApp / per email» per usare entrambi i canali. Casella letta in pochi
+  minuti solo con l'avviso dalla Gmail (`tools/gmail-avviso/LEGGIMI.md`): da solo GitHub la legge ogni 4–5 ore.
+- «Apri in Slope»: apre l'ordine nel backoffice (`backoffice.slope.it/<struttura>/orders/<order_id>/view`, order_id
+  invariato da La Scatola). In «Generare il Guest Pass» una voce per ordine (più camere insieme) → estensione
+  «Slope X LTS Guest Pass»; nelle email da inserire «Copia email e apri Slope».
+- Dati: blocco `avvisi` di `arrivi.json`; il numero di prenotazione arriva da `curated_reservations` (portali) e
+  `curated_order_balances` (ordine Slope), passi facoltativi 3a/3b di `tools/AGGIORNA.md`. Nel browser restano il
+  registro «contattato» e le email annotate, cancellati 14 giorni dopo l'arrivo.
+- Sorgente in `src/checkin/` (regole pure in `regole.ts`), test in `test/checkin.test.ts`; `dist/checkin-prova.html`
+  è l'anteprima con ospiti inventati.
+
 ## Hotel oggi (AlpStay App Hub)
 
 Lo stesso repository pubblica anche `hotel-oggi.json`: arrivi, partenze, fermate, pickup e

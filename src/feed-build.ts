@@ -6,7 +6,7 @@ import { FEED_DAYS, FEED_ITERATIONS, avvisiAad, decryptJson, encryptJson, feedAa
 import type { AvvisiPayload, AvvisoItem, FeedEnvelope, FeedItem, FeedPayload } from "./feed";
 import { PROPERTY_NAME_MATCH } from "./hotel";
 import { lookupFromRows, toItems } from "./scatola";
-import type { ArrivalRow, ContactFields, Freshness, FreshnessStatus, GuestStayFields } from "./types";
+import type { ArrivalRow, ContactFields, Freshness, FreshnessStatus, GuestStayFields, OrderFields, ReferenceFields } from "./types";
 
 /** property_id dello Chalet Hartmann in La Scatola (copiato com'è). */
 export const HARTMANN_ID = "22222222-2222-4222-8222-222222222222";
@@ -36,6 +36,10 @@ export interface FeedSource {
   readonly stays: readonly GuestStayFields[];
   readonly contacts: readonly ContactFields[];
   readonly freshness: readonly Freshness[];
+  /** curated_reservations: numero del portale e ordine Slope di ogni prenotazione (facoltativo). */
+  readonly references?: readonly ReferenceFields[];
+  /** curated_order_balances: numero dell'ordine Slope (facoltativo, serve per le dirette). */
+  readonly orders?: readonly OrderFields[];
 }
 
 export interface BuiltFeed {
@@ -52,13 +56,58 @@ const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i;
 /** Solo link di check-in di Slope: il link finisce nelle email agli ospiti. */
 const CHECKIN = /^https:\/\/booking\.slope\.it\/g\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/reservations\/[0-9a-f-]{36}\/check-in$/i;
 const clean = (v: unknown): string => (typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "");
+/** order_id di Slope: si accetta solo un UUID (finisce in un link al backoffice), copiato com'è. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** «KIMSART» → «Kimsart»: i nomi tutti maiuscoli (frequenti da Booking) diventano leggibili nel saluto. */
 const titolo = (s: string): string =>
   s && s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase()) : s;
 
+/** Nome leggibile del portale: «Booking.com», «Expedia»… (dal nome dell'agenzia o dal codice del canale). */
+function nomePortale(agencyName: unknown, otaChannel: unknown): string | null {
+  const canale = clean(otaChannel).toUpperCase();
+  if (!canale) return null;
+  if (canale === "BOOKING") return "Booking.com";
+  if (canale === "EXPEDIA") return "Expedia";
+  return clean(agencyName) || canale.charAt(0) + canale.slice(1).toLowerCase();
+}
+
+/**
+ * Numero della prenotazione per l'oggetto delle email: per i portali il loro numero (quello che l'ospite ha nella
+ * conferma), per le dirette il numero dell'ordine Slope. Gli ID passano invariati; qui si leggono soltanto.
+ */
+export function riferimentiPer(
+  rows: readonly ArrivalRow[],
+  references: readonly ReferenceFields[] = [],
+  orders: readonly OrderFields[] = [],
+): Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine" | "ordineSlope">> {
+  const refById = new Map(references.map((x) => [x.reservation_id, x]));
+  const numeri = new Map(orders.filter((o) => typeof o.order_number === "number").map((o) => [o.order_id, o.order_number]));
+  const out = new Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine" | "ordineSlope">>();
+  for (const r of rows) {
+    const ref = refById.get(r.reservation_id);
+    const portale = nomePortale(ref?.agency_name ?? r.agency_name, ref?.ota_channel ?? r.ota_channel);
+    const codice = clean(ref?.agency_code);
+    const idOrdine = clean(ref?.order_id) || clean(r.order_id);
+    const ordine = numeri.get(idOrdine) ?? null;
+    out.set(r.reservation_id, {
+      codicePortale: portale && codice ? codice : null,
+      portale: portale && codice ? portale : null,
+      numeroOrdine: ordine,
+      ordineSlope: UUID.test(idOrdine) ? idOrdine : null,
+    });
+  }
+  return out;
+}
+
 /** Una riga per prenotazione confermata (niente opzioni né cancellate), con i contatti dell'intestatario. */
-export function avvisiItems(rows: readonly ArrivalRow[], contacts: readonly ContactFields[]): AvvisoItem[] {
+export function avvisiItems(
+  rows: readonly ArrivalRow[],
+  contacts: readonly ContactFields[],
+  references: readonly ReferenceFields[] = [],
+  orders: readonly OrderFields[] = [],
+): AvvisoItem[] {
   const byId = new Map(contacts.map((c) => [c.reservation_id, c]));
+  const rif = riferimentiPer(rows, references, orders);
   return rows
     .filter((r) => !r.is_option && r.booking_status !== "OPTION" && r.booking_status !== "CANCELLED")
     .map((r): AvvisoItem => {
@@ -80,6 +129,7 @@ export function avvisiItems(rows: readonly ArrivalRow[], contacts: readonly Cont
         checkinUrl: CHECKIN.test(url) ? url : null,
         checkinFatto: c?.is_privacy_policy_acknowledged === true && typeof c.identity_document === "object" && c.identity_document !== null,
         room: clean(r.room_name) || null,
+        ...rif.get(r.reservation_id),
       };
     })
     .sort((a, b) => a.arrival.localeCompare(b.arrival) || a.name.localeCompare(b.name));
@@ -103,7 +153,7 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
     .filter(Number.isFinite);
   const from = src.dates[0];
   const payload: FeedPayload = { days };
-  const avvisi: AvvisiPayload = { items: avvisiItems(src.rows, src.contacts) };
+  const avvisi: AvvisiPayload = { items: avvisiItems(src.rows, src.contacts, src.references, src.orders) };
   const envelope: FeedEnvelope = {
     format: 1,
     app: "WelcomeHartmann",
@@ -130,7 +180,7 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" · ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} · senza nome: ${noName}`,
-      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate · ${avvisi.items.filter((i) => i.email).length} con email · ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in · ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in già fatto`,
+      `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate · ${avvisi.items.filter((i) => i.email).length} con email · ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in · ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in già fatto · ${avvisi.items.filter((i) => i.codicePortale || i.numeroOrdine).length} con numero di prenotazione`,
     ],
   };
 }

@@ -8,6 +8,13 @@ trovata dal nome: «Prepara» → controllo → «Apri email» / «Apri WhatsApp
 Workflow: `.github/workflows/guestpass.yml` («Guest Pass dalla casella»), dalle 6 alle 20 circa e a mano con
 **Run workflow**.
 
+**Attenzione (24/10/2026):** GitHub non rispetta i 15 minuti dei workflow pianificati: il 23–24/10 il workflow è
+partito ogni 4–5 ore. Per avere il pass in pagina entro 5–10 minuti serve l'avviso dalla Gmail
+(`tools/gmail-avviso/LEGGIMI.md`): uno script Google che, appena arriva un'email di feratel, avvia il workflow.
+
+Il link mandato all'ospite apre la sua **pagina personale** (Directory 5DAYTO-ARRIVAL): `#ci=…` con il suo check-in
+online (se Slope ha il link) e `#gp=…&gn=…&gr=…` con i pass, legati alla stessa prenotazione.
+
 ## Collegamento (una volta)
 
 1. Nella Gmail dedicata: attivare la **Verifica in due passaggi**, poi creare una **password per le app**

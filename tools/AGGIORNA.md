@@ -27,8 +27,9 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    `property_id` dell'Hartmann, `limit 100`; segui `next_cursor` finché non è nullo.
    Scrivi nello scratchpad `arrivi.json` con TUTTE le righe dei 7 giorni, ID copiati identici:
    `{"vista": "list_arrivals", "freshness": <blocco freshness di una delle risposte, così com'è>,
-   "rows": [{"reservation_id", "property_id", "room_name", "arrival", "departure", "adults", "children",
-   "is_option", "booking_status", "stay_status"}, …]}`.
+   "rows": [{"reservation_id", "order_id", "property_id", "room_name", "arrival", "departure", "adults",
+   "children", "is_option", "booking_status", "stay_status"}, …]}` (`order_id` serve al pulsante «Apri in Slope»
+   della pagina `checkin/`: si copia identico come gli altri ID).
 2. **Ospiti registrati** (vista con dati personali, da non mostrare): `query_curated_view` su
    `curated_guest_stays` con filtri `property_id eq <Hartmann>`, `stay_start gte G`, `stay_start lte G+6`,
    `limit 500`.
@@ -45,8 +46,20 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    company_phone, checkin_url, is_privacy_policy_acknowledged, identity_document` (intestatari: email,
    telefono e link di check-in servono alla pagina `avvisi/` delle email pre-arrivo e finiscono solo cifrati;
    del documento il programma usa solo il sì/no «check-in online già fatto», il documento non viene pubblicato). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
+3a. **Numeri del portale** (senza dati personali, per l'oggetto delle email della pagina `checkin/`):
+   `query_curated_view` su `curated_reservations` con filtri `property_id eq <Hartmann>`, `arrival gte G`,
+   `arrival lte G+6`, `limit 500`. Se la risposta arriva nel messaggio, salvala in un file dello scratchpad
+   `{"vista": "curated_reservations", "total": <page.total>, "rows": [...]}` con i campi `reservation_id,
+   order_id, property_id, arrival, booking_status, agency_code, agency_name, ota_channel`. Segui `next_cursor`.
+3b. **Numeri d'ordine Slope** (senza dati personali, per le prenotazioni dirette):
+   `node tools/feed.mjs ordini <file di 3a…>` stampa una riga `ARGOMENTI {…}` per chiamata: fai
+   `query_curated_view` con quegli argomenti copiati identici (gli `order_id` non si riscrivono a mano) e
+   salva la risposta come sopra con `"vista": "curated_order_balances"` e i campi `order_id, order_number`.
+   Con `NESSUNA chiamata` si salta.
+   3a e 3b sono facoltativi: se La Scatola non risponde a queste due letture, costruisci senza i loro file
+   (le email partono senza numero di prenotazione nell'oggetto) e scrivilo nel riepilogo.
 4. **Costruisci**, dalla cartella del repository:
-   `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <file ospiti…> <file intestatari…>`
+   `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <file ospiti…> <file intestatari…> <file 3a…> <file 3b…>`
    (percorsi separati da spazi o da virgole). Una riga `ATTENZIONE` indica quasi sempre un
    `reservation_id` trascritto male in `arrivi.json` o in un file scritto a mano: correggilo e rilancia.
    `PRONTO` = `arrivi.json` del repository scritto e ricontrollato.
