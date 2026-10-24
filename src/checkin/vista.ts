@@ -12,7 +12,19 @@
 import type { AvvisoItem } from "../feed";
 import type { FreshnessStatus } from "../types";
 import type { Lingua, Programma } from "../avvisi/testi";
-import { mostraNumero } from "../avvisi/testi";
+import { linkEmail, mostraNumero } from "../avvisi/testi";
+import type { PassTrovato } from "../avvisi/guestpass";
+import {
+  CASELLA_GUESTPASS,
+  K_GUESTPASS_EMAIL_GESTITE,
+  K_GUESTPASS_INVIATI,
+  abbinaGuestPass,
+  messaggioGuestPass,
+  registroEmailGestite,
+  registroInviiGuestPass,
+  statoGuestPass,
+} from "./guestpass";
+import type { AbbinamentoGuestPass, CasellaGuestPass, InvioGuestPass } from "./guestpass";
 import {
   ANTICIPO_GIORNI,
   ETICHETTE_STATO,
@@ -26,8 +38,6 @@ import {
   daFareOggi,
   differenzaGiorni,
   emailDaInserire,
-  linkPosta,
-  linkWhatsapp,
   messaggio,
   motivoPer,
   oggiRoma,
@@ -70,6 +80,8 @@ export interface Fonte {
   readonly esempiEmailNuove?: readonly EmailNuova[];
   /** solo nella prova: contatti di esempio (per far vedere i solleciti «telefonare») */
   readonly esempiContatti?: readonly Contatto[];
+  /** Guest Pass arrivati nella casella dedicata (guestpass.json), decifrati con la password reception */
+  leggiGuestPass?(): Promise<CasellaGuestPass>;
 }
 
 // ───────────────────────── Stato ─────────────────────────
@@ -81,6 +93,8 @@ interface Composer {
   /** reservation_id di Slope, invariato */
   readonly id: string;
   readonly motivo: Motivo;
+  /** invio del Guest Pass: pass dell'email della casella (i link restano solo in memoria) */
+  readonly guestpass: { readonly emailId: string; readonly pass: readonly PassTrovato[]; readonly sicura: boolean } | null;
   canale: CanaleMsg;
   lingua: Lingua;
 }
@@ -106,6 +120,13 @@ interface Stato {
   espansi: Set<string>;
   /** finestra «Scrivi all'ospite» aperta */
   composer: Composer | null;
+  /** Guest Pass arrivati nella casella (in memoria) */
+  casella: CasellaGuestPass;
+  /** registri condivisi con la pagina avvisi/ */
+  inviiGP: Map<string, InvioGuestPass>;
+  gestiteGP: Map<string, string>;
+  /** abbinamenti fatti a mano: impronta email → reservation_id */
+  scelteGP: Map<string, string>;
   erroreCampo: { errore: string; suggerita: string | null } | null;
   archivioOk: boolean;
 }
@@ -118,6 +139,7 @@ const K_VISTA = "checkinHartmann.vista";
 /** Impostazioni della pagina avvisi/: da lì si legge solo il programma email scelto (Outlook o Gmail). */
 const K_IMPOSTAZIONI_AVVISI = "avvisiHartmann.impostazioni";
 const AGGIORNA_OGNI_MS = 10 * 60_000;
+const AGGIORNA_GP_OGNI_MS = 5 * 60_000;
 const DATI_VECCHI_MS = 3 * 60 * 60_000;
 const TZ = "Europe/Rome";
 
@@ -137,6 +159,10 @@ const stato: Stato = {
   erroreCampo: null,
   espansi: new Set(),
   composer: null,
+  casella: { attiva: false, email: [], problema: null },
+  inviiGP: new Map(),
+  gestiteGP: new Map(),
+  scelteGP: new Map(),
   archivioOk: true,
 };
 
@@ -208,6 +234,39 @@ function programmaEmail(): Programma {
   return imp?.programma === "gmail" ? "gmail" : "mailto";
 }
 
+// ───────────────────────── Guest Pass ─────────────────────────
+
+function caricaRegistriGP(): void {
+  stato.inviiGP = registroInviiGuestPass(leggiJson<unknown>(K_GUESTPASS_INVIATI, []), stato.oggi);
+  stato.gestiteGP = registroEmailGestite(leggiJson<unknown>(K_GUESTPASS_EMAIL_GESTITE, []));
+}
+
+async function aggiornaCasella(): Promise<void> {
+  if (!fonte.leggiGuestPass || stato.caricamento !== "ok") return;
+  stato.casella = await fonte.leggiGuestPass();
+}
+
+function abbinamentiGP(): AbbinamentoGuestPass[] {
+  return abbinaGuestPass(stato.casella.email, stato.righe, stato.gestiteGP, stato.scelteGP);
+}
+
+/** Registra l'invio (stesso registro della pagina avvisi/) e segna gestita l'email della casella. */
+function segnaGuestPassInviato(r: RigaCheckin, gp: NonNullable<Composer["guestpass"]>, canale: "email" | "whatsapp"): void {
+  caricaRegistriGP(); // un'altra scheda (avvisi/) potrebbe averli cambiati
+  stato.inviiGP.set(r.reservationId, { id: r.reservationId, arrival: r.arrivo, canale, pass: gp.pass.length, inviatoIl: new Date().toISOString(), emailId: gp.emailId });
+  scriviJson(K_GUESTPASS_INVIATI, [...stato.inviiGP.values()]);
+  stato.gestiteGP.set(gp.emailId, new Date().toISOString());
+  scriviJson(K_GUESTPASS_EMAIL_GESTITE, [...stato.gestiteGP.entries()]);
+  render();
+  toast(`${r.camera ? `Camera ${r.camera}` : r.nome}: Guest Pass segnato come inviato.`, () => {
+    stato.inviiGP.delete(r.reservationId);
+    stato.gestiteGP.delete(gp.emailId);
+    scriviJson(K_GUESTPASS_INVIATI, [...stato.inviiGP.values()]);
+    scriviJson(K_GUESTPASS_EMAIL_GESTITE, [...stato.gestiteGP.entries()]);
+    render();
+  });
+}
+
 // ───────────────────────── Caricamento ─────────────────────────
 
 async function carica(passwordNuova: string | null = null): Promise<void> {
@@ -222,6 +281,8 @@ async function carica(passwordNuova: string | null = null): Promise<void> {
     chiudiEmailInserite();
     stato.erroreSblocco = null;
     stato.caricamento = "ok";
+    caricaRegistriGP();
+    await aggiornaCasella();
   } else if (l.esito === "password") {
     stato.erroreSblocco = l.errore;
     stato.caricamento = "password";
@@ -394,6 +455,7 @@ function renderAvvisi(): void {
       }</div>`,
     );
   }
+  if (stato.casella.problema) out.push(`<div class="avviso"><strong>Guest Pass:</strong> <span>${esc(stato.casella.problema)}</span></div>`);
   if (!stato.archivioOk) {
     out.push(`<div class="avviso"><strong>Questo browser non salva i dati.</strong> <span>Il registro «contattato» e le email annotate si perdono chiudendo la pagina: non usare la navigazione privata.</span></div>`);
   }
@@ -413,7 +475,7 @@ function renderSchede(): void {
   nav.hidden = false;
   const lista = promemoria(stato.righe, stato.registro, stato.oggi);
   const pendenti = new Set(emailDaInserire(stato.righe, stato.emailNuove).map((x) => x.riga.reservationId));
-  const oggi = daFareOggi(lista).filter((p) => !pendenti.has(p.riga.reservationId)).length + pendenti.size;
+  const oggi = daFareOggi(lista).filter((p) => !pendenti.has(p.riga.reservationId)).length + pendenti.size + lavoroGuestPass().totale;
   const conta: Record<Vista, string> = { oggi: String(oggi), tutte: String(stato.righe.length) };
   const nomi: Record<Vista, string> = { oggi: "Calendario", tutte: "Tutte le prenotazioni" };
   nav.innerHTML = VISTE.map(
@@ -462,12 +524,35 @@ function rif(r: RigaCheckin): string {
 /** Un solo pulsante: apre la finestra con il messaggio già scritto, i canali disponibili e «Segna inviato». */
 function azioni(r: RigaCheckin): string {
   const motivo = motivoPer(r);
-  if (!motivo) return "";
+  const gp = statoGuestPass(r, stato.inviiGP, abbinamentiGP());
+  const id = esc(r.reservationId);
+  const bGp =
+    gp.stato === "pronto"
+      ? `<button type="button" class="btn btn-piccolo btn-primario btn-gp" data-azione="invia-gp" data-id="${id}">Invia il Guest Pass</button>`
+      : gp.stato === "da-generare"
+        ? `<button type="button" class="btn btn-piccolo" data-azione="copia-casella" title="Destinatario da scrivere in LTS, «Invia carta d'ospite»">Copia indirizzo per LTS</button>`
+        : "";
+  if (!motivo && !bGp) return "";
   return `<div class="azioni">
-    <button type="button" class="btn btn-piccolo btn-primario" data-azione="scrivi" data-motivo="${motivo}" data-id="${esc(r.reservationId)}">${
-      motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"
-    }</button>
+    ${bGp}
+    ${
+      motivo
+        ? `<button type="button" class="btn btn-piccolo${bGp ? "" : " btn-primario"}" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"}</button>`
+        : ""
+    }
   </div>`;
+}
+
+/** Stato del Guest Pass sotto quello del check-in. */
+function cellaGuestPass(r: RigaCheckin): string {
+  const gp = statoGuestPass(r, stato.inviiGP, abbinamentiGP());
+  if (gp.stato === "inviato") {
+    const i = stato.inviiGP.get(r.reservationId);
+    return `<span class="etichetta">Guest Pass</span><span class="esito esito-ok">✓ inviato</span> <span class="nota">${esc(quandoIso(i?.inviatoIl ?? null))}</span>`;
+  }
+  if (gp.stato === "pronto") return `<span class="etichetta">Guest Pass</span><span class="esito esito-gp">pronto da inviare</span>${gp.abbinamento && !gp.abbinamento.sicura ? ' <span class="badge badge-portale">controlla il nome</span>' : ""}`;
+  if (gp.stato === "da-generare") return `<span class="etichetta">Guest Pass</span><span class="esito esito-no">da generare in LTS</span>`;
+  return "";
 }
 
 function rigaContatto(r: RigaCheckin): string {
@@ -506,7 +591,7 @@ function riga(r: RigaCheckin, p?: Promemoria, nelGruppo = false): string {
         <span class="campo-riga"><span class="etichetta">Email</span>${cellaEmail(r)}</span>
         <span class="campo-riga"><span class="etichetta">Tel.</span>${cellaTelefono(r)} <span class="codice" title="Lingua dei messaggi (Slope → testo)">${esc(lingua)}</span></span>
       </div>
-      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}</div>
+      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}${cellaGuestPass(r) ? `<span class="gp-riga">${cellaGuestPass(r)}</span>` : ""}</div>
       ${campoEmailNuova(r)}
       ${stato.emailNuove.has(r.reservationId) && confrontaConSlope(r, stato.emailNuove.get(r.reservationId)!) !== "inserita" ? "" : azioni(r)}
       ${stato.emailNuove.has(r.reservationId) ? "" : rigaContatto(r)}
@@ -539,7 +624,7 @@ function rigaSollecito(r: RigaCheckin, c: Contatto): string {
         <span class="campo-riga"><span class="etichetta">Email</span>${cellaEmail(r)}</span>
         <span class="campo-riga"><span class="etichetta">Tel.</span>${cellaTelefono(r)}</span>
       </div>
-      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}</div>
+      <div class="col-checkin"><span class="etichetta">Check-in online</span>${cellaCheckin(r)}${cellaGuestPass(r) ? `<span class="gp-riga">${cellaGuestPass(r)}</span>` : ""}</div>
       ${campoEmailNuova(r)}
       <div class="azioni">
         ${chiama}
@@ -644,7 +729,8 @@ function vistaCalendario(): string {
   const ultimoArrivo = stato.dati?.a ?? stato.oggi;
   const completo = calendarioCompletoFino(ultimoArrivo);
   const giorni = Array.from({ length: 7 }, (_, i) => aggiungiGiorni(stato.oggi, i));
-  const contaOggi = daFare.length + daInserire.length;
+  const gp = lavoroGuestPass();
+  const contaOggi = daFare.length + daInserire.length + gp.totale;
 
   // striscia della settimana: un clic porta al giorno
   const fmtSett = new Intl.DateTimeFormat("it-IT", { weekday: "short", timeZone: "UTC" });
@@ -667,8 +753,8 @@ function vistaCalendario(): string {
         <ul class="righe">${daInserire.map((x) => riga(x.riga)).join("")}</ul>
       </section>`
     : "";
-  const lavoroOggi = daFare.length
-    ? gruppiOggi(daFare)
+  const lavoroOggi = daFare.length || gp.totale
+    ? gruppoGuestPassPronti(gp.pronti) + gruppiOggi(daFare) + gruppoGuestPassDaGenerare(gp.daGenerare) + gruppoGuestPassDaAbbinare(gp.daAbbinare)
     : daInserire.length
       ? ""
       : `<div class="vuoto vuoto-ok"><p class="vuoto-titolo">Nessun ospite da contattare oggi.</p><p>${
@@ -719,6 +805,70 @@ function vistaCalendario(): string {
     </div>
     <div class="settimana" role="group" aria-label="Settimana">${striscia}</div>
     <div class="agenda">${oggi}${seguenti}</div>`;
+}
+
+/** Lavoro di oggi sui Guest Pass: da inviare (arrivati e abbinati), da generare in LTS, da abbinare a mano. */
+function lavoroGuestPass(): { pronti: RigaCheckin[]; daGenerare: RigaCheckin[]; daAbbinare: AbbinamentoGuestPass[]; totale: number } {
+  const ab = abbinamentiGP();
+  const pronti: RigaCheckin[] = [];
+  const daGenerare: RigaCheckin[] = [];
+  for (const r of stato.righe) {
+    const g = statoGuestPass(r, stato.inviiGP, ab).stato;
+    if (g === "pronto") pronti.push(r);
+    else if (g === "da-generare") daGenerare.push(r);
+  }
+  const daAbbinare = ab.filter((a) => a.id === null);
+  return { pronti, daGenerare, daAbbinare, totale: pronti.length + daGenerare.length + daAbbinare.length };
+}
+
+function gruppoGuestPassPronti(righe: readonly RigaCheckin[]): string {
+  if (!righe.length) return "";
+  return `<section class="gruppo gruppo-oggi gruppo-gp" aria-labelledby="g-gp">
+    <div class="gruppo-testa"><h3 id="g-gp"><span class="pallino" aria-hidden="true"></span>Inviare il Guest Pass <span class="conta">${righe.length}</span></h3>
+    <p class="nota">I pass sono arrivati nella casella e sono abbinati alla prenotazione: si mandano all'email diretta dell'ospite.</p></div>
+    <ul class="righe">${righe.map((r) => riga(r)).join("")}</ul>
+  </section>`;
+}
+
+function gruppoGuestPassDaGenerare(righe: readonly RigaCheckin[]): string {
+  if (!righe.length) return "";
+  return `<section class="gruppo gruppo-oggi gruppo-gp-lts" aria-labelledby="g-gp-lts">
+    <div class="gruppo-testa"><h3 id="g-gp-lts"><span class="pallino" aria-hidden="true"></span>Generare il Guest Pass in LTS <span class="conta">${righe.length}</span></h3>
+    <p class="nota">Check-in fatto ed email diretta in Slope. In LTS, «Invia carta d'ospite», destinatario <b>${esc(CASELLA_GUESTPASS)}</b>: entro 15 minuti il pass compare qui in «Inviare il Guest Pass».</p></div>
+    <ul class="voci voci-gp">${righe
+      .map(
+        (r) => `<li class="voce voce-tutto-ok"><div class="voce-riga">
+          <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
+          <span class="voce-testo"><b>${esc(r.nome)}</b><span>arrivo ${esc(giorno(r.arrivo))}${r.riferimento ? ` · ${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}` : ""}</span></span>
+          <span class="voce-azioni"><button type="button" class="btn btn-piccolo" data-azione="copia-casella">Copia indirizzo per LTS</button></span>
+        </div></li>`,
+      )
+      .join("")}</ul>
+  </section>`;
+}
+
+function gruppoGuestPassDaAbbinare(lista: readonly AbbinamentoGuestPass[]): string {
+  if (!lista.length) return "";
+  const opzioni = stato.righe.map((r) => `<option value="${esc(r.reservationId)}">${esc(r.camera ?? "—")} · ${esc(r.nome)} · ${esc(giorno(r.arrivo))}</option>`).join("");
+  return `<section class="gruppo gruppo-oggi gruppo-gp-abbina" aria-labelledby="g-gp-abbina">
+    <div class="gruppo-testa"><h3 id="g-gp-abbina"><span class="pallino" aria-hidden="true"></span>Guest Pass da abbinare <span class="conta">${lista.length}</span></h3>
+    <p class="nota">Arrivati nella casella ma il nome non corrisponde con certezza a una prenotazione: scegli a chi vanno.</p></div>
+    <ul class="voci">${lista
+      .map((a) => {
+        const nomi = a.email.pass.map((p) => p.nome || "senza nome").join(", ");
+        const idSel = `abbina-${a.email.id}`;
+        return `<li class="voce voce-email-mancante"><div class="voce-riga voce-abbina">
+          <span class="voce-testo"><b>${esc(nomi)}</b><span>${a.email.pass.length === 1 ? "1 pass" : `${a.email.pass.length} pass`} · arrivati ${esc(quandoIso(a.email.ricevuta))}${a.email.firmata ? "" : ' · <span class="ritardo">mittente non verificato</span>'}</span></span>
+          <span class="voce-azioni">
+            <label class="sr" for="${idSel}">Prenotazione</label>
+            <select id="${idSel}"><option value="">Scegli la prenotazione…</option>${opzioni}</select>
+            <button type="button" class="btn btn-piccolo btn-primario" data-azione="abbina-gp" data-email="${esc(a.email.id)}">Abbina</button>
+            <button type="button" class="link link-piccolo" data-azione="nascondi-gp" data-email="${esc(a.email.id)}">Nascondi</button>
+          </span>
+        </div></li>`;
+      })
+      .join("")}</ul>
+  </section>`;
 }
 
 /** Le cose di oggi divise per tipo di lavoro, nell'ordine in cui farle: telefonate, link di check-in, email. */
@@ -866,7 +1016,7 @@ const NOMI_CANALE_MSG: Readonly<Record<CanaleMsg, string>> = { email: "Email", w
 
 function canaliPer(r: RigaCheckin): CanaleMsg[] {
   const c: CanaleMsg[] = [];
-  if (r.email || r.inoltroPortale) c.push("email");
+  if (r.email || r.inoltroPortale || stato.emailNuove.has(r.reservationId)) c.push("email");
   if (r.whatsapp) c.push("whatsapp");
   c.push("testo");
   return c;
@@ -874,7 +1024,7 @@ function canaliPer(r: RigaCheckin): CanaleMsg[] {
 
 /** Email diretta → email; altrimenti WhatsApp; altrimenti l'inoltro del portale; altrimenti testo da copiare. */
 function canaleIniziale(r: RigaCheckin): CanaleMsg {
-  if (r.email) return "email";
+  if (r.email || stato.emailNuove.has(r.reservationId)) return "email";
   if (r.whatsapp) return "whatsapp";
   if (r.inoltroPortale) return "email";
   return "testo";
@@ -890,8 +1040,8 @@ function rimettiToast(): void {
   if (t && t.parentElement !== document.body) document.body.appendChild(t);
 }
 
-function apriComposer(r: RigaCheckin, motivo: Motivo): void {
-  stato.composer = { id: r.reservationId, motivo, canale: canaleIniziale(r), lingua: r.lingua };
+function apriComposer(r: RigaCheckin, motivo: Motivo, guestpass: Composer["guestpass"] = null): void {
+  stato.composer = { id: r.reservationId, motivo, guestpass, canale: canaleIniziale(r), lingua: r.lingua };
   renderComposer();
   const d = dialogo();
   if (!d.open) {
@@ -920,7 +1070,7 @@ function renderComposer(): void {
     return;
   }
   const rl: RigaCheckin = { ...r, lingua: c.lingua };
-  const m = messaggio(rl, c.motivo);
+  const m = messaggioComposer(rl, c);
   const canali = canaliPer(r);
   if (!canali.includes(c.canale)) c.canale = canali[0];
   const schede = canali
@@ -932,8 +1082,9 @@ function renderComposer(): void {
   const lingue = (["de", "it", "en"] as const).map((l) => `<option value="${l}"${l === c.lingua ? " selected" : ""}>${NOMI_LINGUA[l]}</option>`).join("");
   let corpo = "";
   if (c.canale === "email") {
-    const a = r.email ?? r.inoltroPortale ?? "";
-    const posta = linkPosta(rl, c.motivo, programmaEmail(), false) ?? "";
+    const a = r.email ?? (c.guestpass ? stato.emailNuove.get(r.reservationId)?.email : undefined) ?? r.inoltroPortale ?? "";
+    // senza corpo: il testo con il pulsante si incolla dagli appunti
+    const posta = a ? linkEmail(programmaEmail(), [a], m.oggetto, "") : "";
     corpo = `
       <dl class="msg-campi">
         <div><dt>A</dt><dd>${esc(a)}${
@@ -945,19 +1096,19 @@ function renderComposer(): void {
       <div class="anteprima-email" id="anteprima-msg">${m.html}</div>
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="copia-e-apri">Copia il testo e apri l'email</a>
-          <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante START.</span></li>
+          <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante ${c.guestpass ? "GUEST PASS" : "START"}.</span></li>
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviata</button></li>
       </ol>
       <p class="aiuto">Se l'incolla non porta il testo: <button type="button" class="link" data-azione="copia-anteprima">copia di nuovo il testo</button>.</p>`;
   } else if (c.canale === "whatsapp") {
-    const wa = linkWhatsapp(rl, c.motivo) ?? "";
+    const wa = r.whatsapp ? `https://wa.me/${r.whatsapp}?text=${encodeURIComponent(m.whatsapp)}` : "";
     corpo = `
       <dl class="msg-campi"><div><dt>A</dt><dd>${esc(mostraNumero(r.whatsapp ?? ""))}</dd></div></dl>
       <p class="msg-etichetta">Messaggio WhatsApp</p>
       <div class="anteprima-testo">${esc(m.whatsapp).replace(/\*([^*\n]+)\*/g, "<b>$1</b>")}</div>
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Apri WhatsApp con il messaggio</a>
-          <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo START, in grassetto.</span></li>
+          <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo ${c.guestpass ? "GUEST PASS" : "START"}, in grassetto.</span></li>
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviato</button></li>
       </ol>`;
   } else {
@@ -977,7 +1128,7 @@ function renderComposer(): void {
       <div class="composer-testa">
         <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
         <div class="composer-titolo">
-          <h2 id="composer-titolo">${c.motivo === "checkin" ? "Link di check-in" : "Richiesta dell'email"} · ${esc(r.nome)}</h2>
+          <h2 id="composer-titolo">${c.guestpass ? "Guest Pass" : c.motivo === "checkin" ? "Link di check-in" : "Richiesta dell'email"} · ${esc(r.nome)}</h2>
           <span class="nota">${r.riferimento ? `${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)} · ` : ""}arrivo ${esc(giorno(r.arrivo))}</span>
         </div>
         <button type="button" class="btn btn-piccolo" data-azione="chiudi-composer">Chiudi</button>
@@ -986,10 +1137,20 @@ function renderComposer(): void {
         <div class="schede-msg" role="tablist" aria-label="Canale">${schede}</div>
         <label class="composer-lingua">Lingua <select id="composer-lingua">${lingue}</select></label>
       </div>
+      ${
+        c.guestpass
+          ? `<p class="${c.guestpass.sicura ? "aiuto" : "avviso avviso-gp"}">${c.guestpass.sicura ? "" : "<strong>Controlla il nome.</strong> "}Pass nell'email della casella: <b>${esc(c.guestpass.pass.map((p) => p.nome || "senza nome").join(", "))}</b>.</p>`
+          : ""
+      }
       ${corpo}
-      <p class="composer-piede"><button type="button" class="link link-piccolo" data-azione="segna-voce">Fatto a voce o al banco: segna contattato</button></p>
+      <p class="composer-piede"${c.guestpass ? " hidden" : ""}><button type="button" class="link link-piccolo" data-azione="segna-voce">Fatto a voce o al banco: segna contattato</button></p>
     </div>`;
   if (toastDentro && t) d.appendChild(t);
+}
+
+/** Messaggio della finestra: Guest Pass (testi della pagina avvisi/) oppure link di check-in / richiesta dell'email. */
+function messaggioComposer(r: RigaCheckin, c: Composer) {
+  return c.guestpass ? messaggioGuestPass(r, c.lingua, c.guestpass.pass) : messaggio(r, c.motivo);
 }
 
 /** Copia l'anteprima come testo formattato (con il link START): selezione + copia, che funziona anche senza permessi. */
@@ -1112,7 +1273,7 @@ function collegaEventi(): void {
       case "copia-testo-composer": {
         const c = stato.composer;
         const rc = c ? trova(c.id) : undefined;
-        if (c && rc) void copia(messaggio({ ...rc, lingua: c.lingua }, c.motivo).testo).then((ok) => toast(ok ? "Testo copiato." : "Copia non riuscita."));
+        if (c && rc) void copia(messaggioComposer({ ...rc, lingua: c.lingua }, c).testo).then((ok) => toast(ok ? "Testo copiato." : "Copia non riuscita."));
         break;
       }
       case "segna-inviato":
@@ -1120,10 +1281,48 @@ function collegaEventi(): void {
         const c = stato.composer;
         const rc = c ? trova(c.id) : undefined;
         if (c && rc) {
-          const canale: Canale = azione === "segna-voce" ? "altro" : c.canale;
           chiudiComposer();
+          if (c.guestpass) {
+            segnaGuestPassInviato(rc, c.guestpass, c.canale === "whatsapp" ? "whatsapp" : "email");
+            break;
+          }
+          const canale: Canale = azione === "segna-voce" ? "altro" : c.canale;
           segnaContatto(rc, c.motivo, canale);
         }
+        break;
+      }
+      case "invia-gp": {
+        const a = r ? abbinamentiGP().find((x) => x.id === r.reservationId) : undefined;
+        if (r && a) apriComposer(r, motivoPer(r) ?? "email", { emailId: a.email.id, pass: a.email.pass, sicura: a.sicura });
+        break;
+      }
+      case "copia-casella":
+        void copia(CASELLA_GUESTPASS).then((ok) => toast(ok ? `${CASELLA_GUESTPASS} copiato: incollalo in LTS come destinatario.` : "Copia non riuscita."));
+        break;
+      case "abbina-gp": {
+        const emailId = el.dataset.email ?? "";
+        const sel = document.getElementById(`abbina-${emailId}`) as HTMLSelectElement | null;
+        if (!sel?.value) {
+          toast("Scegli prima la prenotazione.");
+          break;
+        }
+        stato.scelteGP.set(emailId, sel.value);
+        render();
+        const rr = trova(sel.value);
+        toast(`Guest Pass abbinato${rr?.camera ? ` alla camera ${rr.camera}` : ""}: ora è in «Inviare il Guest Pass».`);
+        break;
+      }
+      case "nascondi-gp": {
+        const emailId = el.dataset.email ?? "";
+        if (!emailId) break;
+        stato.gestiteGP.set(emailId, new Date().toISOString());
+        scriviJson(K_GUESTPASS_EMAIL_GESTITE, [...stato.gestiteGP.entries()]);
+        render();
+        toast("Email del Guest Pass nascosta.", () => {
+          stato.gestiteGP.delete(emailId);
+          scriviJson(K_GUESTPASS_EMAIL_GESTITE, [...stato.gestiteGP.entries()]);
+          render();
+        });
         break;
       }
       case "segna":
@@ -1209,6 +1408,7 @@ export async function avvia(f: Fonte): Promise<void> {
   if (filtro && (filtro === "tutti" || (ORDINE_STATI as readonly string[]).includes(filtro))) stato.filtro = filtro as Filtro;
   caricaRegistro();
   caricaEmailNuove();
+  caricaRegistriGP();
   if (f.esempiContatti && stato.registro.size === 0) {
     for (const c of f.esempiContatti) stato.registro.set(c.id, c);
   }
@@ -1220,10 +1420,19 @@ export async function avvia(f: Fonte): Promise<void> {
   await carica();
   // Ogni 10 minuti, e al ritorno sulla scheda, si rilegge il file (l'aggiornamento da Slope è orario).
   let ultimo = Date.now();
+  let ultimoGP = Date.now();
   const forse = (): void => {
     if (document.visibilityState !== "visible" || stato.caricamento === "in-corso" || stato.caricamento === "password") return;
-    if (Date.now() - ultimo < AGGIORNA_OGNI_MS) return;
-    ultimo = Date.now();
+    if (Date.now() - ultimo < AGGIORNA_OGNI_MS) {
+      // i Guest Pass della casella si controllano più spesso (il workflow gira ogni 15 minuti)
+      if (stato.caricamento === "ok" && Date.now() - ultimoGP >= AGGIORNA_GP_OGNI_MS) {
+        ultimoGP = Date.now();
+        caricaRegistriGP();
+        void aggiornaCasella().then(render);
+      }
+      return;
+    }
+    ultimo = ultimoGP = Date.now();
     caricaRegistro();
     caricaEmailNuove();
     void carica();

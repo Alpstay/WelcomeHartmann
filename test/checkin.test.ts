@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readBundle } from "../src/cli/feed-files";
+import { abbinaGuestPass, messaggioGuestPass, registroEmailGestite, registroInviiGuestPass, statoGuestPass } from "../src/checkin/guestpass";
 import { avvisiAad, decryptJson, encryptJson } from "../src/feed";
 import type { AvvisiPayload, AvvisoItem } from "../src/feed";
 import { avvisiItems, riferimentiPer } from "../src/feed-build";
@@ -374,6 +375,56 @@ await t("sollecito: senza risposta si telefona (check-in dopo 2 giorni, email do
   assert.deepEqual(daFareOggi(lista).map((p) => p.riga.reservationId).sort(), [ID(1), ID(3), ID(5)].sort());
   // il sollecito non cade mai dopo il giorno di arrivo
   assert.equal(giornoSollecito({ id: ID(9), motivo: "checkin", canale: "email", quando: `${OGGI}T09:00:00Z`, arrivo: g(1) }), g(1));
+});
+
+await t("Guest Pass: abbinamento dal nome, stato per prenotazione, registri condivisi con avvisi/", () => {
+  const righe = righeDa(
+    [
+      item(1, { name: "Rossi Luca", greetingName: "Luca Rossi", checkinFatto: true, email: "luca@example.com" }),
+      item(2, { name: "Bianchi Anna", greetingName: "Anna Bianchi", checkinFatto: true, email: "anna@example.com" }),
+      item(3, { name: "Verdi Paolo", greetingName: "Paolo Verdi", checkinFatto: false, email: null }),
+    ],
+    OGGI,
+  );
+  const casella = [
+    { id: "a".repeat(20), ricevuta: `${OGGI}T08:00:00Z`, lingua: "it" as const, firmata: true, pass: [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }] },
+    { id: "b".repeat(20), ricevuta: `${OGGI}T09:00:00Z`, lingua: "de" as const, firmata: true, pass: [{ nome: "PETER WAGNER", codice: "D".repeat(24) }] },
+    { id: "c".repeat(20), ricevuta: `${OGGI}T07:00:00Z`, lingua: null, firmata: true, pass: [{ nome: "PAOLO VERDI", codice: "E".repeat(24) }] },
+  ];
+  const gestite = registroEmailGestite([["c".repeat(20), new Date().toISOString()], ["rotto"], ["x", "non-una-data"]]);
+  assert.deepEqual([...gestite.keys()], ["c".repeat(20)]);
+  let ab = abbinaGuestPass(casella, righe, gestite);
+  assert.deepEqual(ab.map((a) => [a.email.id[0], a.id, a.sicura]), [["a", ID(1), true], ["b", null, false]]);
+  // abbinamento a mano
+  ab = abbinaGuestPass(casella, righe, gestite, new Map([["b".repeat(20), ID(2)]]));
+  assert.equal(ab.find((a) => a.email.id === "b".repeat(20))?.id, ID(2));
+
+  const invii = registroInviiGuestPass(
+    [
+      { id: ID(2), arrival: OGGI, canale: "email", pass: 1, inviatoIl: `${OGGI}T10:00:00Z`, emailId: "b".repeat(20) },
+      { id: ID(9), arrival: "2026-10-01", canale: "email", pass: 1, inviatoIl: "x", emailId: null }, // oltre 30 giorni
+    ],
+    OGGI,
+  );
+  assert.deepEqual([...invii.keys()], [ID(2)]);
+  const r = (k: number) => righe.find((x) => x.reservationId === ID(k))!;
+  const ab0 = abbinaGuestPass(casella, righe, gestite);
+  assert.equal(statoGuestPass(r(1), invii, ab0).stato, "pronto");
+  assert.equal(statoGuestPass(r(2), invii, ab0).stato, "inviato");
+  assert.equal(statoGuestPass(r(3), invii, ab0).stato, null); // check-in non fatto: prima il check-in
+  assert.equal(statoGuestPass(r(1), invii, []).stato, "da-generare");
+});
+
+await t("Guest Pass: messaggio con pulsante GUEST PASS e link alla pagina d'arrivo della prenotazione", () => {
+  const r = versoRiga(item(1, { name: "Rossi Luca", greetingName: "Luca Rossi", lang: "it", checkinFatto: true, email: "luca@example.com", numeroOrdine: 8086301 }), OGGI);
+  const m = messaggioGuestPass(r, "it", [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }]);
+  assert.equal(m.oggetto, "Il vostro Guest Pass · Chalet Hotel Hartmann · Prenotazione n. 8086301 · Luca Rossi");
+  assert.match(m.html, />GUEST PASS<\/a>/);
+  assert.ok(m.html.includes(`#gp=${"C".repeat(24)}&amp;gn=LUCA%20ROSSI&amp;gr=${ID(1)}`));
+  assert.ok(m.testo.includes("GUEST PASS: https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it#gp="));
+  assert.ok(!m.testo.includes("*"));
+  assert.ok(m.whatsapp.includes("*GUEST PASS* https://"));
+  assert.ok(!m.html.includes("<br></p>"));
 });
 
 console.log(`checkin: ${n} test superati`);

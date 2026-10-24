@@ -117,6 +117,17 @@ h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
 .gruppo-telefonare { --c: var(--danger); --c-soft: var(--danger-soft); }
 .gruppo-link { --c: var(--danger); --c-soft: var(--danger-soft); }
 .gruppo-email { --c: var(--rust); --c-soft: var(--rust-soft); }
+.gruppo-gp { --c: var(--ok); --c-soft: var(--ok-soft); }
+.gruppo-gp-lts { --c: var(--gold); --c-soft: var(--gold-soft); }
+.gruppo-gp-abbina { --c: var(--warn); --c-soft: var(--warn-soft); }
+.voci-gp .voce { --c: var(--gold); }
+.voce-abbina { grid-template-columns: minmax(0, 1fr) auto; }
+.voce-abbina select { font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 260px; }
+.gp-riga { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; width: 100%; margin-top: 8px; }
+.gp-riga .etichetta { width: 100%; }
+.esito-gp { color: var(--ok); }
+.btn-gp { background: var(--ok); border-color: var(--ok); color: #fff; }
+.avviso-gp { margin: 0; }
 .gruppo-slope { --c: var(--danger); --c-soft: var(--danger-soft); }
 .gruppo-fatti { --c: var(--ok); --c-soft: var(--ok-soft); padding-bottom: 12px; }
 .gruppo-fatti summary { cursor: pointer; list-style: none; }
@@ -360,6 +371,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   .campo-email-riga { flex-wrap: wrap; }
   .voce-riga { grid-template-columns: auto minmax(0, 1fr); }
   .voce-azioni { grid-column: 1 / -1; justify-content: flex-start; }
+  .voce-abbina { grid-template-columns: 1fr; }
+  .voce-abbina select { max-width: 100%; }
   .voce-dettaglio { padding: 0 8px; }
   .composer { padding: 14px 14px 12px; }
   .composer-testa { grid-template-columns: auto minmax(0, 1fr); }

@@ -82,6 +82,10 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password r
   incolla il testo con il link come pulsante «START». Poi «Segna inviata».
 - Oggi è diviso per lavoro: email da inserire in Slope, telefonare, mandare il link, chiedere l'email. Nei giorni
   seguenti ogni promemoria ha il suo pulsante, per anticipare.
+- Guest Pass: con check-in fatto ed email diretta in Slope il calendario ricorda di generarlo in LTS (destinatario la
+  casella dedicata); quando il workflow «Guest Pass dalla casella» lo pubblica in `guestpass.json`, la pagina lo abbina
+  alla prenotazione dal nome e propone «Invia il Guest Pass» (email con il pulsante GUEST PASS verso la pagina d'arrivo,
+  stessi testi e link della pagina avvisi/). Registri «inviato» e «email gestite» condivisi con avvisi/.
 - Dati: blocco `avvisi` di `arrivi.json`; il numero di prenotazione arriva da `curated_reservations` (portali) e
   `curated_order_balances` (ordine Slope), passi facoltativi 3a/3b di `tools/AGGIORNA.md`. Nel browser restano il
   registro «contattato» e le email annotate, cancellati 14 giorni dopo l'arrivo.

@@ -70,6 +70,32 @@ const fonte: Fonte = {
   },
   // Un'email già mandata dall'ospite e annotata, non ancora in Slope: la riga lampeggia.
   esempiEmailNuove: [{ id: id(5), email: "giulia.bianchi@example.com", quando: new Date(Date.now() - 40 * 60_000).toISOString(), arrivo: g(1) }],
+  // Casella Guest Pass: un'email per Rossi Luca (check-in fatto, email diretta) e una con un nome che non è in Slope.
+  async leggiGuestPass() {
+    return {
+      attiva: true,
+      problema: null,
+      email: [
+        {
+          id: "a1b2c3d4e5f60718293a",
+          ricevuta: new Date(Date.now() - 25 * 60_000).toISOString(),
+          lingua: "it" as const,
+          firmata: true,
+          pass: [
+            { nome: "LUCA ROSSI", codice: "PROVA0000000000000000000000000001" },
+            { nome: "ANNA ROSSI", codice: "PROVA0000000000000000000000000002" },
+          ],
+        },
+        {
+          id: "0f1e2d3c4b5a69788796",
+          ricevuta: new Date(Date.now() - 70 * 60_000).toISOString(),
+          lingua: "de" as const,
+          firmata: true,
+          pass: [{ nome: "PETER WAGNER", codice: "PROVA0000000000000000000000000003" }],
+        },
+      ],
+    };
+  },
   // Richieste fatte giorni fa e rimaste senza risposta: oggi tornano come «telefonare».
   esempiContatti: [
     { id: id(4), motivo: "email", canale: "whatsapp", quando: new Date(Date.now() - 2 * 86_400_000).toISOString(), arrivo: g(1) },
