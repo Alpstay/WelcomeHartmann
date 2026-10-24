@@ -11,8 +11,10 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/
   l'arabo nel PDF va da destra a sinistra (`src/bidi.ts`).
 - WhatsApp di benvenuto dalla riga della camera: il telefono dell'intestatario arriva da Slope (blocco
   contatti cifrato di `arrivi.json`) e si può correggere a mano; i numeri segnaposto dei portali non
-  vengono usati. «WhatsApp» apre la chat con il messaggio nella lingua dell'ospite (testi in
-  `src/whatsapp-welcome.ts`, inglese come fornito dalla reception il 24/10/2026).
+  vengono usati. «WhatsApp» apre la chat con il messaggio nella lingua dell'ospite: un testo unico che fonde
+  la lettera (saluto con il nome, camera e piano, PIN se compilato, bar, link alle informazioni Hartmann) con
+  il testo WhatsApp della reception del 24/10/2026 (orari, servizi, ristoranti, Guest Pass, autobus, taxi).
+  Testi in `src/whatsapp-welcome.ts`.
 - Gli arrivi arrivano da La Scatola tramite `arrivi.json`, aggiornato ogni ora (alle :40, dalle 7:40
   alle 17:40) da un'attività pianificata (procedura in `tools/AGGIORNA.md`). Nomi e lingue sono cifrati: la prima
   volta su ogni dispositivo la pagina chiede la password reception.

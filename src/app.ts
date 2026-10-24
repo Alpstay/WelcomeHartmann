@@ -4,7 +4,7 @@ import { ASSETS } from "./assets.generated";
 import { FEED_FILE, avvisiAad, decryptJson, feedAad, fromFeedItem, isFeedEnvelope } from "./feed";
 import type { AvvisiPayload, FeedEnvelope, FeedPayload } from "./feed";
 import { mostraNumero, numeroWhatsapp } from "./avvisi/testi";
-import { welcomeWhatsappUrl } from "./whatsapp-welcome";
+import { welcomeWhatsappText, welcomeWhatsappUrl } from "./whatsapp-welcome";
 import { FLOOR_LABEL_IT, HOTEL, KNOWN_ROOMS, floorOf } from "./hotel";
 import { buildLetter, isPin, nightsBetween } from "./letter";
 import { buildDocDefinition, pdfFonts, pdfVfs, scriptFontsFor } from "./pdf";
@@ -1143,7 +1143,8 @@ function wire(): void {
     if (act === "wa-guest") {
       const p = phoneOf(item);
       if (!p.digits) return;
-      window.open(welcomeWhatsappUrl(p.digits, item.lang), "_blank", "noopener");
+      const text = welcomeWhatsappText({ lang: item.lang, name: item.name, room: item.room, pin: isPin(item.pin) ? item.pin.trim() : null });
+      window.open(welcomeWhatsappUrl(p.digits, text), "_blank", "noopener");
       if (!item.manual) saveEdit(item, { waAt: Date.now() });
       updateRowChrome(item);
       return;
