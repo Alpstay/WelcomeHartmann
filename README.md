@@ -67,15 +67,21 @@ Pagina: https://alpstay.github.io/WelcomeHartmann/avvisi/ — stessa password re
 Pagina: https://alpstay.github.io/WelcomeHartmann/checkin/ — stessa password reception di lettere e avvisi.
 
 - Scopo: avere nella scheda cliente di Slope l'email diretta dell'ospite. Chi prenota dai portali ha in Slope solo
-  l'indirizzo di inoltro (…@guest.booking.com, …@m.expediapartnercentral.com); l'indirizzo vero entra con il check-in
-  online.
-- Una riga per prenotazione confermata (oggi → +6 giorni): nome, camera, arrivo, partenza, link di check-in online,
-  email, telefono. Quattro stati: check-in online da fare · fatto con email da correggere (portale o dominio scritto
-  male) · fatto con email mancante · tutto a posto. Check-in fatto = documento e privacy registrati in Slope.
-- Azioni: WhatsApp o email nella lingua dell'ospite (DE, IT, EN per le altre) con il link di check-in, oppure, a
-  check-in fatto, la sola richiesta dell'email; «Copia testo» per la chat dell'extranet; «Segna contattato».
-- Dati: lo stesso blocco `avvisi` di `arrivi.json` (nessun cambio all'aggiornamento orario). Nel browser resta solo il
-  registro «contattato» (id Slope, canale, ora), cancellato 14 giorni dopo l'arrivo.
+  l'indirizzo di inoltro (…@guest.booking.com, …@m.expediapartnercentral.com), che qui vale come email nulla;
+  l'indirizzo vero entra con il check-in online.
+- Una riga per prenotazione confermata (oggi → +6 giorni): camera, nome, numero di prenotazione, arrivo, partenza,
+  link di check-in online, email, telefono. Stati: check-in online da fare · fatto con email mancante · fatto con
+  email da correggere (dominio scritto male) · tutto a posto. Check-in fatto = documento e privacy in Slope.
+- «Da fare oggi» e «Calendario»: il link di check-in si manda 5 giorni prima dell'arrivo, la richiesta dell'email
+  3 giorni prima; senza risposta il promemoria torna come «Telefonare» (dopo 2 giorni per il check-in, 1 per l'email).
+- L'email che l'ospite manda si annota nella riga della camera: lampeggia in rosso «da inserire in Slope» finché
+  l'aggiornamento orario non la trova in Slope, poi sparisce da sola.
+- Messaggi nella lingua dell'ospite (DE, IT, EN per le altre): WhatsApp, email (il pulsante copia il testo con il
+  link come pulsante «START», da incollare con Ctrl+V; oggetto con numero di prenotazione e nome) o «Copia testo»
+  per la chat dell'extranet.
+- Dati: blocco `avvisi` di `arrivi.json`; il numero di prenotazione arriva da `curated_reservations` (portali) e
+  `curated_order_balances` (ordine Slope), passi facoltativi 3a/3b di `tools/AGGIORNA.md`. Nel browser restano il
+  registro «contattato» e le email annotate, cancellati 14 giorni dopo l'arrivo.
 - Sorgente in `src/checkin/` (regole pure in `regole.ts`), test in `test/checkin.test.ts`; `dist/checkin-prova.html`
   è l'anteprima con ospiti inventati.
 
