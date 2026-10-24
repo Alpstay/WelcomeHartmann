@@ -67,6 +67,8 @@ export interface AvvisoItem {
   readonly portale?: string | null;
   /** Numero dell'ordine in Slope (order_number), per le prenotazioni dirette. */
   readonly numeroOrdine?: number | null;
+  /** order_id di Slope, invariato: apre la prenotazione nel backoffice (…/orders/<order_id>/view). */
+  readonly ordineSlope?: string | null;
 }
 
 export interface AvvisiPayload {

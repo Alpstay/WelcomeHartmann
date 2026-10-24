@@ -38,9 +38,11 @@ import {
   daFareOggi,
   differenzaGiorni,
   emailDaInserire,
+  linkSlope,
   messaggio,
   motivoPer,
   oggiRoma,
+  perOrdine,
   promemoria,
   registroEmailNuove,
   registroValido,
@@ -371,22 +373,27 @@ async function copia(testo: string): Promise<boolean> {
     await navigator.clipboard.writeText(testo);
     return true;
   } catch {
-    const area = document.createElement("textarea");
-    area.value = testo;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.opacity = "0";
-    document.body.appendChild(area);
-    area.select();
-    let ok = false;
-    try {
-      ok = document.execCommand("copy");
-    } catch {
-      ok = false;
-    }
-    area.remove();
-    return ok;
+    return copiaSubito(testo);
   }
+}
+
+/** Copia senza attese: serve quando subito dopo si apre un'altra scheda (la pagina perde il fuoco). */
+function copiaSubito(testo: string): boolean {
+  const area = document.createElement("textarea");
+  area.value = testo;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  return ok;
 }
 
 // ───────────────────────── Registro contatti ─────────────────────────
@@ -521,6 +528,14 @@ function rif(r: RigaCheckin): string {
   return `<span class="rif" title="Numero della prenotazione: va anche nell'oggetto delle email">${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}</span>`;
 }
 
+/** «Apri in Slope»: la prenotazione (ordine) nel backoffice di Slope, in una nuova scheda. Vuoto se manca l'ordine. */
+function apriInSlope(r: RigaCheckin, aspetto: "primario" | "normale" | "link" = "normale"): string {
+  const url = linkSlope(r);
+  if (!url) return "";
+  const classe = aspetto === "link" ? "link link-piccolo" : `btn btn-piccolo${aspetto === "primario" ? " btn-primario" : ""}`;
+  return `<a class="${classe}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="Apre la prenotazione nel backoffice di Slope (scheda cliente ed estensione «Slope X LTS Guest Pass»)">Apri in Slope</a>`;
+}
+
 /** Un solo pulsante: apre la finestra con il messaggio già scritto, i canali disponibili e «Segna inviato». */
 function azioni(r: RigaCheckin): string {
   const motivo = motivoPer(r);
@@ -530,9 +545,10 @@ function azioni(r: RigaCheckin): string {
     gp.stato === "pronto"
       ? `<button type="button" class="btn btn-piccolo btn-primario btn-gp" data-azione="invia-gp" data-id="${id}">Invia il Guest Pass</button>`
       : gp.stato === "da-generare"
-        ? `<button type="button" class="btn btn-piccolo" data-azione="copia-casella" title="Destinatario da scrivere in LTS, «Invia carta d'ospite»">Copia indirizzo per LTS</button>`
+        ? `${apriInSlope(r, "primario")}<button type="button" class="btn btn-piccolo" data-azione="copia-casella" title="Destinatario da scrivere in LTS, «Invia carta d'ospite»">Copia indirizzo per LTS</button>`
         : "";
-  if (!motivo && !bGp) return "";
+  const slope = gp.stato === "da-generare" ? "" : apriInSlope(r, "link");
+  if (!motivo && !bGp && !slope) return "";
   return `<div class="azioni">
     ${bGp}
     ${
@@ -540,6 +556,7 @@ function azioni(r: RigaCheckin): string {
         ? `<button type="button" class="btn btn-piccolo${bGp ? "" : " btn-primario"}" data-azione="scrivi" data-motivo="${motivo}" data-id="${id}">${motivo === "checkin" ? "Manda il link di check-in" : "Chiedi l'email"}</button>`
         : ""
     }
+    ${slope}
   </div>`;
 }
 
@@ -653,7 +670,12 @@ function campoEmailNuova(r: RigaCheckin): string {
           : `In Slope ora c'è ${esc(r.email ?? "")}: se è sbagliata, sostituiscila con questa.`
       }</span>
       <span class="nuova-email-azioni">
-        <button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-email-nuova" data-id="${id}">Copia email</button>
+        ${
+          linkSlope(r)
+            ? `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-e-slope" data-id="${id}" title="Copia l'email e apre la prenotazione in Slope: incollala nella scheda cliente">Copia email e apri Slope</button>
+        <button type="button" class="btn btn-piccolo" data-azione="copia-email-nuova" data-id="${id}">Copia email</button>`
+            : `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-email-nuova" data-id="${id}">Copia email</button>`
+        }
         <button type="button" class="link link-piccolo" data-azione="apri-campo" data-id="${id}">Modifica</button>
         <button type="button" class="link link-piccolo" data-azione="togli-email-nuova" data-id="${id}">Rimuovi</button>
       </span>
@@ -830,19 +852,28 @@ function gruppoGuestPassPronti(righe: readonly RigaCheckin[]): string {
   </section>`;
 }
 
+/**
+ * Guest Pass da generare: una voce per ordine Slope (le camere dello stesso ordine si sincronizzano da una sola pagina).
+ * «Apri in Slope» porta direttamente alla prenotazione: da lì l'estensione «Slope X LTS Guest Pass».
+ */
 function gruppoGuestPassDaGenerare(righe: readonly RigaCheckin[]): string {
   if (!righe.length) return "";
+  const ordini = perOrdine(righe);
   return `<section class="gruppo gruppo-oggi gruppo-gp-lts" aria-labelledby="g-gp-lts">
-    <div class="gruppo-testa"><h3 id="g-gp-lts"><span class="pallino" aria-hidden="true"></span>Generare il Guest Pass in LTS <span class="conta">${righe.length}</span></h3>
-    <p class="nota">Check-in fatto ed email diretta in Slope. In LTS, «Invia carta d'ospite», destinatario <b>${esc(CASELLA_GUESTPASS)}</b>: entro 15 minuti il pass compare qui in «Inviare il Guest Pass».</p></div>
-    <ul class="voci voci-gp">${righe
-      .map(
-        (r) => `<li class="voce voce-tutto-ok"><div class="voce-riga">
-          <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
-          <span class="voce-testo"><b>${esc(r.nome)}</b><span>arrivo ${esc(giorno(r.arrivo))}${r.riferimento ? ` · ${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}` : ""}</span></span>
-          <span class="voce-azioni"><button type="button" class="btn btn-piccolo" data-azione="copia-casella">Copia indirizzo per LTS</button></span>
-        </div></li>`,
-      )
+    <div class="gruppo-testa"><h3 id="g-gp-lts"><span class="pallino" aria-hidden="true"></span>Generare il Guest Pass in LTS <span class="conta">${ordini.length}</span></h3>
+    <p class="nota">Check-in fatto ed email diretta in Slope. <b>1</b> «Apri in Slope» · <b>2</b> estensione «Slope X LTS Guest Pass» · <b>3</b> in LTS «Invia carta d'ospite» a <b>${esc(CASELLA_GUESTPASS)}</b> («Copia indirizzo»). Entro 15 minuti il pass compare qui in «Inviare il Guest Pass».</p></div>
+    <ul class="voci voci-gp">${ordini
+      .map((camere) => {
+        const r = camere[0];
+        const nomi = [...new Set(camere.map((x) => x.nome))];
+        return `<li class="voce voce-tutto-ok"><div class="voce-riga">
+          <span class="camera camera-piccola${camere.length > 1 ? " camera-multi" : ""}"${camere.length > 1 ? ' title="Camere dello stesso ordine"' : ""}>${esc(camere.map((x) => x.camera ?? "—").join("\u00a0· "))}</span>
+          <span class="voce-testo"><b>${esc(nomi.join(", "))}</b><span>arrivo ${esc(giorno(r.arrivo))}${r.riferimento ? ` · ${esc(r.riferimento.portale ?? "Slope n.")} ${esc(r.riferimento.numero)}` : ""}${
+            camere.length > 1 ? ` · ${camere.length} camere, un solo ordine` : ""
+          }</span></span>
+          <span class="voce-azioni">${apriInSlope(r, "primario")}<button type="button" class="btn btn-piccolo" data-azione="copia-casella">Copia indirizzo</button></span>
+        </div></li>`;
+      })
       .join("")}</ul>
   </section>`;
 }
@@ -908,7 +939,11 @@ function gruppiOggi(daFare: readonly Promemoria[]): string {
 /** L'azione da fare subito per un promemoria, con un clic: chiamare, scrivere, copiare l'email per Slope o annotarla. */
 function azionePrimaria(r: RigaCheckin, p: Promemoria, pendente: boolean): string {
   const id = esc(r.reservationId);
-  if (pendente) return `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-email-nuova" data-id="${id}">Copia email per Slope</button>`;
+  if (pendente) {
+    return linkSlope(r)
+      ? `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-e-slope" data-id="${id}">Copia email e apri Slope</button>`
+      : `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-email-nuova" data-id="${id}">Copia email per Slope</button>`;
+  }
   const motivo = motivoPer(r);
   if (!motivo) return "";
   if (p.sollecito) {
@@ -1371,6 +1406,17 @@ function collegaEventi(): void {
       case "copia-email-nuova": {
         const n = el.dataset.id ? stato.emailNuove.get(el.dataset.id) : undefined;
         if (n) void copia(n.email).then((ok) => toast(ok ? `${n.email} copiata: incollala nella scheda cliente in Slope.` : "Copia non riuscita: seleziona l'indirizzo e premi Ctrl+C."));
+        break;
+      }
+      case "copia-e-slope": {
+        // prima la copia (finché questa pagina ha il fuoco), poi la scheda di Slope nello stesso clic (o il browser la blocca)
+        const id = el.dataset.id;
+        const n = id ? stato.emailNuove.get(id) : undefined;
+        const r = id ? stato.righe.find((x) => x.reservationId === id) : undefined;
+        const url = r ? linkSlope(r) : null;
+        const copiata = n ? copiaSubito(n.email) : false;
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+        if (n) toast(copiata ? `${n.email} copiata: in Slope incollala nella scheda cliente (Ctrl+V).` : "Copia non riuscita: torna qui, premi «Copia email» e poi incollala in Slope.");
         break;
       }
       case "togli-email-nuova": {

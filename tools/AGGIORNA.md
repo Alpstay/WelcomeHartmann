@@ -27,8 +27,9 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    `property_id` dell'Hartmann, `limit 100`; segui `next_cursor` finché non è nullo.
    Scrivi nello scratchpad `arrivi.json` con TUTTE le righe dei 7 giorni, ID copiati identici:
    `{"vista": "list_arrivals", "freshness": <blocco freshness di una delle risposte, così com'è>,
-   "rows": [{"reservation_id", "property_id", "room_name", "arrival", "departure", "adults", "children",
-   "is_option", "booking_status", "stay_status"}, …]}`.
+   "rows": [{"reservation_id", "order_id", "property_id", "room_name", "arrival", "departure", "adults",
+   "children", "is_option", "booking_status", "stay_status"}, …]}` (`order_id` serve al pulsante «Apri in Slope»
+   della pagina `checkin/`: si copia identico come gli altri ID).
 2. **Ospiti registrati** (vista con dati personali, da non mostrare): `query_curated_view` su
    `curated_guest_stays` con filtri `property_id eq <Hartmann>`, `stay_start gte G`, `stay_start lte G+6`,
    `limit 500`.

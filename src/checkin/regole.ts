@@ -70,6 +70,8 @@ export interface RigaCheckin {
   readonly checkinUrl: string | null;
   readonly checkinFatto: boolean;
   readonly stato: StatoRiga;
+  /** order_id di Slope, invariato (più camere dello stesso ordine hanno lo stesso); null se La Scatola non lo dà */
+  readonly ordineSlope: string | null;
 }
 
 /** Contatto registrato su questo computer. Solo id Slope, motivo, canale e data: nessun dato dell'ospite. */
@@ -308,7 +310,37 @@ export function versoRiga(x: AvvisoItem, oggi: string): RigaCheckin {
     checkinUrl: RE_CHECKIN_SLOPE.test(url) ? url : null,
     checkinFatto,
     stato: statoDa(checkinFatto, controllo),
+    ordineSlope: typeof x.ordineSlope === "string" && UUID_SLOPE.test(x.ordineSlope) ? x.ordineSlope : null,
   };
+}
+
+// ───────────────────────── Slope (backoffice) ─────────────────────────
+
+/** Backoffice di Slope e codice della struttura Chalet Hotel Hartmann (dalla barra dell'indirizzo di Slope, 24/10/2026). */
+export const SLOPE_BACKOFFICE = "https://backoffice.slope.it";
+export const SLOPE_STRUTTURA_HARTMANN = "c6055fa5-edaa-4b8f-a518-541322f3ac1e";
+const UUID_SLOPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Pagina della prenotazione (ordine) nel backoffice di Slope: da lì l'estensione «Slope X LTS Guest Pass» e la scheda
+ * cliente dove scrivere l'email. Serve l'accesso a Slope (il link da solo non apre niente). order_id invariato.
+ */
+export function linkSlope(r: Pick<RigaCheckin, "ordineSlope">, struttura: string = SLOPE_STRUTTURA_HARTMANN): string | null {
+  return r.ordineSlope && UUID_SLOPE.test(r.ordineSlope) && UUID_SLOPE.test(struttura)
+    ? `${SLOPE_BACKOFFICE}/${struttura}/orders/${r.ordineSlope}/view`
+    : null;
+}
+
+/** Righe raggruppate per ordine Slope (stessa pagina in Slope, un solo passaggio); senza ordine, una per riga. */
+export function perOrdine(righe: readonly RigaCheckin[]): RigaCheckin[][] {
+  const gruppi = new Map<string, RigaCheckin[]>();
+  for (const r of righe) {
+    const k = r.ordineSlope ?? `prenotazione:${r.reservationId}`;
+    const g = gruppi.get(k);
+    if (g) g.push(r);
+    else gruppi.set(k, [r]);
+  }
+  return [...gruppi.values()];
 }
 
 /** Righe della pagina: una per prenotazione (doppioni tolti), in ordine di stato, arrivo, camera. */

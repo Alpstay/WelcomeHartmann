@@ -24,14 +24,17 @@ import {
   controllaEmail,
   conteggi,
   linkPosta,
+  linkSlope,
   linkWhatsapp,
   messaggio,
   motivoPer,
+  perOrdine,
   registroValido,
   righeDa,
   statoDa,
   versoRiga,
 } from "../src/checkin/regole";
+import type { RigaCheckin } from "../src/checkin/regole";
 
 const OGGI = "2026-12-20";
 const ID = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -321,13 +324,27 @@ await t("feed: numero del portale e numero d'ordine Slope", () => {
     ],
     [{ order_id: ID(203), order_number: 8086376 }, { order_id: ID(204), order_number: 8086377 }],
   );
-  assert.deepEqual(refs.get(ID(1)), { codicePortale: "6012345671", portale: "Booking.com", numeroOrdine: null });
-  assert.deepEqual(refs.get(ID(2)), { codicePortale: "2300145678", portale: "Expedia", numeroOrdine: null });
-  assert.deepEqual(refs.get(ID(3)), { codicePortale: null, portale: null, numeroOrdine: 8086376 });
+  assert.deepEqual(refs.get(ID(1)), { codicePortale: "6012345671", portale: "Booking.com", numeroOrdine: null, ordineSlope: ID(201) });
+  assert.deepEqual(refs.get(ID(2)), { codicePortale: "2300145678", portale: "Expedia", numeroOrdine: null, ordineSlope: ID(202) });
+  assert.deepEqual(refs.get(ID(3)), { codicePortale: null, portale: null, numeroOrdine: 8086376, ordineSlope: ID(203) });
   // senza riga di curated_reservations vale l'order_id dell'arrivo
-  assert.deepEqual(refs.get(ID(4)), { codicePortale: null, portale: null, numeroOrdine: 8086377 });
+  assert.deepEqual(refs.get(ID(4)), { codicePortale: null, portale: null, numeroOrdine: 8086377, ordineSlope: ID(204) });
   // senza i file facoltativi: nessun numero, nessun errore
   assert.equal(avvisiItems(rows, [])[0].codicePortale, null);
+  // l'ordine Slope arriva anche solo dagli arrivi; un order_id che non è un UUID non diventa un link
+  assert.equal(avvisiItems(rows, [])[0].ordineSlope, ID(201));
+  assert.equal(riferimentiPer([riga(5, { order_id: "../../admin" })]).get(ID(5))?.ordineSlope, null);
+});
+
+await t("Slope: «Apri in Slope» porta all'ordine nel backoffice, le camere dello stesso ordine insieme", () => {
+  const r = (k: number, ordine: string | null): RigaCheckin => versoRiga(item(k, { checkinFatto: true, email: `ospite${k}@example.com`, ordineSlope: ordine }), OGGI);
+  const a = r(1, ID(301));
+  assert.equal(a.ordineSlope, ID(301));
+  assert.equal(linkSlope(a), `https://backoffice.slope.it/c6055fa5-edaa-4b8f-a518-541322f3ac1e/orders/${ID(301)}/view`);
+  assert.equal(linkSlope(r(2, null)), null);
+  assert.equal(r(3, "non-un-id").ordineSlope, null);
+  const gruppi = perOrdine([a, r(2, null), r(4, ID(301)), r(5, ID(302))]);
+  assert.deepEqual(gruppi.map((g) => g.map((x) => x.reservationId)), [[ID(1), ID(4)], [ID(2)], [ID(5)]]);
 });
 
 await t("file: le due viste facoltative si riconoscono, gli ordini si controllano con order_id", () => {

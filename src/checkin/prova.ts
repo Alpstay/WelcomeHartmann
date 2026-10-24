@@ -48,6 +48,8 @@ const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome,
   codicePortale: numero.startsWith("S") ? null : numero.slice(1),
   portale: numero.startsWith("B") ? "Booking.com" : numero.startsWith("E") ? "Expedia" : null,
   numeroOrdine: numero.startsWith("S") ? Number(numero.slice(1)) : null,
+  // ordine Slope inventato: «Apri in Slope» porta a una pagina di Slope che non esiste
+  ordineSlope: `00000000-0000-4000-8000-${String(100 + n).padStart(12, "0")}`,
 }));
 
 const fonte: Fonte = {

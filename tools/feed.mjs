@@ -557,6 +557,7 @@ var RANK = { fresh: 0, unavailable: 1, stale: 2, failing: 3 };
 var EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i;
 var CHECKIN = /^https:\/\/booking\.slope\.it\/g\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/reservations\/[0-9a-f-]{36}\/check-in$/i;
 var clean = (v) => typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var titolo = (s) => s && s === s.toUpperCase() ? s.toLowerCase().replace(new RegExp("(^|[\\s'\u2019-])(\\p{L})", "gu"), (_, a, b2) => a + b2.toUpperCase()) : s;
 function nomePortale(agencyName, otaChannel) {
   const canale = clean(otaChannel).toUpperCase();
@@ -573,8 +574,14 @@ function riferimentiPer(rows, references = [], orders = []) {
     const ref = refById.get(r.reservation_id);
     const portale = nomePortale(ref?.agency_name ?? r.agency_name, ref?.ota_channel ?? r.ota_channel);
     const codice = clean(ref?.agency_code);
-    const ordine = numeri.get(clean(ref?.order_id) || r.order_id) ?? null;
-    out2.set(r.reservation_id, { codicePortale: portale && codice ? codice : null, portale: portale && codice ? portale : null, numeroOrdine: ordine });
+    const idOrdine = clean(ref?.order_id) || clean(r.order_id);
+    const ordine = numeri.get(idOrdine) ?? null;
+    out2.set(r.reservation_id, {
+      codicePortale: portale && codice ? codice : null,
+      portale: portale && codice ? portale : null,
+      numeroOrdine: ordine,
+      ordineSlope: UUID.test(idOrdine) ? idOrdine : null
+    });
   }
   return out2;
 }
@@ -652,7 +659,7 @@ async function buildFeed(src, password) {
 import { existsSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
 var isRec = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var VIEW_KIND = {
   curated_operational_stays: "arrivi",
   list_arrivals: "arrivi",
@@ -713,7 +720,7 @@ function readBundle(path) {
   }
   const chiave = kind === "ordini" ? "order_id" : "reservation_id";
   rows.forEach((r, i) => {
-    if (!isRec(r) || typeof r[chiave] !== "string" || !UUID.test(r[chiave]))
+    if (!isRec(r) || typeof r[chiave] !== "string" || !UUID2.test(r[chiave]))
       throw new FileError(`${name}: ${chiave} mancante o non valido alla riga ${i + 1}`);
   });
   const freshness = isRec(v.freshness) && isRec(v.freshness.overall) ? v.freshness : null;

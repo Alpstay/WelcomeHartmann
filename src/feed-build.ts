@@ -56,6 +56,8 @@ const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,24}$/i;
 /** Solo link di check-in di Slope: il link finisce nelle email agli ospiti. */
 const CHECKIN = /^https:\/\/booking\.slope\.it\/g\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/reservations\/[0-9a-f-]{36}\/check-in$/i;
 const clean = (v: unknown): string => (typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "");
+/** order_id di Slope: si accetta solo un UUID (finisce in un link al backoffice), copiato com'è. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** «KIMSART» → «Kimsart»: i nomi tutti maiuscoli (frequenti da Booking) diventano leggibili nel saluto. */
 const titolo = (s: string): string =>
   s && s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase()) : s;
@@ -77,16 +79,22 @@ export function riferimentiPer(
   rows: readonly ArrivalRow[],
   references: readonly ReferenceFields[] = [],
   orders: readonly OrderFields[] = [],
-): Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine">> {
+): Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine" | "ordineSlope">> {
   const refById = new Map(references.map((x) => [x.reservation_id, x]));
   const numeri = new Map(orders.filter((o) => typeof o.order_number === "number").map((o) => [o.order_id, o.order_number]));
-  const out = new Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine">>();
+  const out = new Map<string, Pick<AvvisoItem, "codicePortale" | "portale" | "numeroOrdine" | "ordineSlope">>();
   for (const r of rows) {
     const ref = refById.get(r.reservation_id);
     const portale = nomePortale(ref?.agency_name ?? r.agency_name, ref?.ota_channel ?? r.ota_channel);
     const codice = clean(ref?.agency_code);
-    const ordine = numeri.get(clean(ref?.order_id) || r.order_id) ?? null;
-    out.set(r.reservation_id, { codicePortale: portale && codice ? codice : null, portale: portale && codice ? portale : null, numeroOrdine: ordine });
+    const idOrdine = clean(ref?.order_id) || clean(r.order_id);
+    const ordine = numeri.get(idOrdine) ?? null;
+    out.set(r.reservation_id, {
+      codicePortale: portale && codice ? codice : null,
+      portale: portale && codice ? portale : null,
+      numeroOrdine: ordine,
+      ordineSlope: UUID.test(idOrdine) ? idOrdine : null,
+    });
   }
   return out;
 }
