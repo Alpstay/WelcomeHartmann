@@ -77,4 +77,5 @@ export function buildSummary(input: SummaryInput, opts: SummaryOptions): string 
 }
 
 /** Link che apre WhatsApp con il testo pronto: il gruppo si sceglie in WhatsApp. */
-export const whatsappUrl = (text: string): string => `https://wa.me/?text=${encodeURIComponent(text)}`;
+// api.whatsapp.com e non wa.me: il rimando di wa.me, da computer, trasforma le emoji in «�».
+export const whatsappUrl = (text: string): string => `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;

@@ -1,6 +1,7 @@
 // Messaggio WhatsApp di benvenuto inviato dalla riga della camera: un testo unico che fonde la lettera di benvenuto
-// (saluto con il nome, numero e piano della camera, PIN, bar, informazioni Hartmann al posto del QR) con il testo
-// WhatsApp fornito dalla reception il 24/10/2026 (orari, servizi, ristoranti, Guest Pass, autobus, taxi).
+// (saluto con il nome, numero e piano della camera, PIN, «sentitevi a casa» e bar, informazioni Hartmann al posto
+// del QR) con il testo WhatsApp fornito dalla reception il 24/10/2026, le cui righe in inglese restano alla lettera
+// (orari, servizi, ristoranti, Guest Pass, autobus, taxi).
 // Le frasi personali vengono dai testi della lettera (src/texts.ts), il resto è qui, in tutte le 13 lingue.
 // Per cambiare orari, link o numeri: si modificano qui.
 
@@ -45,31 +46,31 @@ interface WaTexts {
 const WA: Readonly<Record<LangCode, WaTexts>> = {
   en: {
     useful: "Here is some useful information for your stay:",
-    breakfast: "☕ Breakfast: 8 - 10.30 AM",
-    bar: "🍸 Self-Service Bar: open 24/7 – please help yourself and simply jot down what you take on the room and price list",
-    wellness: "🌿 Wellness Area with sauna: open daily from 4 - 8 PM, garden floor (level -1)",
+    breakfast: "☕ Breakfast : 8 - 10.30 AM",
+    bar: "🍸 Self-Service Bar: open 24/7 with room and price list",
+    wellness: "🌿 Wellness Area: open daily from 4 - 8PM, level -1",
     checkout: "🔑 Check-out: by 11.00 AM",
-    reception: "🛎️ Reception: from 8 AM - 12.00 and from 2 - 6 PM",
+    reception: "🛎️ Reception: from 8AM - 12.00 and from 2 - 6PM",
     wifi: "📶 WIFI password",
     emergency: "📞 Emergency Number",
     info: "ℹ️ All the information about Chalet Hotel Hartmann:",
-    restaurants: "🍝🍷 You can check out this link for all of our top restaurant recommendations in the area:",
+    restaurants: "🍝🍷You can check out this link for all of our top restaurant recommendations in the area:",
     guestPass:
       "Your free public transport tickets (Guest Pass) have been sent to your email address. They are valid for your entire stay in Val Gardena and South Tyrol.",
-    busTitle: "🚌 Main bus stops:",
+    busTitle: "🚌Main bus stops:",
     stops: ["Hotel stop", "Ortisei center", "St.Cristina center"],
     timetable: "👉 For schedules, bus numbers, and travel times, visit:",
     bus: "en",
     taxi: "If no bus is available in the evening, you can contact:",
     help: "Please don't hesitate to reach out if you need any further information or assistance.",
-    wish: "We wish you a pleasant stay. 🤩",
+    wish: "We wish you a pleasant stay.🤩",
     regards: "Best regards",
   },
   it: {
     useful: "Ecco alcune informazioni utili per il vostro soggiorno:",
     breakfast: "☕ Colazione: 8:00 - 10:30",
-    bar: "🍸 Bar self-service: aperto 24 ore su 24 – servitevi pure e annotate quanto consumato sulla lista della camera (con listino prezzi)",
-    wellness: "🌿 Area wellness con sauna: aperta tutti i giorni dalle 16:00 alle 20:00, piano giardino (-1)",
+    bar: "🍸 Bar self-service: aperto 24 ore su 24, con lista per camera e listino prezzi",
+    wellness: "🌿 Area wellness: aperta tutti i giorni dalle 16:00 alle 20:00, piano -1",
     checkout: "🔑 Check-out: entro le 11:00",
     reception: "🛎️ Reception: dalle 8:00 alle 12:00 e dalle 14:00 alle 18:00",
     wifi: "📶 Password WiFi",
@@ -90,8 +91,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   de: {
     useful: "Hier einige nützliche Informationen für Ihren Aufenthalt:",
     breakfast: "☕ Frühstück: 8:00 - 10:30 Uhr",
-    bar: "🍸 Self-Service-Bar: rund um die Uhr geöffnet – bedienen Sie sich gerne und notieren Sie einfach, was Sie nehmen, auf der Zimmer- und Preisliste",
-    wellness: "🌿 Wellnessbereich mit Sauna: täglich von 16:00 bis 20:00 Uhr geöffnet, Gartengeschoss (Ebene -1)",
+    bar: "🍸 Self-Service-Bar: rund um die Uhr geöffnet, mit Zimmerliste und Preisliste",
+    wellness: "🌿 Wellnessbereich: täglich von 16:00 bis 20:00 Uhr geöffnet, Ebene -1",
     checkout: "🔑 Check-out: bis 11:00 Uhr",
     reception: "🛎️ Rezeption: von 8:00 bis 12:00 Uhr und von 14:00 bis 18:00 Uhr",
     wifi: "📶 WLAN-Passwort",
@@ -112,8 +113,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   fr: {
     useful: "Voici quelques informations utiles pour votre séjour :",
     breakfast: "☕ Petit-déjeuner : 8 h - 10 h 30",
-    bar: "🍸 Bar en libre-service : ouvert 24 h/24 – servez-vous et notez simplement vos consommations sur la liste de la chambre (avec les prix)",
-    wellness: "🌿 Espace bien-être avec sauna : ouvert tous les jours de 16 h à 20 h, niveau jardin (-1)",
+    bar: "🍸 Bar en libre-service : ouvert 24 h/24, avec liste par chambre et liste des prix",
+    wellness: "🌿 Espace bien-être : ouvert tous les jours de 16 h à 20 h, niveau -1",
     checkout: "🔑 Check-out : avant 11 h",
     reception: "🛎️ Réception : de 8 h à 12 h et de 14 h à 18 h",
     wifi: "📶 Mot de passe Wi-Fi",
@@ -134,8 +135,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   es: {
     useful: "Aquí tienen información útil para su estancia:",
     breakfast: "☕ Desayuno: 8:00 - 10:30",
-    bar: "🍸 Bar de autoservicio: abierto 24 horas – sírvanse libremente y anoten lo que tomen en la lista de la habitación (con precios)",
-    wellness: "🌿 Zona wellness con sauna: abierta todos los días de 16:00 a 20:00, planta jardín (-1)",
+    bar: "🍸 Bar de autoservicio: abierto 24 horas, con lista por habitación y lista de precios",
+    wellness: "🌿 Zona wellness: abierta todos los días de 16:00 a 20:00, planta -1",
     checkout: "🔑 Check-out: hasta las 11:00",
     reception: "🛎️ Recepción: de 8:00 a 12:00 y de 14:00 a 18:00",
     wifi: "📶 Contraseña del wifi",
@@ -156,8 +157,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   nl: {
     useful: "Hier wat handige informatie voor uw verblijf:",
     breakfast: "☕ Ontbijt: 8.00 - 10.30 uur",
-    bar: "🍸 Selfservicebar: 24/7 open – bedient u zich gerust en noteer wat u neemt op de kamer- en prijslijst",
-    wellness: "🌿 Wellnessruimte met sauna: dagelijks open van 16.00 tot 20.00 uur, tuinverdieping (-1)",
+    bar: "🍸 Selfservicebar: 24/7 open, met kamerlijst en prijslijst",
+    wellness: "🌿 Wellnessruimte: dagelijks open van 16.00 tot 20.00 uur, verdieping -1",
     checkout: "🔑 Uitchecken: vóór 11.00 uur",
     reception: "🛎️ Receptie: van 8.00 tot 12.00 uur en van 14.00 tot 18.00 uur",
     wifi: "📶 Wifi-wachtwoord",
@@ -178,8 +179,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   pl: {
     useful: "Oto kilka przydatnych informacji na czas Państwa pobytu:",
     breakfast: "☕ Śniadanie: 8:00 - 10:30",
-    bar: "🍸 Bar samoobsługowy: czynny całą dobę – prosimy częstować się i zapisać, co Państwo wzięli, na liście pokoju (z cennikiem)",
-    wellness: "🌿 Strefa wellness z sauną: czynna codziennie od 16:00 do 20:00, poziom ogrodu (-1)",
+    bar: "🍸 Bar samoobsługowy: czynny całą dobę, z listą dla pokoi i cennikiem",
+    wellness: "🌿 Strefa wellness: czynna codziennie od 16:00 do 20:00, poziom -1",
     checkout: "🔑 Wymeldowanie: do 11:00",
     reception: "🛎️ Recepcja: od 8:00 do 12:00 i od 14:00 do 18:00",
     wifi: "📶 Hasło do Wi-Fi",
@@ -200,8 +201,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   cs: {
     useful: "Zde je několik užitečných informací pro Váš pobyt:",
     breakfast: "☕ Snídaně: 8:00 - 10:30",
-    bar: "🍸 Samoobslužný bar: otevřený nonstop – poslužte si a jen si zapište, co jste si vzali, na seznam pokoje (s ceníkem)",
-    wellness: "🌿 Wellness se saunou: otevřeno denně od 16:00 do 20:00, zahradní podlaží (-1)",
+    bar: "🍸 Samoobslužný bar: otevřený nonstop, se seznamem pro pokoje a ceníkem",
+    wellness: "🌿 Wellness: otevřeno denně od 16:00 do 20:00, podlaží -1",
     checkout: "🔑 Check-out: do 11:00",
     reception: "🛎️ Recepce: od 8:00 do 12:00 a od 14:00 do 18:00",
     wifi: "📶 Heslo k Wi-Fi",
@@ -222,8 +223,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   da: {
     useful: "Her er nogle nyttige oplysninger til jeres ophold:",
     breakfast: "☕ Morgenmad: kl. 8.00 - 10.30",
-    bar: "🍸 Selvbetjeningsbar: åben døgnet rundt – forsyn jer og skriv blot ned, hvad I tager, på værelses- og prislisten",
-    wellness: "🌿 Wellnessområde med sauna: åbent dagligt kl. 16.00 - 20.00, haveetagen (-1)",
+    bar: "🍸 Selvbetjeningsbar: åben døgnet rundt, med værelsesliste og prisliste",
+    wellness: "🌿 Wellnessområde: åbent dagligt kl. 16.00 - 20.00, etage -1",
     checkout: "🔑 Check-ud: senest kl. 11.00",
     reception: "🛎️ Reception: kl. 8.00 - 12.00 og kl. 14.00 - 18.00",
     wifi: "📶 Wi-Fi-adgangskode",
@@ -244,8 +245,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   sv: {
     useful: "Här är lite användbar information inför er vistelse:",
     breakfast: "☕ Frukost: kl. 8.00 - 10.30",
-    bar: "🍸 Självservicebar: öppen dygnet runt – ta gärna för er och skriv bara upp vad ni tar på rums- och prislistan",
-    wellness: "🌿 Wellnessavdelning med bastu: öppen dagligen kl. 16.00 - 20.00, trädgårdsplanet (-1)",
+    bar: "🍸 Självservicebar: öppen dygnet runt, med rumslista och prislista",
+    wellness: "🌿 Wellnessavdelning: öppen dagligen kl. 16.00 - 20.00, plan -1",
     checkout: "🔑 Utcheckning: senast kl. 11.00",
     reception: "🛎️ Reception: kl. 8.00 - 12.00 och kl. 14.00 - 18.00",
     wifi: "📶 Wi-Fi-lösenord",
@@ -266,8 +267,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   zh: {
     useful: "以下是您入住期间的一些实用信息：",
     breakfast: "☕ 早餐：8:00 - 10:30",
-    bar: "🍸 自助酒吧：24 小时开放，可自行取用，只需在房间登记表上记下您取用的物品（附价目表）",
-    wellness: "🌿 康体区（含桑拿）：每天 16:00 - 20:00 开放，位于花园层（-1 层）",
+    bar: "🍸 自助酒吧：24 小时开放，备有房间登记表和价目表",
+    wellness: "🌿 康体区：每天 16:00 - 20:00 开放，位于 -1 层",
     checkout: "🔑 退房：11:00 前",
     reception: "🛎️ 前台：8:00 - 12:00 及 14:00 - 18:00",
     wifi: "📶 WiFi 密码",
@@ -287,8 +288,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   ko: {
     useful: "숙박에 도움이 되는 정보를 안내해 드립니다:",
     breakfast: "☕ 조식: 8:00 - 10:30",
-    bar: "🍸 셀프서비스 바: 24시간 운영 – 자유롭게 이용하시고 드신 것만 객실 기록표에 적어 주세요(가격표 비치)",
-    wellness: "🌿 사우나가 있는 웰니스 구역: 매일 16:00 - 20:00 운영, 정원 층(지하 1층)",
+    bar: "🍸 셀프서비스 바: 24시간 운영, 객실별 기록표와 가격표 비치",
+    wellness: "🌿 웰니스 구역: 매일 16:00 - 20:00 운영, 지하 1층",
     checkout: "🔑 체크아웃: 11:00까지",
     reception: "🛎️ 리셉션: 8:00 - 12:00, 14:00 - 18:00",
     wifi: "📶 와이파이 비밀번호",
@@ -309,8 +310,8 @@ const WA: Readonly<Record<LangCode, WaTexts>> = {
   ar: {
     useful: "إليكم بعض المعلومات المفيدة لإقامتكم:",
     breakfast: "☕ الفطور: من 8:00 حتى 10:30 صباحًا",
-    bar: "🍸 بار الخدمة الذاتية: مفتوح على مدار الساعة، تفضلوا بخدمة أنفسكم ودوّنوا ما تتناولونه في قائمة الغرفة (مع قائمة الأسعار)",
-    wellness: "🌿 منطقة العافية مع الساونا: مفتوحة يوميًا من الساعة 4 حتى 8 مساءً، في طابق الحديقة (الطابق -1)",
+    bar: "🍸 بار الخدمة الذاتية: مفتوح على مدار الساعة، مع قائمة للغرف وقائمة أسعار",
+    wellness: "🌿 منطقة العافية: مفتوحة يوميًا من الساعة 4 حتى 8 مساءً، في الطابق -1",
     checkout: "🔑 تسجيل المغادرة: حتى الساعة 11:00 صباحًا",
     reception: "🛎️ الاستقبال: من 8:00 حتى 12:00 ومن 2 حتى 6 مساءً",
     wifi: "📶 كلمة مرور الواي فاي",
@@ -370,8 +371,9 @@ export function welcomeWhatsappText(i: WelcomeInput): string {
     tx.salutation(i.name?.trim() || null),
     personal,
     ...(i.pin ? [`🔐 PIN: *${i.pin}*`] : []),
+    `${tx.home}${sp}${tx.bar}`,
     "",
-    `${tx.home}${sp}${wa.useful}`,
+    wa.useful,
     "",
     wa.breakfast,
     wa.bar,
@@ -379,7 +381,7 @@ export function welcomeWhatsappText(i: WelcomeInput): string {
     "",
     wa.checkout,
     wa.reception,
-    `${wa.wifi}: *${WIFI}*`,
+    `${wa.wifi}: ${WIFI}`,
     "",
     `${wa.emergency}: ${num(EMERGENCY)}`,
     "",
@@ -409,5 +411,9 @@ export function welcomeWhatsappText(i: WelcomeInput): string {
   ].join("\n");
 }
 
-/** Link WhatsApp verso il numero dell'ospite (solo cifre, con prefisso) con il testo già scritto. */
-export const welcomeWhatsappUrl = (digits: string, text: string): string => `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+/**
+ * Link WhatsApp verso il numero dell'ospite (solo cifre, con prefisso) con il testo già scritto.
+ * Direttamente api.whatsapp.com e non wa.me: il rimando di wa.me, da computer, trasforma le emoji in «�».
+ */
+export const welcomeWhatsappUrl = (digits: string, text: string): string =>
+  `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(text)}`;
