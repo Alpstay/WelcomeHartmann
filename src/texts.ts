@@ -45,6 +45,13 @@ export const LANG_NAMES: Readonly<Record<LangCode, string>> = {
   ar: "Arabo",
 };
 
+/**
+ * Lettere solo nella lingua dell'ospite, senza l'inglese sotto: inglese, e su richiesta della reception (24/10/2026)
+ * italiano e tedesco. Le altre lingue hanno sotto lo stesso testo in inglese.
+ */
+export const ONLY_OWN_LANGUAGE: ReadonlySet<LangCode> = new Set<LangCode>(["en", "it", "de"]);
+export const withEnglish = (lang: LangCode): boolean => !ONLY_OWN_LANGUAGE.has(lang);
+
 /** Lingue scritte da destra a sinistra. */
 export const RTL_LANGS: ReadonlySet<LangCode> = new Set<LangCode>(["ar"]);
 

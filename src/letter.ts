@@ -1,7 +1,7 @@
 // Composizione della lettera: funzioni pure, usate sia per l'anteprima sia per il PDF.
 
 import { HOTEL, floorOf } from "./hotel";
-import { TEXTS, plain } from "./texts";
+import { TEXTS, plain, withEnglish } from "./texts";
 import type { HotelSettings, LangCode, LetterBlock, LetterInput, LetterModel } from "./types";
 
 const SUPPORTED = new Set<LangCode>(Object.keys(TEXTS) as LangCode[]);
@@ -85,10 +85,11 @@ function buildBlock(lang: LangCode, input: LetterInput, settings: HotelSettings)
   };
 }
 
-/** Lettera nella lingua dell'ospite con, sotto, lo stesso testo in inglese. */
+/** Lettera nella lingua dell'ospite con, sotto, lo stesso testo in inglese (tranne italiano e tedesco). */
 export function buildLetter(input: LetterInput, settings: HotelSettings = HOTEL): LetterModel {
   const room = input.room.trim();
-  const roomLabel = input.lang === "en" ? TEXTS.en.roomLabel : `${TEXTS[input.lang].roomLabel} · ${TEXTS.en.roomLabel}`;
+  const en = withEnglish(input.lang);
+  const roomLabel = en ? `${TEXTS[input.lang].roomLabel} · ${TEXTS.en.roomLabel}` : TEXTS[input.lang].roomLabel;
   return {
     reservationId: input.reservationId,
     room,
@@ -97,12 +98,12 @@ export function buildLetter(input: LetterInput, settings: HotelSettings = HOTEL)
     stayLabel: stayLabel(input.arrival, input.departure),
     roomLabel,
     primary: buildBlock(input.lang, input, settings),
-    english: input.lang === "en" ? null : buildBlock("en", input, settings),
+    english: en ? buildBlock("en", input, settings) : null,
     qrCaption: TEXTS[input.lang].qr,
-    qrCaptionEnglish: input.lang === "en" ? null : TEXTS.en.qr,
+    qrCaptionEnglish: en ? TEXTS.en.qr : null,
     note: input.note?.trim() || null,
     pin: isPin(input.pin) ? input.pin!.trim() : null,
-    noteLabel: input.lang === "en" ? TEXTS.en.noteLabel : `${TEXTS[input.lang].noteLabel} · ${TEXTS.en.noteLabel}`,
+    noteLabel: en ? `${TEXTS[input.lang].noteLabel} · ${TEXTS.en.noteLabel}` : TEXTS[input.lang].noteLabel,
     hotelName: settings.hotelName,
     place: settings.place,
     signer: settings.signer,

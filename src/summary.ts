@@ -3,7 +3,7 @@
 
 import { FLOOR_LABEL_IT, floorOf } from "./hotel";
 import { isPin, nightsBetween } from "./letter";
-import { TEXTS } from "./texts";
+import { TEXTS, withEnglish } from "./texts";
 import type { ArrivalItem } from "./types";
 
 export interface SummaryOptions {
@@ -53,7 +53,7 @@ function block(item: ArrivalItem, opts: SummaryOptions): string[] {
     parts.push(people(item.adults, item.children));
     lines.push(parts.join(" · "));
   }
-  lines.push(`Lettera: ${TEXTS[item.lang].nameIt.toLocaleLowerCase("it")}${item.lang === "en" ? "" : " + inglese"}`);
+  lines.push(`Lettera: ${TEXTS[item.lang].nameIt.toLocaleLowerCase("it")}${withEnglish(item.lang) ? " + inglese" : ""}`);
   if (opts.pins) lines.push(isPin(item.pin) ? `PIN ${item.pin.trim()}` : item.pin ? "PIN incompleto" : "PIN da assegnare");
   const note = clean(item.note);
   if (opts.notes && note) lines.push(`Nota: ${note}`);
