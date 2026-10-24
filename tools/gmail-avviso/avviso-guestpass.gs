@@ -9,7 +9,7 @@ function controllaGuestPass() {
   const email = GmailApp.search(RICERCA, 0, 50);
   if (email.length === 0) return;
   const token = PropertiesService.getScriptProperties().getProperty("GITHUB_TOKEN");
-  if (!token) throw new Error("Manca GITHUB_TOKEN in Impostazioni progetto \u2192 Propriet\xE0 script.");
+  if (!token) throw new Error("Manca GITHUB_TOKEN in Impostazioni progetto → Proprietà script.");
   const risposta = UrlFetchApp.fetch(`https://api.github.com/repos/${REPOSITORY}/actions/workflows/${WORKFLOW}/dispatches`, {
     method: "post",
     contentType: "application/json",
@@ -26,5 +26,5 @@ function controllaGuestPass() {
 function installa() {
   const esiste = ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === "controllaGuestPass");
   if (!esiste) ScriptApp.newTrigger("controllaGuestPass").timeBased().everyMinutes(5).create();
-  console.log(esiste ? "Attivatore gi\xE0 presente." : "Attivatore creato: ogni 5 minuti.");
+  console.log(esiste ? "Attivatore già presente." : "Attivatore creato: ogni 5 minuti.");
 }

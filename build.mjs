@@ -198,7 +198,7 @@ console.log("ok", Math.round(full.length / 1024), "KB");
 {
   const { transform } = await import("esbuild");
   const sorgente = readFileSync("tools/gmail-avviso/avviso-guestpass.ts", "utf8");
-  const js = await transform(sorgente, { loader: "ts", target: "es2020" });
+  const js = await transform(sorgente, { loader: "ts", target: "es2020", charset: "utf8" });
   writeFileSync(
     "tools/gmail-avviso/avviso-guestpass.gs",
     "// Avviso «Guest Pass arrivato» · Gmail guestpass.hartmann@gmail.com → GitHub «Guest Pass dalla casella».\n" +
