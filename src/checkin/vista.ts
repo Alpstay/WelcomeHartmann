@@ -93,6 +93,8 @@ interface Stato {
   emailNuove: Map<string, EmailNuova>;
   /** riga con il campo «email ricevuta» aperto */
   campoAperto: string | null;
+  /** promemoria del calendario aperti con tutte le azioni */
+  espansi: Set<string>;
   erroreCampo: { errore: string; suggerita: string | null } | null;
   archivioOk: boolean;
 }
@@ -122,6 +124,7 @@ const stato: Stato = {
   emailNuove: new Map(),
   campoAperto: null,
   erroreCampo: null,
+  espansi: new Set(),
   archivioOk: true,
 };
 
@@ -670,6 +673,34 @@ function vistaOggi(): string {
   return testa + sezioneSlope + vuoto + giaFatti;
 }
 
+/** L'azione da fare subito per un promemoria, con un clic: chiamare, scrivere, copiare l'email per Slope o annotarla. */
+function azionePrimaria(r: RigaCheckin, p: Promemoria, pendente: boolean): string {
+  const id = esc(r.reservationId);
+  if (pendente) return `<button type="button" class="btn btn-piccolo btn-primario" data-azione="copia-email-nuova" data-id="${id}">Copia email per Slope</button>`;
+  const motivo = motivoPer(r);
+  if (!motivo) return "";
+  if (p.sollecito) {
+    return r.whatsapp
+      ? `<a class="btn btn-piccolo btn-primario" href="tel:+${esc(r.whatsapp)}" data-azione="apri" data-canale="telefono" data-motivo="${motivo}" data-id="${id}">Chiama ${esc(mostraNumero(r.whatsapp))}</a>`
+      : `<button type="button" class="btn btn-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}" title="Nessun numero valido: testo per la chat dell'extranet">Copia testo</button>`;
+  }
+  // già contattato e in attesa: quando l'ospite risponde si annota l'email
+  if (p.contatto) return `<button type="button" class="btn btn-piccolo" data-azione="apri-campo" data-id="${id}">Annota email</button>`;
+  const wa = linkWhatsapp(r, motivo);
+  const posta = linkPosta(r, motivo, programmaEmail(), !appuntiHtml());
+  const emailPrima = r.controlloEmail.tipo === "diretta" || r.controlloEmail.tipo === "sospetta";
+  const bEmail = posta
+    ? `<a class="btn btn-piccolo btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="apri" data-canale="email" data-motivo="${motivo}" data-id="${id}">${r.email ? "Email" : `Email via ${esc(r.controlloEmail.portale ?? "portale")}`}</a>`
+    : "";
+  const bWa = wa
+    ? `<a class="btn btn-piccolo btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" data-azione="apri" data-canale="whatsapp" data-motivo="${motivo}" data-id="${id}">WhatsApp</a>`
+    : "";
+  if (emailPrima && bEmail) return bEmail;
+  if (bWa) return bWa;
+  if (bEmail) return bEmail;
+  return `<button type="button" class="btn btn-piccolo" data-azione="copia-testo" data-motivo="${motivo}" data-id="${id}">Copia testo</button>`;
+}
+
 function vistaCalendario(): string {
   const d = stato.dati;
   const lista = promemoria(stato.righe, stato.registro, stato.oggi);
@@ -679,22 +710,29 @@ function vistaCalendario(): string {
   const giorni = Array.from({ length: 7 }, (_, i) => aggiungiGiorni(stato.oggi, i));
   const voce = (p: Promemoria): string => {
     const r = p.riga;
+    const pendente = pendenti.has(r.reservationId);
     const ritardo = p.quando === "in-ritardo" ? differenzaGiorni(p.giorno, stato.oggi) : 0;
-    return `<li class="voce voce-${p.sollecito ? "telefonare" : r.stato}${p.contatto && !p.sollecito ? " voce-fatta" : ""}">
-      <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
-      <span class="voce-testo"><b>${esc(r.nome)}</b><span>${
-        pendenti.has(r.reservationId)
-          ? '<b class="telefonare">Inserire in Slope</b> l\'email annotata'
-          : p.sollecito
-            ? '<b class="telefonare">Telefonare</b>: nessuna risposta'
-            : esc(cosaFare(r).replace(/ \(.*\)$/, ""))
-      } · arrivo ${esc(giorno(r.arrivo))}${ritardo > 0 && !pendenti.has(r.reservationId) ? ` · <span class="ritardo">in ritardo</span>` : ""}</span></span>
-      <span class="voce-esito${p.contatto && !p.sollecito ? "" : " voce-esito-aperta"}">${
-        pendenti.has(r.reservationId) || p.sollecito ? "" : p.contatto ? `✓ ${esc(NOMI_CANALE[p.contatto.canale])}` : p.quando === "prossimamente" ? "" : "da fare"
-      }</span>
+    const aperta = stato.espansi.has(r.reservationId);
+    const cosa = pendente
+      ? '<b class="telefonare">Inserire in Slope</b> l\'email annotata'
+      : p.sollecito
+        ? '<b class="telefonare">Telefonare</b>: nessuna risposta'
+        : p.contatto
+          ? `Contattato ${esc(quandoIso(p.contatto.quando))} via ${esc(NOMI_CANALE[p.contatto.canale])}: in attesa dell'email`
+          : esc(cosaFare(r).replace(/ \(.*\)$/, ""));
+    return `<li class="voce voce-${pendente || p.sollecito ? "telefonare" : r.stato}${p.contatto && !p.sollecito && !pendente ? " voce-fatta" : ""}">
+      <div class="voce-riga">
+        <span class="camera camera-piccola">${esc(r.camera ?? "—")}</span>
+        <span class="voce-testo"><b>${esc(r.nome)}</b><span>${cosa} · arrivo ${esc(giorno(r.arrivo))}${ritardo > 0 && !pendente ? ` · <span class="ritardo">in ritardo</span>` : ""}</span></span>
+        <span class="voce-azioni">
+          ${azionePrimaria(r, p, pendente)}
+          <button type="button" class="link link-piccolo" data-azione="espandi" data-id="${esc(r.reservationId)}" aria-expanded="${aperta}">${aperta ? "Chiudi" : "Tutte le azioni"}</button>
+        </span>
+      </div>
+      ${aperta ? `<ul class="righe voce-dettaglio">${riga(r, p)}</ul>` : ""}
     </li>`;
   };
-  const colonne = giorni
+  const sezioni = giorni
     .map((g) => {
       const voci = lista.filter((p) => (g === stato.oggi ? p.quando !== "prossimamente" : p.giorno === g));
       const parziale = g > completo;
@@ -704,7 +742,7 @@ function vistaCalendario(): string {
       </section>`;
     })
     .join("");
-  return `<div class="vista-testa"><h2>Calendario dei contatti</h2><p class="nota">Il giorno in cui attivare la corrispondenza per ogni prenotazione da sistemare. Oggi comprende anche i promemoria in ritardo e le telefonate. I promemoria «link check-in» sono completi fino a ${esc(giorno(completo))}: per i giorni dopo arrivano con le prenotazioni oltre il ${esc(giorno(ultimoArrivo))}.</p></div><div class="calendario">${colonne}</div>`;
+  return `<div class="vista-testa"><h2>Calendario dei contatti</h2><p class="nota">Ogni promemoria ha il suo pulsante: si può agire subito, anche in anticipo. «Tutte le azioni» apre la riga completa (link di check-in, email da annotare, altri canali). I promemoria «link check-in» sono completi fino a ${esc(giorno(completo))}: per i giorni dopo arrivano con le prenotazioni oltre il ${esc(giorno(ultimoArrivo))}.</p></div><div class="agenda">${sezioni}</div>`;
 }
 
 function vistaTutte(): string {
@@ -886,8 +924,16 @@ function collegaEventi(): void {
       case "togli-contatto":
         if (el.dataset.id) togliContatto(el.dataset.id);
         break;
+      case "espandi":
+        if (r) {
+          if (stato.espansi.has(r.reservationId)) stato.espansi.delete(r.reservationId);
+          else stato.espansi.add(r.reservationId);
+          renderLista();
+        }
+        break;
       case "apri-campo":
         if (r) {
+          stato.espansi.add(r.reservationId); // nel calendario il campo è nella riga completa
           stato.campoAperto = r.reservationId;
           stato.erroreCampo = null;
           renderLista();

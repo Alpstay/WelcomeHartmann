@@ -120,23 +120,27 @@ h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
 .gruppo-fatti summary h3::before { content: "▸"; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
 .gruppo-fatti[open] summary h3::before { content: "▾"; }
 
-/* Calendario */
-.calendario { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
-.giorno-parziale { border-style: dashed; }
-.giorno { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* Calendario: un giorno sotto l'altro; ogni promemoria ha la sua azione e si apre sulla riga completa */
+.agenda { display: flex; flex-direction: column; gap: 12px; }
+.giorno { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .giorno-oggi { border-color: var(--gold); background: var(--gold-soft); }
-#lista .giorno h3 { font-size: 17px; justify-content: space-between; }
-.voci { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.voce { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding-left: 8px; border-left: 3px solid var(--c); }
+.giorno-parziale { border-style: dashed; }
+#lista .giorno h3 { font-size: 18px; }
+.voci { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.voce { border-top: 1px solid var(--line); padding: 8px 0 8px 10px; border-left: 3px solid var(--c); }
+.voce:first-child { border-top: 0; }
+.voce-riga { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .voce-checkin-da-fare { --c: var(--danger); }
 .voce-email-da-correggere { --c: var(--warn); }
 .voce-email-mancante { --c: var(--rust); }
-.voce-fatta { opacity: .6; }
+.voce-telefonare { --c: var(--danger); }
+.voce-fatta .voce-testo { opacity: .7; }
 .voce-testo { display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
 .voce-testo b { font-size: 14px; overflow-wrap: anywhere; }
 .voce-testo span { color: var(--muted); }
-.voce-esito { font-size: 12px; font-weight: 700; color: var(--ok); white-space: nowrap; }
-.voce-esito-aperta { color: var(--danger); }
+.voce-azioni { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: flex-end; }
+.voce-dettaglio { margin-top: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; }
+.telefonare { color: var(--danger); }
 .camera-piccola { width: 38px; height: 38px; font-size: 16px; }
 .nota-parziale { font-style: italic; }
 
@@ -297,6 +301,9 @@ input[type="search"], input[type="password"] {
   .nuova-email { grid-template-columns: 1fr; }
   .nuova-email-titolo, .nuova-email-indirizzo { grid-column: 1; justify-self: start; }
   .campo-email-riga { flex-wrap: wrap; }
+  .voce-riga { grid-template-columns: auto minmax(0, 1fr); }
+  .voce-azioni { grid-column: 1 / -1; justify-content: flex-start; }
+  .voce-dettaglio { padding: 0 8px; }
   .camera { width: 48px; height: 48px; font-size: 19px; }
   .azioni .btn { flex: 1 1 auto; }
   #legenda dl { grid-template-columns: 1fr; gap: 2px; }
