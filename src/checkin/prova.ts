@@ -14,25 +14,26 @@ const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(
 const link = (n: number): string =>
   `https://booking.slope.it/g/00000000-0000-4000-8000-0000000000aa/c6055fa5-edaa-4b8f-a518-541322f3ac1e/reservations/${id(n)}/check-in`;
 
-type Riga = [n: number, arrivo: number, notti: number, camera: string, cognome: string, nome: string, lingua: string, email: string | null, telefono: string | null, fatto: boolean];
+type Riga = [n: number, arrivo: number, notti: number, camera: string, cognome: string, nome: string, lingua: string, email: string | null, telefono: string | null, fatto: boolean, numero: string];
 
 // Distribuzione simile a quella reale: molti indirizzi dei portali, check-in fatti spesso senza email.
 const RIGHE: readonly Riga[] = [
-  [1, 0, 3, "101", "MÜLLER", "ANNA", "de", "amuller.401957@guest.booking.com", "+49 151 23456789", false],
-  [2, 0, 2, "108", "Rossi", "Luca", "it", "luca.rossi@example.com", "+39 347 1234567", true],
-  [3, 1, 2, "102", "van Dijk", "Sanne", "nl", "4f9c2a7e1b@m.expediapartnercentral.com", "+1111111111", false],
-  [4, 1, 3, "105", "Schmidt", "Thomas", "de", null, "+49 170 1234567", true],
-  [5, 1, 4, "121", "Bianchi", "Giulia", "it", "gbianchi.882301@guest.booking.com", "+39 333 7654321", true],
-  [6, 2, 2, "103", "Novak", "Petra", "cs", "petra.novak@gmail.con", "+420 601 234 567", true],
-  [7, 2, 3, "119", "Kowalski", "Jan", "pl", "jkowalski.550912@guest.booking.com", null, false],
-  [8, 3, 5, "107", "Huber", "Maria", "de", "maria.huber@example.org", "+43 664 1234567", false],
-  [9, 4, 2, "122", "Smith", "Emily", "en", "8d2e61aa90@m.expediapartnercentral.com", "+44 7700 900123", false],
-  [10, 5, 3, "101", "Ferrari", "Marco", "it", null, "+39 347 7654321", true],
-  [11, 6, 2, "108", "Dubois", "Claire", "fr", "cdubois.330415@guest.booking.com", "+33 6 12 34 56 78", false],
-  [12, 6, 4, "105", "Lindqvist", "Erik", "sv", "erik.lindqvist@example.net", "+46 70 123 45 67", true],
+  [1, 0, 3, "101", "MÜLLER", "ANNA", "de", "amuller.401957@guest.booking.com", "+49 151 23456789", false, "B6012345671"],
+  [2, 0, 2, "108", "Rossi", "Luca", "it", "luca.rossi@example.com", "+39 347 1234567", true, "S8086301"],
+  [3, 1, 2, "102", "van Dijk", "Sanne", "nl", "4f9c2a7e1b@m.expediapartnercentral.com", "+1111111111", false, "E2300145678"],
+  [4, 1, 3, "105", "Schmidt", "Thomas", "de", null, "+49 170 1234567", true, "B6012345672"],
+  [5, 1, 4, "121", "Bianchi", "Giulia", "it", "gbianchi.882301@guest.booking.com", "+39 333 7654321", true, "B6012345673"],
+  [6, 2, 2, "103", "Novak", "Petra", "cs", "petra.novak@gmail.con", "+420 601 234 567", true, "S8086302"],
+  [7, 2, 3, "119", "Kowalski", "Jan", "pl", "jkowalski.550912@guest.booking.com", null, false, "B6012345674"],
+  [8, 3, 5, "107", "Huber", "Maria", "de", "maria.huber@example.org", "+43 664 1234567", false, "S8086303"],
+  [9, 5, 2, "122", "Smith", "Emily", "en", "8d2e61aa90@m.expediapartnercentral.com", "+44 7700 900123", false, "E2300145679"],
+  [10, 5, 3, "101", "Ferrari", "Marco", "it", null, "+39 347 7654321", true, "S8086304"],
+  [11, 6, 2, "108", "Dubois", "Claire", "fr", "cdubois.330415@guest.booking.com", "+33 6 12 34 56 78", false, "B6012345675"],
+  [12, 6, 4, "105", "Lindqvist", "Erik", "sv", "erik.lindqvist@example.net", "+46 70 123 45 67", true, "S8086305"],
 ];
 
-const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome, lingua, email, telefono, fatto]) => ({
+// numero: B… = Booking.com, E… = Expedia (numero del portale), S… = numero dell'ordine Slope (diretta)
+const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome, lingua, email, telefono, fatto, numero]) => ({
   reservationId: id(n),
   arrival: g(arrivo),
   departure: g(arrivo + notti),
@@ -44,6 +45,9 @@ const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome,
   checkinUrl: link(n),
   checkinFatto: fatto,
   room: camera,
+  codicePortale: numero.startsWith("S") ? null : numero.slice(1),
+  portale: numero.startsWith("B") ? "Booking.com" : numero.startsWith("E") ? "Expedia" : null,
+  numeroOrdine: numero.startsWith("S") ? Number(numero.slice(1)) : null,
 }));
 
 const fonte: Fonte = {
@@ -64,6 +68,13 @@ const fonte: Fonte = {
   dimentica() {
     /* niente da dimenticare: nessuna password */
   },
+  // Un'email già mandata dall'ospite e annotata, non ancora in Slope: la riga lampeggia.
+  esempiEmailNuove: [{ id: id(5), email: "giulia.bianchi@example.com", quando: new Date(Date.now() - 40 * 60_000).toISOString(), arrivo: g(1) }],
+  // Richieste fatte giorni fa e rimaste senza risposta: oggi tornano come «telefonare».
+  esempiContatti: [
+    { id: id(4), motivo: "email", canale: "whatsapp", quando: new Date(Date.now() - 2 * 86_400_000).toISOString(), arrivo: g(1) },
+    { id: id(3), motivo: "checkin", canale: "email", quando: new Date(Date.now() - 3 * 86_400_000).toISOString(), arrivo: g(1) },
+  ],
 };
 
 if (typeof document !== "undefined") {

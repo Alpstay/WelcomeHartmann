@@ -177,6 +177,29 @@ export interface ArrivalRow {
   readonly is_option: boolean;
   readonly booking_status: "CONFIRMED" | "OPTION" | "CANCELLED";
   readonly stay_status: "TO_ARRIVE" | "IN_HOUSE" | "DEPARTED";
+  /** Canale OTA (es. "BOOKING", "EXPEDIA"), null per le dirette. */
+  readonly ota_channel?: string | null;
+  /** Nome dell'agenzia o del canale (es. "Expedia"). */
+  readonly agency_name?: string | null;
+}
+
+/**
+ * Riga di curated_reservations (senza dati personali) usata solo per il riferimento della prenotazione:
+ * il numero del portale (agency_code) e l'ordine Slope a cui appartiene.
+ */
+export interface ReferenceFields {
+  readonly reservation_id: string;
+  readonly order_id?: string | null;
+  /** Numero di prenotazione del portale (Booking.com, Expedia); null per le dirette. */
+  readonly agency_code?: string | null;
+  readonly agency_name?: string | null;
+  readonly ota_channel?: string | null;
+}
+
+/** Riga di curated_order_balances: serve solo il numero dell'ordine Slope (per le prenotazioni dirette). */
+export interface OrderFields {
+  readonly order_id: string;
+  readonly order_number: number | null;
 }
 
 /** Campi usati da curated_guest_stays: solo nome, tipo ospite e lingua. */

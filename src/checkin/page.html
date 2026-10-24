@@ -3,8 +3,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Belleza&family=Lato:wght@400;700&display=swap">
 <style>
-/* Banco reception, anche da telefono. Testata, quattro tessere di stato (filtri), ricerca, poi le prenotazioni divise per
-   stato nell'ordine in cui vanno lavorate. Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
+/* Banco reception, anche da telefono. Testata, tre schede (Da fare oggi · Calendario · Tutte), poi la vista scelta.
+   Righe a griglia: camera a sinistra, a destra cosa fare, ospite, contatti, check-in, email annotata e azioni. Brand AlpStay: fondo bianco, titoli oro in Belleza, testo nero in Lato. */
 :root {
   --bg: #ffffff;
   --surface: #f8f6f1;
@@ -95,10 +95,52 @@ h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; color: var(--gold); }
 .avviso { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 12px 16px; border-radius: var(--r); background: var(--warn-soft); }
 .avviso strong { color: var(--warn); }
 .avviso-prova { background: var(--gold-soft); }
+.avviso-slope { background: var(--danger-soft); align-items: baseline; }
+.avviso-slope strong { color: var(--danger); }
 .avviso-prova strong { color: var(--fg); }
 
-/* Tessere di stato (filtri) */
-#stati:empty { display: none; }
+/* Schede */
+#schede { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.scheda {
+  font: inherit; font-weight: 700; font-size: 14px; color: var(--muted); background: none; cursor: pointer; white-space: nowrap;
+  border: 0; border-bottom: 3px solid transparent; padding: 10px 14px 9px; margin-bottom: -1px; display: inline-flex; gap: 8px; align-items: center;
+}
+.scheda:hover { color: var(--fg); }
+.scheda.attiva { color: var(--fg); border-bottom-color: var(--gold); }
+.scheda-conta { font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.scheda.urgente .scheda-conta { background: var(--danger); border-color: var(--danger); color: #fff; }
+.vista-testa { display: flex; flex-direction: column; gap: 4px; }
+.vista-testa h2 { font-size: 26px; }
+#lista h3 { font-family: var(--font-title); font-weight: 400; font-size: 21px; margin: 0; display: flex; align-items: center; gap: 10px; }
+.gruppo-oggi { --c: var(--gold); border-left-color: var(--gold); }
+.gruppo-slope { --c: var(--danger); --c-soft: var(--danger-soft); }
+.gruppo-fatti { --c: var(--ok); --c-soft: var(--ok-soft); padding-bottom: 12px; }
+.gruppo-fatti summary { cursor: pointer; list-style: none; }
+.gruppo-fatti summary::-webkit-details-marker { display: none; }
+.gruppo-fatti summary h3::before { content: "▸"; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
+.gruppo-fatti[open] summary h3::before { content: "▾"; }
+
+/* Calendario */
+.calendario { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.giorno-parziale { border-style: dashed; }
+.giorno { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.giorno-oggi { border-color: var(--gold); background: var(--gold-soft); }
+#lista .giorno h3 { font-size: 17px; justify-content: space-between; }
+.voci { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.voce { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding-left: 8px; border-left: 3px solid var(--c); }
+.voce-checkin-da-fare { --c: var(--danger); }
+.voce-email-da-correggere { --c: var(--warn); }
+.voce-email-mancante { --c: var(--rust); }
+.voce-fatta { opacity: .6; }
+.voce-testo { display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
+.voce-testo b { font-size: 14px; overflow-wrap: anywhere; }
+.voce-testo span { color: var(--muted); }
+.voce-esito { font-size: 12px; font-weight: 700; color: var(--ok); white-space: nowrap; }
+.voce-esito-aperta { color: var(--danger); }
+.camera-piccola { width: 38px; height: 38px; font-size: 16px; }
+.nota-parziale { font-style: italic; }
+
+/* Tessere di stato (filtri, vista «Tutte») */
 .tessere { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .tessera {
   font: inherit; color: var(--fg); text-align: left; cursor: pointer;
@@ -138,18 +180,57 @@ input[type="search"], input[type="password"] {
   display: grid;
   grid-template-columns: 56px minmax(0, 1.05fr) minmax(0, 1.45fr) 190px;
   grid-template-areas:
+    "camera compito compito compito"
     "camera ospite contatti checkin"
+    "camera nuova nuova nuova"
     "camera azioni azioni azioni"
     "camera contattato contattato contattato";
-  gap: 6px 18px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line);
+  gap: 0 18px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line);
 }
+.compito { grid-area: compito; margin: 0 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; }
+.compito .pallino { background: var(--c); }
+.compito-checkin-da-fare { --c: var(--danger); }
+.compito-email-da-correggere { --c: var(--warn); }
+.compito-email-mancante { --c: var(--rust); }
+.compito-telefonare { --c: var(--danger); color: var(--danger); }
+.compito-telefonare span:not(.pallino):not(.ritardo) { color: var(--fg); font-size: 13px; }
+.riga-sollecito .camera { border-color: var(--danger); color: var(--danger); }
+.btn-chiama { font-size: 15px; min-height: 42px; padding-inline: 18px; }
+.voce-telefonare { --c: var(--danger); }
+.telefonare { color: var(--danger); }
+.ritardo { font-size: 12px; font-weight: 700; color: var(--danger); background: var(--danger-soft); border-radius: 4px; padding: 1px 7px; }
+.rif { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.inoltro { font-size: 12px; color: var(--muted); }
+.aggiungi-email, .campo-email, .nuova-email { grid-area: nuova; margin-top: 8px; justify-self: start; }
+.campo-email { display: flex; flex-direction: column; gap: 6px; width: min(100%, 560px); }
+.campo-email label { font-size: 13px; font-weight: 700; }
+.campo-email-riga { display: flex; gap: 8px; align-items: center; }
+.campo-email input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--fg); border-radius: 8px; padding: 7px 12px; min-height: 40px; width: 100%; min-width: 0; }
+.nuova-email {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; align-items: center;
+  border: 2px solid var(--danger); background: var(--danger-soft); border-radius: 8px; padding: 10px 14px; width: min(100%, 680px);
+}
+.nuova-email-titolo { grid-column: 1; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--danger); border-radius: 4px; padding: 2px 8px; }
+.nuova-email-indirizzo { grid-column: 2; font-size: 17px; color: var(--danger); overflow-wrap: anywhere; }
+.nuova-email-nota { grid-column: 1 / -1; font-size: 13px; color: var(--fg); }
+.nuova-email-azioni { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin-top: 4px; }
+.nuova-email-diversa { border-color: var(--warn); background: var(--warn-soft); }
+.nuova-email-diversa .nuova-email-titolo { background: var(--warn); }
+.nuova-email-diversa .nuova-email-indirizzo { color: var(--warn); }
+/* Lampeggio rosso finché l'email non è in Slope (fermo, ma ben visibile, con «riduci movimento») */
+@keyframes lampeggia { 0%, 100% { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); } 50% { border-color: transparent; box-shadow: 0 0 0 0 transparent; } }
+@keyframes lampeggia-titolo { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.lampeggia { animation: lampeggia 1.1s ease-in-out infinite; }
+.lampeggia .nuova-email-titolo { animation: lampeggia-titolo 1.1s ease-in-out infinite; }
+.lampeggia-bordo { animation: lampeggia 1.1s ease-in-out infinite; border: 2px solid var(--danger); }
+@media (prefers-reduced-motion: reduce) { .lampeggia, .lampeggia .nuova-email-titolo, .lampeggia-bordo { animation: none; } }
 .riga:first-child { border-top: 0; }
 .col-camera { grid-area: camera; }
-.col-ospite { grid-area: ospite; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.col-ospite { grid-area: ospite; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .col-contatti { grid-area: contatti; display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; }
 .col-checkin { grid-area: checkin; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.azioni { grid-area: azioni; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-.contattato { grid-area: contattato; margin: 0; font-size: 13px; color: var(--ok); }
+.azioni { grid-area: azioni; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.contattato { grid-area: contattato; margin: 8px 0 0; font-size: 13px; color: var(--ok); }
 .camera {
   display: grid; place-items: center; width: 52px; height: 52px; border-radius: 8px;
   border: 1px solid var(--gold); color: var(--gold); font-family: var(--font-title); font-size: 21px; font-variant-numeric: tabular-nums;
@@ -169,6 +250,7 @@ input[type="search"], input[type="password"] {
 .badge-ok { color: var(--ok); background: var(--ok-soft); }
 .badge-portale { color: var(--warn); background: var(--warn-soft); }
 .badge-no { color: var(--rust); background: var(--rust-soft); }
+.badge-lungo { white-space: normal; }
 .codice { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 0 5px; }
 .esito { font-weight: 700; font-size: 14px; }
 .esito-ok { color: var(--ok); }
@@ -208,9 +290,13 @@ input[type="search"], input[type="password"] {
   .gruppo { padding: 12px 12px 4px; }
   .riga {
     grid-template-columns: 52px minmax(0, 1fr);
-    grid-template-areas: "camera ospite" "contatti contatti" "checkin checkin" "azioni azioni" "contattato contattato";
-    gap: 8px 12px;
+    grid-template-areas: "compito compito" "camera ospite" "contatti contatti" "checkin checkin" "nuova nuova" "azioni azioni" "contattato contattato";
+    gap: 0 12px;
   }
+  .col-contatti, .col-checkin { margin-top: 8px; }
+  .nuova-email { grid-template-columns: 1fr; }
+  .nuova-email-titolo, .nuova-email-indirizzo { grid-column: 1; justify-self: start; }
+  .campo-email-riga { flex-wrap: wrap; }
   .camera { width: 48px; height: 48px; font-size: 19px; }
   .azioni .btn { flex: 1 1 auto; }
   #legenda dl { grid-template-columns: 1fr; gap: 2px; }
@@ -232,7 +318,7 @@ input[type="search"], input[type="password"] {
   </header>
 
   <div id="avvisi"></div>
-  <div id="stati" aria-live="polite"></div>
+  <nav id="schede" role="tablist" aria-label="Viste" hidden></nav>
   <div class="strumenti" id="strumenti" hidden>
     <label class="sr" for="cerca">Cerca ospite</label>
     <input id="cerca" type="search" placeholder="Cerca nome, camera, email o telefono" autocomplete="off" spellcheck="false">
@@ -244,15 +330,17 @@ input[type="search"], input[type="password"] {
     <dl>
       <dt>Check-in online da fare</dt>
       <dd>In Slope manca il documento: l'ospite non ha fatto il check-in online. Mandagli il link personale (WhatsApp o email): nel modulo inserisce la sua email.</dd>
-      <dt>Email da correggere</dt>
-      <dd>Check-in fatto, ma nella scheda cliente c'è ancora l'indirizzo di inoltro del portale (Booking.com, Expedia) oppure un indirizzo con un errore di battitura.</dd>
       <dt>Email mancante</dt>
-      <dd>Check-in fatto senza email. Chiedila all'ospite (WhatsApp, extranet o al banco).</dd>
+      <dd>Check-in fatto ma in Slope non c'è un'email valida: è vuota oppure c'è solo l'indirizzo di inoltro di Booking.com o Expedia, che vale come nessuna email. Chiedila all'ospite (WhatsApp, extranet o al banco).</dd>
+      <dt>Email da correggere</dt>
+      <dd>Check-in fatto, ma l'email ha un probabile errore di battitura nel dominio (es. gmail.con).</dd>
       <dt>Tutto a posto</dt>
       <dd>Check-in fatto e indirizzo diretto dell'ospite in Slope.</dd>
     </dl>
-    <p>L'email che l'ospite ti manda va scritta nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. Con l'aggiornamento orario la prenotazione passa da sola a «Tutto a posto».</p>
-    <p>«Contattato» resta solo su questo computer (id della prenotazione, canale e ora, nessun dato dell'ospite) e si cancella 14 giorni dopo l'arrivo. Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
+    <p><b>Quando scrivere:</b> check-in online da fare 5 giorni prima dell'arrivo; email mancante o da correggere 3 giorni prima. I promemoria arrivano in «Da fare oggi»; quelli dei prossimi giorni sono nel «Calendario».</p>
+    <p><b>Email mandata dall'ospite:</b> annotala subito nella riga della camera («+ Annota l'email»), così non si perde. Lampeggia in rosso finché non è nella <b>scheda cliente in Slope</b>: questa pagina legge da Slope ma non scrive. A ogni aggiornamento orario la pagina controlla Slope e, quando la trova, la toglie da sola.</p>
+    <p><b>Email agli ospiti:</b> il pulsante «Email» apre il messaggio con l'oggetto (numero di prenotazione e nome) e copia il testo con il pulsante START: clicca nel testo e premi Ctrl+V.</p>
+    <p>«Contattato» e le email annotate restano solo su questo computer e si cancellano 14 giorni dopo l'arrivo (le email anche appena compaiono in Slope). Le email agli indirizzi di Booking.com ed Expedia arrivano solo se spedite da info@alpstay.eu.</p>
     <button type="button" class="btn btn-piccolo" data-azione="blocca" title="Toglie la password reception da questo browser: servirà di nuovo anche per lettere di benvenuto e avvisi">Blocca questo computer</button>
   </details>
 </div>

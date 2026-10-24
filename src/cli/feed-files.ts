@@ -11,7 +11,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
 import type { Freshness } from "../types";
 
-export type Kind = "arrivi" | "ospiti" | "intestatari";
+/** «riferimenti» (numero del portale) e «ordini» (numero Slope) sono facoltativi: servono all'oggetto delle email. */
+export type Kind = "arrivi" | "ospiti" | "intestatari" | "riferimenti" | "ordini";
 
 export interface Bundle {
   readonly file: string;
@@ -32,6 +33,8 @@ const VIEW_KIND: Record<string, Kind> = {
   list_arrivals: "arrivi",
   curated_guest_stays: "ospiti",
   curated_reservation_contacts: "intestatari",
+  curated_reservations: "riferimenti",
+  curated_order_balances: "ordini",
 };
 
 function kindOf(vista: unknown, rows: readonly Record<string, unknown>[]): Kind | null {
@@ -40,6 +43,8 @@ function kindOf(vista: unknown, rows: readonly Record<string, unknown>[]): Kind 
   if (!r) return null;
   if ("booker_type" in r) return "intestatari";
   if ("guest_type" in r || "is_primary_guest" in r || "stay_start" in r) return "ospiti";
+  if ("order_number" in r) return "ordini";
+  if ("agency_code" in r) return "riferimenti";
   if ("room_name" in r || "adults" in r || "lodging_type_id" in r) return "arrivi";
   return null;
 }
@@ -87,9 +92,11 @@ export function readBundle(path: string): Bundle {
     if (rows.length === 0) throw new FileError(`${name}: vuoto e senza "vista": indica quale vista è`);
     throw new FileError(`${name}: vista non riconosciuta (aggiungi "vista")`);
   }
+  // Le righe degli ordini non hanno reservation_id: si controllano con order_id.
+  const chiave = kind === "ordini" ? "order_id" : "reservation_id";
   rows.forEach((r, i) => {
-    if (!isRec(r) || typeof r.reservation_id !== "string" || !UUID.test(r.reservation_id))
-      throw new FileError(`${name}: reservation_id mancante o non valido alla riga ${i + 1}`);
+    if (!isRec(r) || typeof r[chiave] !== "string" || !UUID.test(r[chiave] as string))
+      throw new FileError(`${name}: ${chiave} mancante o non valido alla riga ${i + 1}`);
   });
   const freshness = isRec(v.freshness) && isRec(v.freshness.overall) ? (v.freshness as unknown as Freshness) : null;
   return { file: name, kind, rows, freshness, total, more };

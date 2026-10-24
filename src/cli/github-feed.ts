@@ -20,7 +20,7 @@ import type { EncBlock } from "../feed";
 import { HARTMANN_ID, buildFeed, feedDates, hartmannRows } from "../feed-build";
 import { CLIENT_FILE, parseClient, readTokenResponse } from "../scatola-client";
 import type { ScatolaClient } from "../scatola-client";
-import type { ArrivalRow, BookerFields, Freshness, GuestStayFields } from "../types";
+import type { ArrivalRow, BookerFields, Freshness, GuestStayFields, OrderFields, ReferenceFields } from "../types";
 
 const TOKEN_FILE = "scatola-token.json";
 const STATUS_FILE = "stato-arrivi.txt";
@@ -236,7 +236,26 @@ async function arrivi(accessFile: string): Promise<void> {
       contacts.push(...((await scatola.all("query_curated_view", { view: "curated_reservation_contacts", filters, limit: 100 })).rows as unknown as BookerFields[]));
     }
 
-    const built = await buildFeed({ dates, rows, stays, contacts, freshness }, password).catch((e: unknown) => {
+    // Numero di prenotazione per l'oggetto delle email (facoltativo: se non arriva, il file si pubblica senza).
+    // Portali: agency_code di curated_reservations; dirette: order_number di curated_order_balances.
+    const references: ReferenceFields[] = [];
+    const orders: OrderFields[] = [];
+    try {
+      for (let i = 0; i < ids.length; i += 50) {
+        const filters = [{ field: "reservation_id", op: "in", value: ids.slice(i, i + 50) }];
+        references.push(...((await scatola.all("query_curated_view", { view: "curated_reservations", filters, limit: 100 })).rows as unknown as ReferenceFields[]));
+      }
+      const conCodice = new Set(references.filter((r) => typeof r.agency_code === "string" && r.agency_code.trim()).map((r) => r.reservation_id));
+      const orderIds = [...new Set(rows.filter((r) => !conCodice.has(r.reservation_id)).map((r) => r.order_id).filter(Boolean))].sort();
+      for (let i = 0; i < orderIds.length; i += 50) {
+        const filters = [{ field: "order_id", op: "in", value: orderIds.slice(i, i + 50) }];
+        orders.push(...((await scatola.all("query_curated_view", { view: "curated_order_balances", filters, limit: 100 })).rows as unknown as OrderFields[]));
+      }
+    } catch {
+      out("RIEPILOGO numeri di prenotazione non letti: le email partono senza numero nell'oggetto");
+    }
+
+    const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders }, password).catch((e: unknown) => {
       throw new Stop(e instanceof Error ? e.message : "composizione non riuscita");
     });
     writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}\n`);
