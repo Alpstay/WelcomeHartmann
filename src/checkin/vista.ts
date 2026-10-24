@@ -580,7 +580,20 @@ function apriInSlope(r: RigaCheckin, aspetto: "primario" | "normale" | "link" = 
   return `<a class="${classe}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" title="Apre la prenotazione nel backoffice di Slope (scheda cliente ed estensione «Slope X LTS Guest Pass»)">Apri in Slope</a>`;
 }
 
-/** Azioni secondarie, in piccolo sotto il pulsante: link di check-in, annotare l'email, aprire Slope. */
+/** Pagina delle lettere di benvenuto, nella stessa piattaforma (stessa password). */
+const PAGINA_LETTERE = "https://alpstay.github.io/WelcomeHartmann/";
+
+/**
+ * La lettera di benvenuto di chi arriva oggi o domani: apre la pagina delle lettere su quel giorno, con la camera
+ * già in anteprima (#lettera=<giorno>~<reservation_id>, ID di Slope identico).
+ */
+function linkLettera(r: RigaCheckin): string | null {
+  if (r.giorniAllArrivo < 0 || r.giorniAllArrivo > 1) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.arrivo) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.reservationId)) return null;
+  return `${PAGINA_LETTERE}#lettera=${r.arrivo}~${r.reservationId}`;
+}
+
+/** Azioni secondarie, in piccolo sotto il pulsante: link di check-in, annotare l'email, aprire Slope, lettera. */
 function altreAzioni(r: RigaCheckin, conSlope = true): string {
   const id = esc(r.reservationId);
   const voci: string[] = [];
@@ -592,6 +605,8 @@ function altreAzioni(r: RigaCheckin, conSlope = true): string {
     voci.push(`<button type="button" class="link link-piccolo" data-azione="apri-campo" data-id="${id}" title="L'ospite ha mandato la sua email: annotala qui per non perderla">Annota email ricevuta</button>`);
   }
   if (conSlope) voci.push(apriInSlope(r, "link"));
+  const lettera = linkLettera(r);
+  if (lettera) voci.push(`<a class="link link-piccolo" href="${esc(lettera)}" title="Apre la lettera di benvenuto di questa camera (anteprima, nota, PIN, PDF)">Lettera di benvenuto</a>`);
   const piene = voci.filter(Boolean);
   return piene.length ? `<div class="azioni-altre">${piene.join("")}</div>` : "";
 }

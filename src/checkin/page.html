@@ -65,6 +65,11 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 400; letter-spacing: .
 a { color: inherit; }
 .icona { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
+/* Menu della piattaforma reception: le stesse voci in cima a ogni pagina, la pagina aperta sottolineata in nero. */
+.piattaforma { display: flex; gap: 28px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.piattaforma a { padding: 10px 0 9px; font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.piattaforma a:hover { color: var(--fg, var(--ink)); }
+.piattaforma a[aria-current="page"] { color: var(--fg, var(--ink)); border-bottom-color: var(--fg, var(--ink)); }
 /* Testata */
 .testata { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .testata-titolo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -422,6 +427,10 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
 </style>
 
 <div id="app">
+  <nav class="piattaforma" aria-label="Piattaforma reception">
+    <a href="https://alpstay.github.io/WelcomeHartmann/checkin/" aria-current="page">Check-in &amp; email</a>
+    <a href="https://alpstay.github.io/WelcomeHartmann/">Lettere di benvenuto</a>
+  </nav>
   <header class="testata">
     <div class="testata-titolo">
       <span class="occhiello">Chalet Hotel Hartmann · Ortisei · Reception</span>

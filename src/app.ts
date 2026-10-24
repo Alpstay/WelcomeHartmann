@@ -96,6 +96,37 @@ const shortDate = (iso: string): string => `${iso.slice(8, 10)}.${iso.slice(5, 7
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
+// ——— link dalla pagina checkin/ ———
+
+/**
+ * La pagina checkin/ apre la lettera di una camera con #lettera=<AAAA-MM-GG>~<reservation_id>: si sceglie quel giorno
+ * e, appena gli arrivi sono caricati (anche dopo la password), si mette a fuoco quella prenotazione. Il # si toglie
+ * subito dalla barra. L'ID di Slope si confronta soltanto, identico.
+ */
+const RE_LETTERA = /^#lettera=(\d{4}-\d{2}-\d{2})~([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+let letteraDaAprire: string | null = null;
+
+function leggiLinkLettera(): string | null {
+  const m = RE_LETTERA.exec(location.hash);
+  if (!m) return null;
+  history.replaceState(null, "", location.pathname + location.search);
+  letteraDaAprire = m[2];
+  return m[1];
+}
+
+/** Dopo il caricamento: la lettera chiesta dal link diventa quella in anteprima e la riga si vede. */
+function apriLetteraDalLink(): void {
+  const id = letteraDaAprire;
+  if (!id || !state.items.some((i) => i.key === id)) return;
+  letteraDaAprire = null;
+  state.focusKey = id;
+}
+
+function mostraLetteraAperta(): void {
+  if (!state.focusKey) return;
+  document.querySelector<HTMLLIElement>(`li.row[data-key="${CSS.escape(state.focusKey)}"]`)?.scrollIntoView({ block: "center" });
+}
+
 // ——— stato ———
 
 const state: AppState = {
@@ -436,9 +467,12 @@ async function loadFromFeed(seq: number, date: string): Promise<void> {
   $("fresh").textContent = inRange
     ? `${n === 0 ? "Nessun arrivo" : plural(n, "arrivo", "arrivi")} di ${longDate(date)} · La Scatola delle ${timeRome(when)}`
     : "";
+  const dalLink = letteraDaAprire !== null;
+  apriLetteraDalLink();
   if (!state.items.some((i) => i.key === state.focusKey)) state.focusKey = state.items[0]?.key ?? null;
   showBanners(banners);
   renderAll();
+  if (dalLink) mostraLetteraAperta();
 }
 
 async function unlock(pw: string): Promise<void> {
@@ -1312,6 +1346,16 @@ function start(): void {
     toast,
   });
   renderFacts();
+  const giorno = leggiLinkLettera();
+  if (giorno) state.date = giorno;
+  // link aperto con la pagina già aperta: cambia solo il #
+  window.addEventListener("hashchange", () => {
+    const g = leggiLinkLettera();
+    if (!g) return;
+    state.date = g;
+    renderToolbar();
+    void load();
+  });
   wire();
   renderAll();
   void load();
