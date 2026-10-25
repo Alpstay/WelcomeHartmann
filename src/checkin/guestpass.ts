@@ -127,8 +127,8 @@ export function statoGuestPass(
 const escHtml = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
-/** Etichetta del pulsante del link al Guest Pass nell'email. */
-export const ETICHETTA_GUESTPASS = "GUEST PASS";
+/** Testo del link alla pagina personale con il Guest Pass (richiesta dell'utente: «click here» nella lingua dell'ospite). */
+export const ETICHETTA_GUESTPASS: Readonly<Record<Lingua, string>> = { it: "Clicca qui", de: "Hier klicken", en: "Click here" };
 
 /**
  * Messaggio del Guest Pass: stessi testi della pagina avvisi/ (TESTI_GUESTPASS), oggetto con numero di prenotazione
@@ -136,12 +136,13 @@ export const ETICHETTA_GUESTPASS = "GUEST PASS";
  */
 export function messaggioGuestPass(r: RigaCheckin, lingua: Lingua, pass: readonly PassTrovato[]): Messaggio {
   const t = TESTI_GUESTPASS[lingua];
+  const etichetta = ETICHETTA_GUESTPASS[lingua];
   // pagina personale completa: Guest Pass e check-in della prenotazione nello stesso link
   const link = linkGuestPass(lingua, pass, [r.reservationId], r.checkinUrl);
   const righe = t.corpo.split("\n");
   const senzaAsterischi = (x: string): string => x.replace(/\*([^*\n]+)\*/g, "$1");
-  const testo = righe.map((x) => (x === SEGNAPOSTO_LINK_GUESTPASS ? `${ETICHETTA_GUESTPASS}: ${link}` : senzaAsterischi(x))).join("\n");
-  const whatsapp = righe.map((x) => (x === SEGNAPOSTO_LINK_GUESTPASS ? `*${ETICHETTA_GUESTPASS}* ${link}` : x)).join("\n");
+  const testo = righe.map((x) => (x === SEGNAPOSTO_LINK_GUESTPASS ? `${etichetta}: ${link}` : senzaAsterischi(x))).join("\n");
+  const whatsapp = righe.map((x) => (x === SEGNAPOSTO_LINK_GUESTPASS ? `*${etichetta}* ${link}` : x)).join("\n");
   // paragrafi separati dalle righe vuote (le righe della firma restano una sotto l'altra); il link è un pulsante
   const blocchi: string[] = [];
   let corrente: string[] = [];
@@ -153,7 +154,7 @@ export function messaggioGuestPass(r: RigaCheckin, lingua: Lingua, pass: readonl
     if (x === SEGNAPOSTO_LINK_GUESTPASS) {
       chiudi();
       blocchi.push(
-        `<p style="margin:0 0 18px"><a href="${escHtml(link)}" style="display:inline-block;padding:10px 26px;background:#94752f;color:#ffffff;font-weight:bold;letter-spacing:.08em;text-decoration:none;border-radius:6px">${ETICHETTA_GUESTPASS}</a></p>`,
+        `<p style="margin:0 0 18px"><a href="${escHtml(link)}" style="display:inline-block;padding:10px 26px;background:#94752f;color:#ffffff;font-weight:bold;letter-spacing:.08em;text-decoration:none;border-radius:6px">${escHtml(etichetta)}</a></p>`,
       );
     } else if (x === "") chiudi();
     else corrente.push(x);

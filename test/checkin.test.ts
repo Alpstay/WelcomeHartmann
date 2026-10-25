@@ -14,6 +14,8 @@ import type { ArrivalRow, ContactFields } from "../src/types";
 import {
   calendarioCompletoFino,
   confrontaConSlope,
+  conCheckinSegnato,
+  registroCheckinSegnati,
   daFareOggi,
   emailDaInserire,
   giornoSollecito,
@@ -437,20 +439,48 @@ await t("Guest Pass: messaggio con pulsante GUEST PASS e link alla pagina d'arri
   const r = versoRiga(item(1, { name: "Rossi Luca", greetingName: "Luca Rossi", lang: "it", checkinFatto: true, email: "luca@example.com", numeroOrdine: 8086301 }), OGGI);
   const m = messaggioGuestPass(r, "it", [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }]);
   assert.equal(m.oggetto, "Il vostro Guest Pass · Chalet Hotel Hartmann · Prenotazione n. 8086301 · Luca Rossi");
-  assert.match(m.html, />GUEST PASS<\/a>/);
+  assert.match(m.html, />Clicca qui<\/a>/);
   // pagina personale completa: check-in (#ci=) + pass, legati alla stessa prenotazione (ID non ripetuto)
   const ci = `ci=00000000-0000-4000-8000-0000000000aa~c6055fa5-edaa-4b8f-a518-541322f3ac1e~${ID(1)}`;
   assert.ok(m.html.includes(`#${ci}&amp;gp=${"C".repeat(24)}&amp;gn=LUCA%20ROSSI&amp;gr=${ID(1)}"`));
-  assert.ok(m.testo.includes(`GUEST PASS: https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it#${ci}&gp=`));
+  assert.ok(m.testo.includes(`Clicca qui: https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it#${ci}&gp=`));
   assert.ok(m.testo.includes("pagina personale"));
   assert.ok(!m.testo.includes("*"));
-  assert.ok(m.whatsapp.includes("*GUEST PASS* https://"));
+  assert.ok(m.whatsapp.includes("*Clicca qui* https://"));
+  assert.match(messaggioGuestPass(r, "de", [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }]).html, />Hier klicken<\/a>/);
+  assert.match(messaggioGuestPass(r, "en", [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }]).html, />Click here<\/a>/);
   assert.ok(!m.html.includes("<br></p>"));
   // senza link di check-in: solo i pass; check-in di un'altra camera dello stesso intestatario: entrambe in &gr=
   const pass = [{ nome: "LUCA ROSSI", codice: "C".repeat(24) }];
   assert.equal(linkGuestPass("en", pass, [ID(1)]), `https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=en#gp=${"C".repeat(24)}&gn=LUCA%20ROSSI&gr=${ID(1)}`);
   assert.ok(linkGuestPass("en", pass, [ID(1)], LINK(2)).endsWith(`&gr=${ID(1)}~${ID(2)}`));
   assert.ok(!linkGuestPass("en", pass, [ID(1)], "https://esempio.com/check-in").includes("ci="));
+});
+
+await t("check-in segnato a mano: la riga prosegue verso il Guest Pass senza aspettare Slope", () => {
+  const da = versoRiga(item(1, { checkinFatto: false, email: "ospite@example.com" }), OGGI);
+  const portale = versoRiga(item(2, { checkinFatto: false, email: "abc.123@guest.booking.com" }), OGGI);
+  const segnati = registroCheckinSegnati(
+    [
+      { id: ID(1), quando: "2026-12-20T10:00:00Z", arrivo: OGGI },
+      { id: ID(2), quando: "2026-12-20T10:00:00Z", arrivo: OGGI },
+      { id: ID(3), quando: "2026-11-01T10:00:00Z", arrivo: "2026-11-01" },
+      { id: 5 },
+    ],
+    OGGI,
+  );
+  assert.deepEqual([...segnati.keys()], [ID(1), ID(2)]);
+  const r1 = conCheckinSegnato(da, segnati);
+  assert.equal(r1.checkinFatto, true);
+  assert.equal(r1.checkinAMano, true);
+  assert.equal(r1.stato, "tutto-ok");
+  assert.equal(statoGuestPass(r1, new Map(), []).stato, "da-generare");
+  // con il solo inoltro del portale manca ancora l'email: niente Guest Pass
+  assert.equal(conCheckinSegnato(portale, segnati).stato, "email-mancante");
+  // già fatto in Slope o non segnato: riga invariata
+  const fatto = versoRiga(item(1, { checkinFatto: true, email: "ospite@example.com" }), OGGI);
+  assert.equal(conCheckinSegnato(fatto, segnati), fatto);
+  assert.equal(conCheckinSegnato(versoRiga(item(4), OGGI), segnati).checkinAMano, undefined);
 });
 
 console.log(`checkin: ${n} test superati`);

@@ -16,6 +16,7 @@ import { linkEmail, mostraNumero } from "../avvisi/testi";
 import type { PassTrovato } from "../avvisi/guestpass";
 import {
   CASELLA_GUESTPASS,
+  ETICHETTA_GUESTPASS,
   K_GUESTPASS_EMAIL_GESTITE,
   K_GUESTPASS_INVIATI,
   abbinaGuestPass,
@@ -32,6 +33,8 @@ import {
   aggiungiGiorni,
   calendarioCompletoFino,
   cerca,
+  conCheckinSegnato,
+  confronta,
   contattoAttuale,
   conteggi,
   confrontaConSlope,
@@ -44,13 +47,14 @@ import {
   oggiRoma,
   perOrdine,
   promemoria,
+  registroCheckinSegnati,
   registroEmailNuove,
   registroValido,
   righeDa,
   serveEmail,
   validaEmailNuova,
 } from "./regole";
-import type { Canale, Contatto, EmailNuova, Motivo, Promemoria, RigaCheckin, StatoRiga } from "./regole";
+import type { Canale, CheckinSegnato, Contatto, EmailNuova, Motivo, Promemoria, RigaCheckin, StatoRiga } from "./regole";
 
 // ───────────────────────── Fonte dei dati ─────────────────────────
 
@@ -116,6 +120,8 @@ interface Stato {
   registro: Map<string, Contatto>;
   /** email mandate dagli ospiti e annotate dalla reception, da portare in Slope */
   emailNuove: Map<string, EmailNuova>;
+  /** check-in online visti in Slope e segnati a mano (La Scatola ancora indietro) */
+  checkinSegnati: Map<string, CheckinSegnato>;
   /** riga con il campo «email ricevuta» aperto */
   campoAperto: string | null;
   /** promemoria del calendario aperti con tutte le azioni */
@@ -136,6 +142,7 @@ interface Stato {
 const K_REGISTRO = "checkinHartmann.contatti";
 /** Email annotate (dati personali): restano solo su questo computer, fino a quando sono in Slope o 14 giorni dopo l'arrivo. */
 const K_EMAIL_NUOVE = "checkinHartmann.emailNuove";
+const K_CHECKIN_SEGNATI = "checkinHartmann.checkinSegnati";
 const K_FILTRO = "checkinHartmann.filtro";
 const K_VISTA = "checkinHartmann.vista";
 /** Impostazioni della pagina avvisi/: da lì si legge solo il programma email scelto (Outlook o Gmail). */
@@ -157,6 +164,7 @@ const stato: Stato = {
   cerca: "",
   registro: new Map(),
   emailNuove: new Map(),
+  checkinSegnati: new Map(),
   campoAperto: null,
   erroreCampo: null,
   espansi: new Set(),
@@ -205,6 +213,19 @@ function caricaRegistro(): void {
 
 function salvaRegistro(): void {
   scriviJson(K_REGISTRO, [...stato.registro.values()]);
+}
+
+function caricaCheckinSegnati(): void {
+  stato.checkinSegnati = registroCheckinSegnati(leggiJson<unknown>(K_CHECKIN_SEGNATI, []), stato.oggi);
+}
+
+function salvaCheckinSegnati(): void {
+  scriviJson(K_CHECKIN_SEGNATI, [...stato.checkinSegnati.values()]);
+}
+
+/** Righe dai dati di Slope, con i check-in segnati a mano dalla reception. */
+function calcolaRighe(): void {
+  stato.righe = stato.dati ? righeDa(stato.dati.righe, stato.oggi).map((r) => conCheckinSegnato(r, stato.checkinSegnati)).sort(confronta) : [];
 }
 
 function caricaEmailNuove(): void {
@@ -279,7 +300,7 @@ async function carica(passwordNuova: string | null = null): Promise<void> {
   const l = await fonte.leggi(passwordNuova);
   if (l.esito === "ok") {
     stato.dati = l.dati;
-    stato.righe = righeDa(l.dati.righe, stato.oggi);
+    calcolaRighe();
     chiudiEmailInserite();
     stato.erroreSblocco = null;
     stato.caricamento = "ok";
@@ -506,7 +527,9 @@ function chip(tono: TonoChip, testo: string, titolo = ""): string {
 /** I tre segnali della prenotazione: check-in online, email in Slope, Guest Pass. */
 function segnali(r: RigaCheckin): string {
   const e = r.controlloEmail;
-  const checkin = r.checkinFatto
+  const checkin = r.checkinAMano
+    ? chip("ok", "Check-in fatto · segnato a mano", "Segnato dalla reception dopo averlo visto in Slope: l'aggiornamento orario lo confermerà")
+    : r.checkinFatto
     ? chip("ok", "Check-in fatto")
     : chip("no", r.checkinUrl ? "Check-in da fare" : "Check-in da fare · senza link", r.checkinUrl ? "" : "Slope non ha fornito il link personale di check-in");
   const email =
@@ -600,6 +623,11 @@ function altreAzioni(r: RigaCheckin, conSlope = true): string {
   if (!r.checkinFatto && r.checkinUrl) {
     voci.push(`<button type="button" class="link link-piccolo" data-azione="copia-link" data-id="${id}">Copia link check-in</button>`);
     voci.push(`<a class="link link-piccolo" href="${esc(r.checkinUrl)}" target="_blank" rel="noopener noreferrer" title="Apre il check-in online di Slope (anche sul tablet della reception, con l'ospite al banco)">Apri check-in</a>`);
+  }
+  if (!r.checkinFatto) {
+    voci.push(`<button type="button" class="link link-piccolo" data-azione="segna-checkin" data-id="${id}" title="In Slope il check-in online è fatto ma qui non risulta ancora (l'aggiornamento da Slope arriva dopo)">Check-in fatto in Slope</button>`);
+  } else if (r.checkinAMano) {
+    voci.push(`<button type="button" class="link link-piccolo" data-azione="togli-checkin" data-id="${id}">Annulla «check-in fatto»</button>`);
   }
   if (serveEmail(r) && !stato.emailNuove.has(r.reservationId) && stato.campoAperto !== r.reservationId) {
     voci.push(`<button type="button" class="link link-piccolo" data-azione="apri-campo" data-id="${id}" title="L'ospite ha mandato la sua email: annotala qui per non perderla">Annota email ricevuta</button>`);
@@ -1211,7 +1239,7 @@ function renderComposer(): void {
       <div class="anteprima-email" id="anteprima-msg">${m.html}</div>
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(posta)}" target="_blank" rel="noopener" data-azione="copia-e-apri">Copia il testo e apri l'email</a>
-          <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante ${c.guestpass ? "GUEST PASS" : "START"}.</span></li>
+          <span class="aiuto">Si apre l'email con destinatario e oggetto già scritti: clicca nel corpo e premi <kbd>Ctrl</kbd>+<kbd>V</kbd>. Arriva questo testo, con il pulsante ${c.guestpass ? `«${ETICHETTA_GUESTPASS[c.lingua]}»` : "START"}.</span></li>
         ${anche("whatsapp")}
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviata</button></li>
       </ol>
@@ -1224,7 +1252,7 @@ function renderComposer(): void {
       <div class="anteprima-testo">${esc(m.whatsapp).replace(/\*([^*\n]+)\*/g, "<b>$1</b>")}</div>
       <ol class="msg-passi">
         <li><a class="btn btn-primario" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Apri WhatsApp con il messaggio</a>
-          <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo ${c.guestpass ? "GUEST PASS" : "START"}, in grassetto.</span></li>
+          <span class="aiuto">Su WhatsApp il link non si può nascondere: compare dopo ${c.guestpass ? `«${ETICHETTA_GUESTPASS[c.lingua]}»` : "START"}, in grassetto.</span></li>
         ${anche("email")}
         <li><button type="button" class="btn btn-conferma" data-azione="segna-inviato">Segna inviato</button></li>
       </ol>`;
@@ -1507,6 +1535,39 @@ function collegaEventi(): void {
         if (n) toast(copiata ? `${n.email} copiata: in Slope incollala nella scheda cliente (Ctrl+V).` : "Copia non riuscita: torna qui, premi «Copia email» e poi incollala in Slope.");
         break;
       }
+      case "segna-checkin": {
+        const id = el.dataset.id;
+        const riga = id ? stato.righe.find((x) => x.reservationId === id) : undefined;
+        if (id && riga) {
+          stato.checkinSegnati.set(id, { id, quando: new Date().toISOString(), arrivo: riga.arrivo });
+          salvaCheckinSegnati();
+          calcolaRighe();
+          render();
+          const dopo = stato.righe.find((x) => x.reservationId === id);
+          toast(
+            `${riga.camera ? `Camera ${riga.camera}` : riga.nome}: check-in fatto. ${
+              dopo?.stato === "tutto-ok" ? "Ora è in «Generare il Guest Pass»." : "Manca ancora un'email diretta valida: annotala o correggila."
+            }`,
+            () => {
+              stato.checkinSegnati.delete(id);
+              salvaCheckinSegnati();
+              calcolaRighe();
+              render();
+            },
+          );
+        }
+        break;
+      }
+      case "togli-checkin": {
+        const id = el.dataset.id;
+        if (id && stato.checkinSegnati.delete(id)) {
+          salvaCheckinSegnati();
+          calcolaRighe();
+          render();
+          toast("Check-in segnato a mano tolto.");
+        }
+        break;
+      }
       case "togli-email-nuova": {
         const id = el.dataset.id;
         const prima = id ? stato.emailNuove.get(id) : undefined;
@@ -1542,6 +1603,7 @@ export async function avvia(f: Fonte): Promise<void> {
   if (filtro && (filtro === "tutti" || (ORDINE_STATI as readonly string[]).includes(filtro))) stato.filtro = filtro as Filtro;
   caricaRegistro();
   caricaEmailNuove();
+  caricaCheckinSegnati();
   caricaRegistriGP();
   if (f.esempiContatti && stato.registro.size === 0) {
     for (const c of f.esempiContatti) stato.registro.set(c.id, c);
@@ -1569,6 +1631,7 @@ export async function avvia(f: Fonte): Promise<void> {
     ultimo = ultimoGP = Date.now();
     caricaRegistro();
     caricaEmailNuove();
+    caricaCheckinSegnati();
     void carica();
   };
   window.setInterval(forse, 60_000);

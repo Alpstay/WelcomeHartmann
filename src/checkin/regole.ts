@@ -72,6 +72,18 @@ export interface RigaCheckin {
   readonly stato: StatoRiga;
   /** order_id di Slope, invariato (più camere dello stesso ordine hanno lo stesso); null se La Scatola non lo dà */
   readonly ordineSlope: string | null;
+  /** check-in fatto segnato a mano dalla reception (visto in Slope, La Scatola non lo mostra ancora) */
+  readonly checkinAMano?: boolean;
+}
+
+/** Check-in online visto in Slope e segnato dalla reception su questo computer. Solo id Slope e date. */
+export interface CheckinSegnato {
+  /** reservation_id di Slope, invariato */
+  readonly id: string;
+  /** ISO, quando è stato segnato */
+  readonly quando: string;
+  /** data di arrivo, per cancellare il registro dopo il soggiorno */
+  readonly arrivo: string;
 }
 
 /** Contatto registrato su questo computer. Solo id Slope, motivo, canale e data: nessun dato dell'ospite. */
@@ -351,6 +363,27 @@ export function righeDa(items: readonly AvvisoItem[], oggi: string): RigaCheckin
     .filter((x) => (viste.has(x.reservationId) ? false : (viste.add(x.reservationId), true)))
     .map((x) => versoRiga(x, oggi))
     .sort(confronta);
+}
+
+/**
+ * Check-in segnato a mano: quando La Scatola è indietro (o ferma) ma in Slope il check-in online è fatto, la reception
+ * lo segna e la riga prosegue (email, Guest Pass) senza aspettare l'aggiornamento. Appena Slope lo conferma la riga
+ * resta com'è e il segno non serve più. L'email resta quella letta da Slope.
+ */
+export function conCheckinSegnato(r: RigaCheckin, segnati: ReadonlyMap<string, CheckinSegnato>): RigaCheckin {
+  if (r.checkinFatto || !segnati.has(r.reservationId)) return r;
+  return { ...r, checkinFatto: true, checkinAMano: true, stato: statoDa(true, r.controlloEmail) };
+}
+
+/** Registro dei check-in segnati a mano: si tiene fino a 14 giorni dopo l'arrivo. */
+export function registroCheckinSegnati(voci: unknown, oggi: string): Map<string, CheckinSegnato> {
+  const dal = aggiungiGiorni(oggi, -GIORNI_CONSERVAZIONE_CONTATTI);
+  const mappa = new Map<string, CheckinSegnato>();
+  for (const v of Array.isArray(voci) ? (voci as Partial<CheckinSegnato>[]) : []) {
+    if (!v || typeof v.id !== "string" || typeof v.arrivo !== "string" || v.arrivo < dal) continue;
+    mappa.set(v.id, { id: v.id, quando: String(v.quando ?? ""), arrivo: v.arrivo });
+  }
+  return mappa;
 }
 
 export function confronta(a: RigaCheckin, b: RigaCheckin): number {
