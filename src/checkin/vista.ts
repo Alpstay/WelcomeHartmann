@@ -845,6 +845,8 @@ function vistaCalendario(): string {
     { gruppo: "g-email", n: daFare.filter((p) => !p.sollecito && motivoPer(p.riga) === "email").length, titolo: "Chiedere l'email", tono: "lavoro" },
     { gruppo: "g-gp-lts", n: perOrdine(gp.daGenerare).length, titolo: "Guest Pass da generare", tono: "attenzione" },
     ...(gp.daAbbinare.length ? [{ gruppo: "g-gp-abbina", n: gp.daAbbinare.length, titolo: "Guest Pass da abbinare", tono: "attenzione" as const }] : []),
+    // le lettere da stampare per chi arriva oggi: porta alla pagina delle lettere (stessa piattaforma)
+    { gruppo: "", n: stato.righe.filter((r) => r.giorniAllArrivo === 0).length, titolo: "Lettere di benvenuto di oggi", tono: "lettere", href: PAGINA_LETTERE },
   ]);
   const oggi = `<section class="giorno giorno-oggi" id="giorno-${stato.oggi}" aria-labelledby="t-oggi">
       <h2 id="t-oggi" class="titolo-giorno">${esc(etichettaGiornoCalendario(stato.oggi))} <span class="conta">${contaOggi}</span></h2>
@@ -885,16 +887,18 @@ function vistaCalendario(): string {
     <div class="agenda">${oggi}${seguenti}</div>`;
 }
 
-type TonoTessera = "urgente" | "lavoro" | "pass" | "attenzione";
+type TonoTessera = "urgente" | "lavoro" | "pass" | "attenzione" | "lettere";
 
 /**
  * Il lavoro di oggi a colpo d'occhio: un numero grande per tipo, nello stesso ordine dei gruppi qui sotto.
  * Le tessere a zero restano al loro posto, spente: la reception le ritrova sempre nello stesso punto.
  */
-function cruscotto(voci: readonly { gruppo: string; n: number; titolo: string; tono: TonoTessera }[]): string {
+function cruscotto(voci: readonly { gruppo: string; n: number; titolo: string; tono: TonoTessera; href?: string }[]): string {
   return `<div class="cruscotto" role="group" aria-label="Lavoro di oggi">${voci
     .map((v) =>
-      v.n
+      v.href
+        ? `<a class="tile tile-${v.tono}" href="${esc(v.href)}"><span class="tile-n">${v.n}</span><span class="tile-t">${esc(v.titolo)} →</span></a>`
+        : v.n
         ? `<button type="button" class="tile tile-${v.tono}" data-azione="vai-gruppo" data-gruppo="${v.gruppo}"><span class="tile-n">${v.n}</span><span class="tile-t">${esc(v.titolo)}</span></button>`
         : `<div class="tile tile-zero" aria-label="${esc(v.titolo)}: niente"><span class="tile-n">0</span><span class="tile-t">${esc(v.titolo)}</span></div>`,
     )
