@@ -30,12 +30,17 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    "rows": [{"reservation_id", "order_id", "property_id", "room_name", "arrival", "departure", "adults",
    "children", "is_option", "booking_status", "stay_status"}, …]}` (`order_id` serve al pulsante «Apri in Slope»
    della pagina `checkin/`: si copia identico come gli altri ID).
+1b. **Ospiti in casa** (senza dati personali, per la scheda «Ospiti in casa» della pagina `checkin/`):
+   `list_in_house` con `date` = `G`, `property_id` dell'Hartmann, `limit 100`; segui `next_cursor`.
+   Scrivi nello scratchpad `incasa.json` con `{"vista": "list_in_house", "rows": [...]}` (stessi campi del passo 1,
+   ID copiati identici; il campo `"vista"` è obbligatorio, altrimenti il file sembra un file di arrivi). Facoltativo:
+   se La Scatola non risponde si costruisce senza (la scheda resta senza dati) e lo si scrive nel riepilogo.
 2. **Ospiti registrati** (vista con dati personali, da non mostrare): `query_curated_view` su
    `curated_guest_stays` con filtri `property_id eq <Hartmann>`, `stay_start gte G`, `stay_start lte G+6`,
    `limit 500`.
 3. **Intestatari** (vista con dati personali, da non mostrare): `query_curated_view` su
-   `curated_reservation_contacts` con filtri `property_id eq <Hartmann>`, `arrival gte G`, `arrival lte G+6`,
-   `limit 500`.
+   `curated_reservation_contacts` con filtri `property_id eq <Hartmann>`, `departure gte G`, `arrival lte G+6`,
+   `limit 500` (`departure gte G` e non `arrival gte G`: così arrivano anche gli intestatari degli ospiti in casa).
 
    Per 2 e 3: se il sistema salva la risposta su file perché grande, usa quel file così com'è. Se la
    risposta arriva nel messaggio, salvala tu in un file dello scratchpad
@@ -47,7 +52,7 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    telefono e link di check-in servono alla pagina `avvisi/` delle email pre-arrivo e finiscono solo cifrati;
    del documento il programma usa solo il sì/no «check-in online già fatto», il documento non viene pubblicato). Segui `next_cursor` con gli stessi filtri: un file per ogni pagina.
 3a. **Numeri del portale** (senza dati personali, per l'oggetto delle email della pagina `checkin/`):
-   `query_curated_view` su `curated_reservations` con filtri `property_id eq <Hartmann>`, `arrival gte G`,
+   `query_curated_view` su `curated_reservations` con filtri `property_id eq <Hartmann>`, `departure gte G`,
    `arrival lte G+6`, `limit 500`. Se la risposta arriva nel messaggio, salvala in un file dello scratchpad
    `{"vista": "curated_reservations", "total": <page.total>, "rows": [...]}` con i campi `reservation_id,
    order_id, property_id, arrival, booking_status, agency_code, agency_name, ota_channel`. Segui `next_cursor`.
@@ -59,7 +64,7 @@ il file NON è in questo repository (è pubblico): viene data nel testo dell'att
    3a e 3b sono facoltativi: se La Scatola non risponde a queste due letture, costruisci senza i loro file
    (le email partono senza numero di prenotazione nell'oggetto) e scrivilo nel riepilogo.
 4. **Costruisci**, dalla cartella del repository:
-   `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <file ospiti…> <file intestatari…> <file 3a…> <file 3b…>`
+   `node tools/feed.mjs build "<PASSWORD>" <arrivi.json> <incasa.json> <file ospiti…> <file intestatari…> <file 3a…> <file 3b…>`
    (percorsi separati da spazi o da virgole). Una riga `ATTENZIONE` indica quasi sempre un
    `reservation_id` trascritto male in `arrivi.json` o in un file scritto a mano: correggilo e rilancia.
    `PRONTO` = `arrivi.json` del repository scritto e ricontrollato.

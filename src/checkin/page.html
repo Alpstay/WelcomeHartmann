@@ -101,6 +101,11 @@ h1 { font-size: clamp(40px, 7vw, 58px); line-height: .92; }
 .link { font: inherit; font-weight: 500; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link-piccolo { font-size: 13px; color: var(--muted); min-height: 32px; display: inline-flex; align-items: center; }
 .link-piccolo:hover { color: var(--fg); }
+/* Azione già fatta su questo computer: spunta verde accanto al link o al pulsante */
+.link-piccolo.fatto { color: var(--ok); }
+.btn-fatto { box-shadow: inset 0 0 0 2px var(--ok-soft); }
+.gruppo-incasa { --c: var(--brand); }
+.nota-incasa { margin: 0; }
 
 /* Titoli con la linea, come «—— Accesso reception ——» */
 .titolo-linea { display: flex; align-items: center; gap: 18px; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
@@ -374,7 +379,7 @@ input[type="search"]:focus, input[type="password"]:focus { border-color: var(--f
 .msg-etichetta { margin: 4px 0 -8px; }
 /* L'anteprima dell'email resta chiara anche in tema scuro: è come la vede l'ospite */
 .anteprima-email { background: #ffffff; color: #161512; border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px; }
-.anteprima-email a { color: #ffffff; }
+.anteprima-email a { color: #6b521c; }
 .anteprima-testo { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
 .msg-passi { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 12px; }
 .msg-passi li { padding-left: 6px; }

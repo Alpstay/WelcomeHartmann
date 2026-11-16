@@ -73,6 +73,11 @@ export interface AvvisoItem {
 
 export interface AvvisiPayload {
   readonly items: readonly AvvisoItem[];
+  /**
+   * Ospiti in casa oggi (arrivati prima del primo giorno del file e non ancora partiti), stessi campi: servono alla
+   * pagina checkin/ per rimandare la pagina personale durante il soggiorno. Assente nei file più vecchi.
+   */
+  readonly inCasa?: readonly AvvisoItem[];
 }
 
 export const avvisiAad = (from: string): string => `WelcomeHartmann|avvisi|${from}`;

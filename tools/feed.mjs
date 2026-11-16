@@ -624,7 +624,11 @@ async function buildFeed(src, password) {
   const times = src.freshness.flatMap((f) => f.sources).filter((s) => s.resource === "lodging_reservation" && s.property_id === HARTMANN_ID && s.last_success_at).map((s) => Date.parse(s.last_success_at)).filter(Number.isFinite);
   const from = src.dates[0];
   const payload = { days };
-  const avvisi = { items: avvisiItems(src.rows, src.contacts, src.references, src.orders) };
+  const inCasa = src.inHouse ? avvisiItems(src.inHouse, src.contacts, src.references, src.orders) : null;
+  const avvisi = {
+    items: avvisiItems(src.rows, src.contacts, src.references, src.orders),
+    ...inCasa ? { inCasa } : {}
+  };
   const envelope = {
     format: 1,
     app: "WelcomeHartmann",
@@ -650,6 +654,7 @@ async function buildFeed(src, password) {
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" \xB7 ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} \xB7 senza nome: ${noName}`,
+      inCasa ? `RIEPILOGO in casa: ${inCasa.length} prenotazioni \xB7 ${inCasa.filter((i) => i.email).length} con email \xB7 ${inCasa.filter((i) => i.phone).length} con telefono` : "RIEPILOGO in casa: file list_in_house non indicato (la scheda \xABOspiti in casa\xBB resta senza dati)",
       `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate \xB7 ${avvisi.items.filter((i) => i.email).length} con email \xB7 ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in \xB7 ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in gi\xE0 fatto \xB7 ${avvisi.items.filter((i) => i.codicePortale || i.numeroOrdine).length} con numero di prenotazione`
     ]
   };
@@ -663,6 +668,7 @@ var UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var VIEW_KIND = {
   curated_operational_stays: "arrivi",
   list_arrivals: "arrivi",
+  list_in_house: "incasa",
   curated_guest_stays: "ospiti",
   curated_reservation_contacts: "intestatari",
   curated_reservations: "riferimenti",
@@ -946,6 +952,7 @@ async function next() {
 }
 var VIEW_OF = {
   arrivi: "curated_operational_stays",
+  incasa: "list_in_house",
   ospiti: "curated_guest_stays",
   intestatari: "curated_reservation_contacts",
   riferimenti: "curated_reservations",
@@ -1005,6 +1012,9 @@ async function build(args) {
   const contacts = contactRows;
   const references = of("riferimenti").flatMap((b2) => b2.rows);
   const orders = of("ordini").flatMap((b2) => b2.rows);
+  const inHouse = of("incasa").length ? hartmannRows(of("incasa").flatMap((b2) => b2.rows)).filter(
+    (r) => typeof r.arrival === "string" && r.arrival < dates[0] && typeof r.departure === "string" && r.departure >= dates[0]
+  ) : void 0;
   const ids = new Set(rows.map((r) => r.reservation_id));
   const withBooker = new Set(contactRows.map((c) => c.reservation_id));
   const warnings = [];
@@ -1017,10 +1027,13 @@ async function build(args) {
     if (inWindow(c.arrival) && c.booking_status !== "CANCELLED" && (pid === void 0 || pid === HARTMANN_ID) && !ids.has(c.reservation_id))
       warnings.push(`ATTENZIONE un intestatario con arrivo ${dm(String(c.arrival))} non corrisponde a nessun arrivo`);
   }
+  const senzaIntestatario = (inHouse ?? []).filter((r) => !withBooker.has(r.reservation_id));
+  if (senzaIntestatario.length)
+    out(`NOTA in casa senza intestatario (manca il filtro departure gte nel passo 3?): camere ${senzaIntestatario.map((r) => r.room_name ?? "senza camera").join(", ")}`);
   for (const w of warnings) out(w);
   if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
   const freshness = bundles.map((b2) => b2.freshness).filter((f) => f !== null);
-  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders }, password).catch(
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders, inHouse }, password).catch(
     (e) => fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`)
   );
   writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}

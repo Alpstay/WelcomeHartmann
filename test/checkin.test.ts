@@ -38,6 +38,9 @@ import {
   versoRiga,
 } from "../src/checkin/regole";
 import type { RigaCheckin } from "../src/checkin/regole";
+import { linkPaginaPersonale, messaggioInCasa, passInCasa, righeInCasa } from "../src/checkin/incasa";
+import { chiaveFatta, registroFatte, segnaFatta } from "../src/checkin/fatte";
+import { buildFeed } from "../src/feed-build";
 
 const OGGI = "2026-12-20";
 const ID = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -481,6 +484,105 @@ await t("check-in segnato a mano: la riga prosegue verso il Guest Pass senza asp
   const fatto = versoRiga(item(1, { checkinFatto: true, email: "ospite@example.com" }), OGGI);
   assert.equal(conCheckinSegnato(fatto, segnati), fatto);
   assert.equal(conCheckinSegnato(versoRiga(item(4), OGGI), segnati).checkinAMano, undefined);
+});
+
+await t("ospiti in casa: arrivati prima di oggi e non partiti, più gli arrivi di oggi, uno per prenotazione", () => {
+  const inCasa = [
+    item(1, { arrival: "2026-12-17", departure: "2026-12-22", room: "105" }),
+    item(2, { arrival: "2026-12-15", departure: OGGI, room: "102" }), // parte oggi: c'è ancora
+    item(3, { arrival: "2026-12-10", departure: "2026-12-19", room: "103" }), // già partito
+    item(4, { arrival: OGGI, room: "101" }), // arriva oggi: viene dagli arrivi
+  ];
+  const arrivi = [versoRiga(item(4, { room: "101" }), OGGI), versoRiga(item(5, { arrival: "2026-12-21", room: "108" }), OGGI)];
+  const righe = righeInCasa(inCasa, arrivi, OGGI);
+  assert.deepEqual(righe.map((r) => r.camera), ["101", "102", "105"]);
+  assert.deepEqual(righeInCasa(null, arrivi, OGGI).map((r) => r.reservationId), [ID(4)]);
+  // ID di Slope invariati
+  assert.equal(righe[2]!.reservationId, ID(1));
+});
+
+await t("ospiti in casa: Guest Pass dall'invio registrato o dal nome sicuro, link e messaggio", () => {
+  const righe = righeInCasa(
+    [
+      item(1, { arrival: "2026-12-17", name: "Gruber Sofia", greetingName: "Sofia Gruber", room: "104" }),
+      item(2, { arrival: "2026-12-18", name: "Conti Paolo", greetingName: "Paolo Conti", room: "106", checkinUrl: null }),
+      item(3, { arrival: "2026-12-18", name: "Bianchi Anna", greetingName: "Anna Bianchi", room: "107" }),
+    ],
+    [],
+    OGGI,
+  );
+  const casella = [
+    { id: "e1", ricevuta: "2026-12-16T10:00:00Z", lingua: "de" as const, firmata: true, pass: [{ nome: "SOFIA GRUBER", codice: "A".repeat(24) }] },
+    { id: "e2", ricevuta: "2026-12-16T11:00:00Z", lingua: "it" as const, firmata: true, pass: [{ nome: "MARIO ROSSI", codice: "B".repeat(24) }] },
+    { id: "e3", ricevuta: "2026-12-16T12:00:00Z", lingua: "it" as const, firmata: true, pass: [{ nome: "ANNA", codice: "C".repeat(24) }] },
+  ];
+  const invii = registroInviiGuestPass([{ id: ID(2), arrival: "2026-12-18", canale: "email", pass: 1, inviatoIl: "2026-12-17T10:00:00Z", emailId: "e2" }], OGGI);
+  const p = passInCasa(righe, casella, invii);
+  assert.equal(p.get(ID(1))?.fonte, "casella");
+  assert.equal(p.get(ID(2))?.fonte, "inviato");
+  assert.equal(p.get(ID(2))?.pass[0]!.codice, "B".repeat(24));
+  assert.equal(p.has(ID(3)), false, "una sola parola uguale non basta");
+  // link: con i pass e il check-in; senza pass ma con check-in; senza nulla la pagina d'arrivo
+  const sofia = righe.find((r) => r.reservationId === ID(1))!;
+  assert.ok(linkPaginaPersonale(sofia, "de", p.get(ID(1))!.pass).includes(`gp=${"A".repeat(24)}`));
+  assert.ok(linkPaginaPersonale(sofia, "de", []).includes(`#ci=`));
+  const paolo = righe.find((r) => r.reservationId === ID(2))!;
+  assert.equal(linkPaginaPersonale(paolo, "it", []), "https://alpstay.github.io/5DAYTO-ARRIVAL/?lang=it");
+  const m = messaggioInCasa(sofia, "de", p.get(ID(1))!.pass);
+  assert.ok(m.testo.startsWith("Guten Tag Sofia Gruber,"));
+  assert.ok(m.testo.includes(`Hier klicken: ${m.link}`));
+  assert.ok(m.whatsapp.includes(`*Hier klicken* ${m.link}`));
+  assert.ok(m.testo.includes("Guest Pass"));
+  assert.ok(!messaggioInCasa(sofia, "it", []).testo.includes("Guest Pass"));
+  // pulsante leggibile anche se il programma di posta toglie lo sfondo: testo scuro, non bianco
+  assert.ok(!m.html.includes("color:#ffffff"));
+});
+
+await t("azioni fatte: spunta salvata, voci non valide e ospiti partiti da oltre 14 giorni scartati", () => {
+  const reg = registroFatte(
+    [
+      { id: ID(1), azione: "apri-slope", quando: "2026-12-20T09:00:00Z", fino: "2026-12-23" },
+      { id: ID(2), azione: "copia-link", quando: "2026-11-01T09:00:00Z", fino: "2026-11-30" },
+      { id: ID(3), azione: "sconosciuta", quando: "2026-12-20T09:00:00Z", fino: "2026-12-23" },
+      { id: ID(4), azione: "lettera", quando: "non è una data", fino: "2026-12-23" },
+    ],
+    OGGI,
+  );
+  assert.deepEqual([...reg.keys()], [chiaveFatta(ID(1), "apri-slope")]);
+  const dopo = segnaFatta(reg, ID(5), "incasa-whatsapp", "2026-12-24", new Date("2026-12-20T10:00:00Z"));
+  assert.equal(dopo.size, 2);
+  assert.equal(reg.size, 1, "il registro di partenza non cambia");
+  assert.equal(dopo.get(chiaveFatta(ID(5), "incasa-whatsapp"))?.quando, "2026-12-20T10:00:00.000Z");
+});
+
+await t("file arrivi: blocco inCasa cifrato insieme agli avvisi, solo se c'è il file list_in_house", async () => {
+  const row = (n: number, arrival: string, departure: string): ArrivalRow =>
+    ({ reservation_id: ID(n), property_id: "22222222-2222-4222-8222-222222222222", room_name: "10" + n, arrival, departure, booking_status: "CONFIRMED", is_option: false }) as unknown as ArrivalRow;
+  const contatto = (n: number, arrival: string): ContactFields =>
+    ({ reservation_id: ID(n), property_id: "22222222-2222-4222-8222-222222222222", arrival, first_name: "Anna", last_name: "Prova", language: "de", primary_email: "anna@example.com" }) as unknown as ContactFields;
+  const base = { dates: [OGGI], rows: [row(1, OGGI, "2026-12-23")], stays: [], contacts: [contatto(1, OGGI), contatto(2, "2026-12-18")], freshness: [] };
+  const con = await buildFeed({ ...base, inHouse: [row(2, "2026-12-18", "2026-12-22")] }, "password-di-prova");
+  const dati = await decryptJson<AvvisiPayload>(con.envelope.avvisi!, "password-di-prova", avvisiAad(OGGI));
+  assert.equal(dati.inCasa?.length, 1);
+  assert.equal(dati.inCasa?.[0]?.reservationId, ID(2));
+  assert.equal(dati.inCasa?.[0]?.email, "anna@example.com");
+  assert.ok(con.summary.some((l) => l.startsWith("RIEPILOGO in casa: 1 prenotazioni")));
+  const senza = await buildFeed(base, "password-di-prova");
+  const d2 = await decryptJson<AvvisiPayload>(senza.envelope.avvisi!, "password-di-prova", avvisiAad(OGGI));
+  assert.equal(d2.inCasa, undefined);
+});
+
+await t("richiesta dell'email: spiega l'indirizzo cifrato del portale e chiede quello personale", () => {
+  const portale = versoRiga(item(1, { checkinFatto: true, email: "abc.123@guest.booking.com", lang: "de" }), OGGI);
+  const de = messaggio(portale, "email").testo;
+  assert.ok(de.includes("von Booking.com erhalten haben, ist eine verschlüsselte Adresse des Portals"));
+  assert.ok(de.includes("Guest Pass für die öffentlichen Verkehrsmittel direkt in Ihr Postfach"));
+  const it = messaggio(versoRiga(item(1, { checkinFatto: true, email: "abc.123@guest.booking.com", lang: "it" }), OGGI), "email").testo;
+  assert.ok(it.includes("indirizzo cifrato del portale"));
+  const sospetta = messaggio(versoRiga(item(2, { checkinFatto: true, email: "anna@gmail.con", lang: "en" }), OGGI), "email").testo;
+  assert.ok(sospetta.includes("(anna@gmail.con) seems to contain a typo"));
+  const nessuna = messaggio(versoRiga(item(3, { checkinFatto: true, email: null, lang: "en" }), OGGI), "email").testo;
+  assert.ok(nessuna.includes("We don't have an email address for you yet."));
 });
 
 console.log(`checkin: ${n} test superati`);

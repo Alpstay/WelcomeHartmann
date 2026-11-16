@@ -32,8 +32,15 @@ const RIGHE: readonly Riga[] = [
   [12, 6, 4, "105", "Lindqvist", "Erik", "sv", "erik.lindqvist@example.net", "+46 70 123 45 67", true, "S8086305"],
 ];
 
+// Ospiti già in casa (arrivati nei giorni scorsi): scheda «Ospiti in casa».
+const IN_CASA: readonly Riga[] = [
+  [21, -3, 5, "104", "Gruber", "Sofia", "de", "sofia.gruber@example.org", "+43 660 7654321", true, "S8086310"],
+  [22, -2, 4, "106", "Conti", "Paolo", "it", "pconti.771204@guest.booking.com", "+39 349 1122334", true, "B6012345680"],
+  [23, -1, 3, "120", "Taylor", "James", "en", "james.taylor@example.net", null, false, "E2300145690"],
+];
+
 // numero: B… = Booking.com, E… = Expedia (numero del portale), S… = numero dell'ordine Slope (diretta)
-const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome, lingua, email, telefono, fatto, numero]) => ({
+const verso = ([n, arrivo, notti, camera, cognome, nome, lingua, email, telefono, fatto, numero]: Riga): AvvisoItem => ({
   reservationId: id(n),
   arrival: g(arrivo),
   departure: g(arrivo + notti),
@@ -50,7 +57,9 @@ const items: AvvisoItem[] = RIGHE.map(([n, arrivo, notti, camera, cognome, nome,
   numeroOrdine: numero.startsWith("S") ? Number(numero.slice(1)) : null,
   // ordine Slope inventato: «Apri in Slope» porta a una pagina di Slope che non esiste
   ordineSlope: `00000000-0000-4000-8000-${String(100 + n).padStart(12, "0")}`,
-}));
+});
+const items: AvvisoItem[] = RIGHE.map(verso);
+const inCasa: AvvisoItem[] = IN_CASA.map(verso);
 
 const fonte: Fonte = {
   prova: true,
@@ -59,6 +68,7 @@ const fonte: Fonte = {
       esito: "ok",
       dati: {
         righe: items,
+        inCasa,
         da: oggi,
         a: g(6),
         aggiornatoAlle: new Date(Date.now() - 20 * 60_000).toISOString(),
@@ -94,6 +104,16 @@ const fonte: Fonte = {
           lingua: "de" as const,
           firmata: true,
           pass: [{ nome: "PETER WAGNER", codice: "PROVA0000000000000000000000000003" }],
+        },
+        {
+          id: "9e8d7c6b5a4f3e2d1c0b",
+          ricevuta: new Date(Date.now() - 4 * 86_400_000).toISOString(),
+          lingua: "de" as const,
+          firmata: true,
+          pass: [
+            { nome: "SOFIA GRUBER", codice: "PROVA0000000000000000000000000004" },
+            { nome: "MAX GRUBER", codice: "PROVA0000000000000000000000000005" },
+          ],
         },
       ],
     };

@@ -293,6 +293,7 @@ async function next(): Promise<void> {
 
 const VIEW_OF: Record<Kind, string> = {
   arrivi: "curated_operational_stays",
+  incasa: "list_in_house",
   ospiti: "curated_guest_stays",
   intestatari: "curated_reservation_contacts",
   riferimenti: "curated_reservations",
@@ -369,6 +370,12 @@ async function build(args: string[]): Promise<void> {
   // Facoltativi: senza questi file l'oggetto delle email resta senza numero di prenotazione.
   const references = of("riferimenti").flatMap((b) => b.rows) as unknown as ReferenceFields[];
   const orders = of("ordini").flatMap((b) => b.rows) as unknown as OrderFields[];
+  // Facoltativo: ospiti in casa oggi (list_in_house), arrivati prima del primo giorno del file e non ancora partiti.
+  const inHouse = of("incasa").length
+    ? hartmannRows(of("incasa").flatMap((b) => b.rows) as unknown as ArrivalRow[]).filter(
+        (r) => typeof r.arrival === "string" && r.arrival < dates[0] && typeof r.departure === "string" && r.departure >= dates[0],
+      )
+    : undefined;
 
   // Controlli incrociati, come le righe ATTENZIONE delle colazioni: un reservation_id trascritto male non trova
   // il suo intestatario. Nei messaggi solo camere e date, mai nomi.
@@ -384,11 +391,15 @@ async function build(args: string[]): Promise<void> {
     if (inWindow(c.arrival) && c.booking_status !== "CANCELLED" && (pid === undefined || pid === HARTMANN_ID) && !ids.has(c.reservation_id as string))
       warnings.push(`ATTENZIONE un intestatario con arrivo ${dm(String(c.arrival))} non corrisponde a nessun arrivo`);
   }
+  // Ospiti in casa senza intestatario: solo una nota (la scheda mostra comunque camera e date), non blocca.
+  const senzaIntestatario = (inHouse ?? []).filter((r) => !withBooker.has(r.reservation_id));
+  if (senzaIntestatario.length)
+    out(`NOTA in casa senza intestatario (manca il filtro departure gte nel passo 3?): camere ${senzaIntestatario.map((r) => r.room_name ?? "senza camera").join(", ")}`);
   for (const w of warnings) out(w);
   if (warnings.length && !force) fail("controlla i reservation_id copiati nei file e rilancia (se sono giusti: --forza). Non pubblicare.");
 
   const freshness = bundles.map((b) => b.freshness).filter((f): f is Freshness => f !== null);
-  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders }, password).catch((e: unknown) =>
+  const built = await buildFeed({ dates, rows, stays, contacts, freshness, references, orders, inHouse }, password).catch((e: unknown) =>
     fail(`${e instanceof Error ? e.message : String(e)}. Non pubblicare.`),
   );
   writeFileSync(FEED_FILE, `${JSON.stringify(built.envelope)}\n`);

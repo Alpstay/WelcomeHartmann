@@ -40,6 +40,8 @@ export interface FeedSource {
   readonly references?: readonly ReferenceFields[];
   /** curated_order_balances: numero dell'ordine Slope (facoltativo, serve per le dirette). */
   readonly orders?: readonly OrderFields[];
+  /** list_in_house di oggi, già filtrato con hartmannRows: ospiti arrivati prima di oggi (facoltativo). */
+  readonly inHouse?: readonly ArrivalRow[];
 }
 
 export interface BuiltFeed {
@@ -153,7 +155,11 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
     .filter(Number.isFinite);
   const from = src.dates[0];
   const payload: FeedPayload = { days };
-  const avvisi: AvvisiPayload = { items: avvisiItems(src.rows, src.contacts, src.references, src.orders) };
+  const inCasa = src.inHouse ? avvisiItems(src.inHouse, src.contacts, src.references, src.orders) : null;
+  const avvisi: AvvisiPayload = {
+    items: avvisiItems(src.rows, src.contacts, src.references, src.orders),
+    ...(inCasa ? { inCasa } : {}),
+  };
   const envelope: FeedEnvelope = {
     format: 1,
     app: "WelcomeHartmann",
@@ -180,6 +186,9 @@ export async function buildFeed(src: FeedSource, password: string): Promise<Buil
       `RIEPILOGO arrivi ${src.dates.map((d) => `${dm(d)}: ${counts[d]}`).join(" · ")}`,
       `RIEPILOGO La Scatola: ${worst}${envelope.scatola_updated_at ? `, prenotazioni aggiornate alle ${envelope.scatola_updated_at}` : ""}`,
       `RIEPILOGO senza camera: ${noRoom} · senza nome: ${noName}`,
+      inCasa
+        ? `RIEPILOGO in casa: ${inCasa.length} prenotazioni · ${inCasa.filter((i) => i.email).length} con email · ${inCasa.filter((i) => i.phone).length} con telefono`
+        : "RIEPILOGO in casa: file list_in_house non indicato (la scheda «Ospiti in casa» resta senza dati)",
       `RIEPILOGO avvisi: ${avvisi.items.length} prenotazioni confermate · ${avvisi.items.filter((i) => i.email).length} con email · ${avvisi.items.filter((i) => i.checkinUrl).length} con link di check-in · ${avvisi.items.filter((i) => i.checkinFatto).length} con check-in già fatto · ${avvisi.items.filter((i) => i.codicePortale || i.numeroOrdine).length} con numero di prenotazione`,
     ],
   };

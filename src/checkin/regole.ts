@@ -476,18 +476,7 @@ function parti(r: RigaCheckin, motivo: Motivo): { oggetto: string; parti: Parte[
             FIRMA.it,
           ],
         }
-      : {
-          oggetto: "Il suo indirizzo email · Chalet Hotel Hartmann",
-          parti: [
-            saluto("it", r.nomeSaluto),
-            r.checkinFatto
-              ? "grazie per aver completato il check-in online! Ci manca solo il suo indirizzo email personale: ce lo può scrivere in risposta a questo messaggio?"
-              : `la aspettiamo allo Chalet Hotel Hartmann ${data}. Ci può scrivere in risposta a questo messaggio il suo indirizzo email personale?`,
-            "Ci serve per inviarle il Guest Pass per i mezzi pubblici e le informazioni per il soggiorno.",
-            "Grazie e a presto!",
-            FIRMA.it,
-          ],
-        };
+      : { oggetto: "Il suo indirizzo email · Chalet Hotel Hartmann", parti: partiEmail(r, "it", data) };
   }
   if (l === "de") {
     return motivo === "checkin"
@@ -502,18 +491,7 @@ function parti(r: RigaCheckin, motivo: Motivo): { oggetto: string; parti: Parte[
             FIRMA.de,
           ],
         }
-      : {
-          oggetto: "Ihre E-Mail-Adresse · Chalet Hotel Hartmann",
-          parti: [
-            saluto("de", r.nomeSaluto),
-            r.checkinFatto
-              ? "vielen Dank für Ihren Online-Check-in! Uns fehlt nur noch Ihre persönliche E-Mail-Adresse: Könnten Sie sie uns als Antwort auf diese Nachricht schicken?"
-              : `wir freuen uns, Sie am ${data} im Chalet Hotel Hartmann zu begrüßen. Könnten Sie uns als Antwort auf diese Nachricht Ihre persönliche E-Mail-Adresse schicken?`,
-            "Wir brauchen sie, um Ihnen den Guest Pass für die öffentlichen Verkehrsmittel und die Infos zu Ihrem Aufenthalt zu senden.",
-            "Vielen Dank und bis bald!",
-            FIRMA.de,
-          ],
-        };
+      : { oggetto: "Ihre E-Mail-Adresse · Chalet Hotel Hartmann", parti: partiEmail(r, "de", data) };
   }
   return motivo === "checkin"
     ? {
@@ -527,18 +505,70 @@ function parti(r: RigaCheckin, motivo: Motivo): { oggetto: string; parti: Parte[
           FIRMA.en,
         ],
       }
-    : {
-        oggetto: "Your email address · Chalet Hotel Hartmann",
-        parti: [
-          saluto("en", r.nomeSaluto),
-          r.checkinFatto
-            ? "thank you for completing your online check-in! We are only missing your personal email address: could you reply to this message with it?"
-            : `we look forward to welcoming you at Chalet Hotel Hartmann on ${data}. Could you reply to this message with your personal email address?`,
-          "We need it to send you the Guest Pass for public transport and the information for your stay.",
-          "Thank you and see you soon!",
-          FIRMA.en,
-        ],
-      };
+    : { oggetto: "Your email address · Chalet Hotel Hartmann", parti: partiEmail(r, "en", data) };
+}
+
+/**
+ * Richiesta dell'email, secondo cosa c'è in Slope:
+ * - solo l'indirizzo del portale (Booking.com, Expedia…): si spiega che è un indirizzo cifrato che inoltra in modo
+ *   anonimo, e che per ricevere il Guest Pass direttamente serve l'email personale;
+ * - un'email con un probabile errore di battitura: la si fa confermare o correggere;
+ * - nessuna email: la si chiede.
+ */
+function partiEmail(r: RigaCheckin, l: Lingua, data: string): Parte[] {
+  const e = r.controlloEmail;
+  const p = e.portale;
+  if (l === "it") {
+    const apertura = r.checkinFatto ? "grazie per aver completato il check-in online!" : `la aspettiamo allo Chalet Hotel Hartmann ${data}.`;
+    const richiesta =
+      "Per ricevere il Guest Pass per i mezzi pubblici direttamente nella sua casella, ci scriva in risposta a questo messaggio il suo indirizzo email personale.";
+    const corpo =
+      e.tipo === "portale"
+        ? [
+            `${apertura} L'indirizzo email che abbiamo ricevuto ${p ? `da ${p}` : "dal portale di prenotazione"} è un indirizzo cifrato del portale, che inoltra i messaggi in modo anonimo: il Guest Pass non le arriverebbe direttamente.`,
+            richiesta,
+          ]
+        : e.tipo === "sospetta"
+          ? [
+              `${apertura} L'indirizzo email che abbiamo (${r.email ?? ""}) sembra contenere un errore di battitura: ce lo può confermare o correggere in risposta a questo messaggio?`,
+              "Ci serve un indirizzo giusto per inviarle il Guest Pass per i mezzi pubblici e le informazioni per il soggiorno.",
+            ]
+          : [`${apertura} Non abbiamo ancora un suo indirizzo email.`, richiesta];
+    return [saluto("it", r.nomeSaluto), ...corpo, "Grazie e a presto!", FIRMA.it];
+  }
+  if (l === "de") {
+    const apertura = r.checkinFatto ? "vielen Dank für Ihren Online-Check-in!" : `wir freuen uns, Sie am ${data} im Chalet Hotel Hartmann zu begrüßen.`;
+    const richiesta =
+      "Damit Sie den Guest Pass für die öffentlichen Verkehrsmittel direkt in Ihr Postfach erhalten, schicken Sie uns bitte als Antwort auf diese Nachricht Ihre persönliche E-Mail-Adresse.";
+    const corpo =
+      e.tipo === "portale"
+        ? [
+            `${apertura} Die E-Mail-Adresse, die wir ${p ? `von ${p}` : "vom Buchungsportal"} erhalten haben, ist eine verschlüsselte Adresse des Portals, die Nachrichten anonym weiterleitet: Der Guest Pass würde Sie darüber nicht direkt erreichen.`,
+            richiesta,
+          ]
+        : e.tipo === "sospetta"
+          ? [
+              `${apertura} Ihre E-Mail-Adresse (${r.email ?? ""}) scheint einen Tippfehler zu enthalten: Könnten Sie sie uns als Antwort auf diese Nachricht bestätigen oder korrigieren?`,
+              "Wir brauchen eine korrekte Adresse, um Ihnen den Guest Pass für die öffentlichen Verkehrsmittel und die Infos zu Ihrem Aufenthalt zu senden.",
+            ]
+          : [`${apertura} Wir haben noch keine E-Mail-Adresse von Ihnen.`, richiesta];
+    return [saluto("de", r.nomeSaluto), ...corpo, "Vielen Dank und bis bald!", FIRMA.de];
+  }
+  const apertura = r.checkinFatto ? "thank you for completing your online check-in!" : `we look forward to welcoming you at Chalet Hotel Hartmann on ${data}.`;
+  const richiesta = "To receive your Guest Pass for public transport directly in your inbox, please reply to this message with your personal email address.";
+  const corpo =
+    e.tipo === "portale"
+      ? [
+          `${apertura} The email address we received ${p ? `from ${p}` : "from the booking portal"} is an encrypted address of the portal that forwards messages anonymously: your Guest Pass would not reach you directly.`,
+          richiesta,
+        ]
+      : e.tipo === "sospetta"
+        ? [
+            `${apertura} The email address we have (${r.email ?? ""}) seems to contain a typo: could you confirm or correct it by replying to this message?`,
+            "We need a correct address to send you the Guest Pass for public transport and the information for your stay.",
+          ]
+        : [`${apertura} We don't have an email address for you yet.`, richiesta];
+  return [saluto("en", r.nomeSaluto), ...corpo, "Thank you and see you soon!", FIRMA.en];
 }
 
 const escHtml = (s: string): string =>
@@ -559,7 +589,7 @@ export function messaggio(r: RigaCheckin, motivo: Motivo): Messaggio {
     .map((x) =>
       typeof x === "string"
         ? `<p style="margin:0 0 14px">${escHtml(x)}</p>`
-        : `<p style="margin:0 0 18px"><a href="${escHtml(x.link)}" style="display:inline-block;padding:10px 26px;background:#94752f;color:#ffffff;font-weight:bold;letter-spacing:.08em;text-decoration:none;border-radius:6px">${ETICHETTA_LINK}</a></p>`,
+        : `<p style="margin:0 0 18px"><a href="${escHtml(x.link)}" style="display:inline-block;padding:10px 26px;background:#fbf6ea;color:#6b521c;border:2px solid #94752f;font-weight:bold;letter-spacing:.08em;text-decoration:underline;border-radius:6px">${ETICHETTA_LINK}</a></p>`,
     )
     .join("");
   return {

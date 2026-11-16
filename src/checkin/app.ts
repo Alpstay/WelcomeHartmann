@@ -113,6 +113,7 @@ const fonte: Fonte = {
         esito: "ok",
         dati: {
           righe: dati.items,
+          inCasa: Array.isArray(dati.inCasa) ? dati.inCasa : null,
           da: env.from,
           a: env.to,
           aggiornatoAlle: env.scatola_updated_at,

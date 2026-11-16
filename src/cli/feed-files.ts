@@ -12,7 +12,7 @@ import { basename } from "node:path";
 import type { Freshness } from "../types";
 
 /** «riferimenti» (numero del portale) e «ordini» (numero Slope) sono facoltativi: servono all'oggetto delle email. */
-export type Kind = "arrivi" | "ospiti" | "intestatari" | "riferimenti" | "ordini";
+export type Kind = "arrivi" | "incasa" | "ospiti" | "intestatari" | "riferimenti" | "ordini";
 
 export interface Bundle {
   readonly file: string;
@@ -31,6 +31,7 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const VIEW_KIND: Record<string, Kind> = {
   curated_operational_stays: "arrivi",
   list_arrivals: "arrivi",
+  list_in_house: "incasa",
   curated_guest_stays: "ospiti",
   curated_reservation_contacts: "intestatari",
   curated_reservations: "riferimenti",

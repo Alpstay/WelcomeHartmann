@@ -154,7 +154,7 @@ export function messaggioGuestPass(r: RigaCheckin, lingua: Lingua, pass: readonl
     if (x === SEGNAPOSTO_LINK_GUESTPASS) {
       chiudi();
       blocchi.push(
-        `<p style="margin:0 0 18px"><a href="${escHtml(link)}" style="display:inline-block;padding:10px 26px;background:#94752f;color:#ffffff;font-weight:bold;letter-spacing:.08em;text-decoration:none;border-radius:6px">${escHtml(etichetta)}</a></p>`,
+        `<p style="margin:0 0 18px"><a href="${escHtml(link)}" style="display:inline-block;padding:10px 26px;background:#fbf6ea;color:#6b521c;border:2px solid #94752f;font-weight:bold;letter-spacing:.08em;text-decoration:underline;border-radius:6px">${escHtml(etichetta)}</a></p>`,
       );
     } else if (x === "") chiudi();
     else corrente.push(x);
